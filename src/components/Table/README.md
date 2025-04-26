@@ -17,7 +17,7 @@ A flexible and reusable Table component with powerful features including sorting
 ## Usage
 
 ```tsx
-import Table, { ColumnDef } from '@/components/Table';
+import Table, { ColumnDef } from "@/components/Table";
 
 // Define your data type
 interface User {
@@ -29,34 +29,38 @@ interface User {
 
 // Sample data
 const data: User[] = [
-  { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin' },
-  { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'User' },
+  { id: 1, name: "John Doe", email: "john@example.com", role: "Admin" },
+  { id: 2, name: "Jane Smith", email: "jane@example.com", role: "User" },
   // ...more data
 ];
 
 // Define columns
 const columns: ColumnDef<User>[] = [
   {
-    key: 'name',
-    header: 'Name',
+    key: "name",
+    header: "Name",
     sortable: true,
     filterable: true,
-    filterPlaceholder: 'Search names...'
+    filterPlaceholder: "Search names...",
   },
   {
-    key: 'email',
-    header: 'Email',
+    key: "email",
+    header: "Email",
     sortable: true,
     filterable: true,
   },
   {
-    key: 'role',
-    header: 'Role',
+    key: "role",
+    header: "Role",
     sortable: true,
     filterable: true,
     // Custom formatter for this column
     accessor: (row) => (
-      <span className={row.role === 'Admin' ? 'text-primary-600' : 'text-secondary-600'}>
+      <span
+        className={
+          row.role === "Admin" ? "text-primary-600" : "text-secondary-600"
+        }
+      >
         {row.role}
       </span>
     ),
@@ -74,12 +78,12 @@ const detailPanel = (row: User) => (
 // Row actions (optional)
 const getRowActions = (row: User) => [
   {
-    label: 'Edit',
+    label: "Edit",
     icon: <EditIcon />,
     onClick: () => handleEdit(row.id),
   },
   {
-    label: 'Delete',
+    label: "Delete",
     icon: <DeleteIcon />,
     onClick: () => handleDelete(row.id),
   },
@@ -89,7 +93,7 @@ const getRowActions = (row: User) => [
 function UserList() {
   // Optional: track pagination state in your component
   const [showPagination, setShowPagination] = useState(true);
-  
+
   return (
     <Table
       data={data}
@@ -109,6 +113,7 @@ function UserList() {
 Each column with `filterable: true` displays a filter icon in the header. When clicked, it opens a dropdown with:
 
 1. **Operator selector** - Choose from:
+
    - Contains (default)
    - Equals
    - Starts with
@@ -124,36 +129,36 @@ Active filters appear below the search bar, showing which columns are being filt
 
 ### Table Props
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `data` | `T[]` | Yes | The array of data to display in the table |
-| `columns` | `ColumnDef<T>[]` | Yes | Configuration for table columns |
-| `detailPanel` | `(row: T) => ReactNode` | No | Function to render expanded row details |
-| `actions` | `(row: T) => Action[]` | No | Function to return row actions |
-| `className` | `string` | No | Custom CSS classes for the table |
-| `pageSize` | `number` | No | Number of rows per page (default: 10) |
-| `showPagination` | `boolean` | No | Whether to enable pagination (default: true) |
-| `onPaginationChange` | `(showPagination: boolean) => void` | No | Callback when pagination is toggled via the UI control |
+| Prop                 | Type                                | Required | Description                                            |
+| -------------------- | ----------------------------------- | -------- | ------------------------------------------------------ |
+| `data`               | `T[]`                               | Yes      | The array of data to display in the table              |
+| `columns`            | `ColumnDef<T>[]`                    | Yes      | Configuration for table columns                        |
+| `detailPanel`        | `(row: T) => ReactNode`             | No       | Function to render expanded row details                |
+| `actions`            | `(row: T) => Action[]`              | No       | Function to return row actions                         |
+| `className`          | `string`                            | No       | Custom CSS classes for the table                       |
+| `pageSize`           | `number`                            | No       | Number of rows per page (default: 10)                  |
+| `showPagination`     | `boolean`                           | No       | Whether to enable pagination (default: true)           |
+| `onPaginationChange` | `(showPagination: boolean) => void` | No       | Callback when pagination is toggled via the UI control |
 
 ### ColumnDef
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `key` | `string` | Yes | The property key in your data object |
-| `header` | `string` | Yes | Column header label |
-| `accessor` | `(row: T) => ReactNode` | No | Custom renderer for the cell content |
-| `sortable` | `boolean` | No | Whether the column is sortable (default: false) |
-| `filterable` | `boolean` | No | Whether the column is filterable (default: false) |
-| `filterPlaceholder` | `string` | No | Placeholder text for the filter input |
-| `width` | `string` | No | CSS width for the column |
+| Prop                | Type                    | Required | Description                                       |
+| ------------------- | ----------------------- | -------- | ------------------------------------------------- |
+| `key`               | `string`                | Yes      | The property key in your data object              |
+| `header`            | `string`                | Yes      | Column header label                               |
+| `accessor`          | `(row: T) => ReactNode` | No       | Custom renderer for the cell content              |
+| `sortable`          | `boolean`               | No       | Whether the column is sortable (default: false)   |
+| `filterable`        | `boolean`               | No       | Whether the column is filterable (default: false) |
+| `filterPlaceholder` | `string`                | No       | Placeholder text for the filter input             |
+| `width`             | `string`                | No       | CSS width for the column                          |
 
 ### Action
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `label` | `string` | Yes | The text shown in the action menu |
-| `icon` | `ReactNode` | No | Icon to show next to the label |
-| `onClick` | `() => void` | Yes | Function called when the action is clicked |
+| Prop      | Type         | Required | Description                                |
+| --------- | ------------ | -------- | ------------------------------------------ |
+| `label`   | `string`     | Yes      | The text shown in the action menu          |
+| `icon`    | `ReactNode`  | No       | Icon to show next to the label             |
+| `onClick` | `() => void` | Yes      | Function called when the action is clicked |
 
 ### Filter Options
 
@@ -164,4 +169,4 @@ The following filter operators are available for column filtering:
 - **Starts with**: Matches if the cell value starts with the filter value
 - **Ends with**: Matches if the cell value ends with the filter value
 - **Greater than**: Matches if the cell value is greater than the filter value (for numeric values)
-- **Less than**: Matches if the cell value is less than the filter value (for numeric values) 
+- **Less than**: Matches if the cell value is less than the filter value (for numeric values)

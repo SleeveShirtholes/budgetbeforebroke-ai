@@ -33,12 +33,12 @@ type ButtonSize = "sm" | "md" | "lg";
  * @property {boolean} [fullWidth=false] - Whether the button should take full width
  */
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: ButtonVariant;
-    size?: ButtonSize;
-    href?: string;
-    children: ReactNode;
-    className?: string;
-    fullWidth?: boolean;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  href?: string;
+  children: ReactNode;
+  className?: string;
+  fullWidth?: boolean;
 }
 
 /**
@@ -47,10 +47,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * @type {Record<ButtonVariant, string>}
  */
 const variantStyles = {
-    primary: "bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg hover:-translate-y-1",
-    secondary: "bg-secondary-100 text-secondary-700 hover:bg-secondary-200 hover:shadow-md hover:-translate-y-0.5",
-    outline: "border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:border-primary-700",
-    text: "text-primary-600 hover:text-primary-800 hover:underline",
+  primary:
+    "bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg hover:-translate-y-1",
+  secondary:
+    "bg-secondary-100 text-secondary-700 hover:bg-secondary-200 hover:shadow-md hover:-translate-y-0.5",
+  outline:
+    "border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:border-primary-700",
+  text: "text-primary-600 hover:text-primary-800 hover:underline",
 };
 
 /**
@@ -59,9 +62,9 @@ const variantStyles = {
  * @type {Record<ButtonSize, string>}
  */
 const sizeStyles = {
-    sm: "px-3 py-1.5 text-sm",
-    md: "px-4 py-2 text-base",
-    lg: "px-8 py-3 text-lg",
+  sm: "px-3 py-1.5 text-sm",
+  md: "px-4 py-2 text-base",
+  lg: "px-8 py-3 text-lg",
 };
 
 /**
@@ -92,18 +95,19 @@ const sizeStyles = {
  * @returns {JSX.Element} A button or link element with the specified styles
  */
 export default function Button({
-    variant = "primary",
-    size = "md",
-    href,
-    children,
-    className = "",
-    fullWidth = false,
-    ...props
+  variant = "primary",
+  size = "md",
+  href,
+  children,
+  className = "",
+  fullWidth = false,
+  ...props
 }: ButtonProps) {
-    const baseStyles = "rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center";
-    const widthStyle = fullWidth ? "w-full" : "";
+  const baseStyles =
+    "rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center";
+  const widthStyle = fullWidth ? "w-full" : "";
 
-    const buttonStyles = `
+  const buttonStyles = `
         ${baseStyles}
         ${variantStyles[variant]}
         ${sizeStyles[size]}
@@ -111,17 +115,17 @@ export default function Button({
         ${className}
     `;
 
-    if (href) {
-        return (
-            <Link href={href} className={buttonStyles}>
-                {children}
-            </Link>
-        );
-    }
-
+  if (href) {
     return (
-        <button className={buttonStyles} {...props}>
-            {children}
-        </button>
+      <Link href={href} className={buttonStyles}>
+        {children}
+      </Link>
     );
+  }
+
+  return (
+    <button className={buttonStyles} {...props}>
+      {children}
+    </button>
+  );
 }

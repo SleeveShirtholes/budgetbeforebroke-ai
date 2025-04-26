@@ -22,7 +22,7 @@ transactions:
       href: /dashboard/transactions
       icon: M4 6h16M4 10h16M4 14h16M4 18h16
       description: View your complete transaction history
-    
+
     # Second menu item
     - label: Add Transaction
       href: /dashboard/transactions/new
@@ -60,7 +60,7 @@ transactions:
   label: Transactions
   items:
     # Existing items...
-    
+
     # New item
     - label: Export Data
       href: /dashboard/transactions/export
@@ -73,6 +73,7 @@ transactions:
 Icons are defined using SVG path data. The path is rendered inside an SVG element in the application.
 
 To use a custom icon:
+
 1. Create an SVG icon in a vector editor
 2. Extract the `d` attribute from the path element
 3. Add it to the `icon` property in the YAML file
@@ -86,6 +87,7 @@ The navigation data is loaded from this YAML file using the following process:
 3. SVG icon generation in the Header component from path data
 
 In a production environment, you would typically:
+
 1. Load the YAML file on the server
 2. Pass the data to client components via props or React Context
-3. Update the YAML file to change the navigation without modifying code 
+3. Update the YAML file to change the navigation without modifying code
