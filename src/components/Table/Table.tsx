@@ -390,6 +390,8 @@ export default function Table<T extends Record<string, unknown>>({
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
+            showPagination={showPagination}
+            togglePagination={togglePagination}
           />
         </div>
       )}

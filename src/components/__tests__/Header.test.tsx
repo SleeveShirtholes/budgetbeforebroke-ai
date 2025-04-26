@@ -24,7 +24,7 @@ jest.mock("@/utils/navigationLoader", () => ({
 jest.mock("next/image", () => ({
   __esModule: true,
   default: (props: Omit<ImageProps, "src"> & { src: string }) => (
-    <img {...props} />
+    <img {...props} alt={props.alt || "Mock image"} />
   ),
 }));
 
