@@ -8,15 +8,15 @@ import path from "path";
  * Used in server components and server actions
  */
 export function loadNavigationFromFile(): NavigationWithReactIcons {
-    try {
-        const filePath = path.join(process.cwd(), "src/data/navigation.yaml");
-        const fileContents = fs.readFileSync(filePath, "utf8");
-        const data = yaml.load(fileContents) as NavigationWithReactIcons;
-        return data;
-    } catch (error) {
-        console.error("Error loading navigation data:", error);
-        return {};
-    }
+  try {
+    const filePath = path.join(process.cwd(), "src/data/navigation.yaml");
+    const fileContents = fs.readFileSync(filePath, "utf8");
+    const data = yaml.load(fileContents) as NavigationWithReactIcons;
+    return data;
+  } catch (error) {
+    console.error("Error loading navigation data:", error);
+    return {};
+  }
 }
 
 /**
@@ -24,5 +24,5 @@ export function loadNavigationFromFile(): NavigationWithReactIcons {
  * Can be used in layout.tsx or page.tsx files (on the server)
  */
 export async function getNavigationData(): Promise<NavigationWithReactIcons> {
-    return loadNavigationFromFile();
+  return loadNavigationFromFile();
 }
