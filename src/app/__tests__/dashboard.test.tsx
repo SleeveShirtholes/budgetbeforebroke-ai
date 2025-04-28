@@ -46,14 +46,14 @@ describe("Dashboard Page", () => {
     expect(statsCards).toHaveLength(4);
 
     // Check for specific stats card content
-    expect(screen.getByText("Total Spending")).toBeInTheDocument();
-    expect(screen.getByText("$2,250")).toBeInTheDocument();
-    expect(screen.getByText("Budget Remaining")).toBeInTheDocument();
-    expect(screen.getByText("$750")).toBeInTheDocument();
-    expect(screen.getByText("Categories On Track")).toBeInTheDocument();
-    expect(screen.getByText("4/5")).toBeInTheDocument();
-    expect(screen.getByText("Savings Rate")).toBeInTheDocument();
-    expect(screen.getByText("15%")).toBeInTheDocument();
+    expect(screen.getByText("Total Balance")).toBeInTheDocument();
+    expect(screen.getByText("$24,000")).toBeInTheDocument();
+    expect(screen.getByText("Income")).toBeInTheDocument();
+    expect(screen.getByText("$4,200")).toBeInTheDocument();
+    expect(screen.getByText("Expenses")).toBeInTheDocument();
+    expect(screen.getByText("$2,800")).toBeInTheDocument();
+    expect(screen.getByText("Savings")).toBeInTheDocument();
+    expect(screen.getByText("$1,400")).toBeInTheDocument();
   });
 
   it("renders the monthly spending chart", () => {

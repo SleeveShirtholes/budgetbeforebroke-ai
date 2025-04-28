@@ -8,9 +8,9 @@ import {
   PresentationChartLineIcon,
   TagIcon,
 } from "@heroicons/react/24/outline";
+import React, { ReactNode } from "react";
 
-import { navigationData as navigationConfig } from "@/data/navigation";
-import { ReactNode } from "react";
+import rawNavigationData from "../data/navigation.json";
 
 export interface NavItem {
   label: string;
@@ -53,15 +53,15 @@ function getIconComponent(iconName: string): ReactNode {
   const IconComponent = iconComponents[iconName];
   if (!IconComponent) {
     console.warn(`Icon not found: ${iconName}`);
-    return ChartBarSquareIcon({ className: "w-5 h-5" }); // Default icon
+    return <ChartBarSquareIcon className="w-5 h-5" />; // Default icon
   }
-  return IconComponent({ className: "w-5 h-5" });
+  return <IconComponent className="w-5 h-5" />;
 }
 
 // Convert the navigation data into a format with React icon components
 export const navigationData: NavigationWithReactIcons = Object.entries(
-  navigationConfig,
-).reduce((acc, [key, dropdown]) => {
+  rawNavigationData,
+).reduce((acc, [key, dropdown]: [string, NavDropdown]) => {
   acc[key] = {
     label: dropdown.label,
     items: dropdown.items.map((item) => ({

@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  Bars3Icon,
+  ChevronUpDownIcon,
+  FunnelIcon,
+} from "@heroicons/react/20/solid";
 import { ReactNode, useState } from "react";
 import { ColumnDef, FilterValue, FiltersState, SortingState } from "./types";
 
@@ -266,22 +271,7 @@ export default function Table<T extends Record<string, unknown>>({
             title="Clear sorting"
             disabled={!isSortingActive}
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-              />
-              {isSortingActive && (
-                <circle cx="18" cy="6" r="4" fill="currentColor" />
-              )}
-            </svg>
+            <ChevronUpDownIcon className="w-3 h-3" />
             {isSortingActive && (
               <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
                 1
@@ -295,23 +285,7 @@ export default function Table<T extends Record<string, unknown>>({
             className="p-1.5 rounded-md hover:bg-secondary-50 transition-colors text-gray-500 hover:text-secondary-700"
             title={showPagination ? "Show all rows" : "Enable pagination"}
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d={
-                  showPagination
-                    ? "M4 6h16M4 10h16M4 14h16M4 18h16"
-                    : "M4 6h16M4 12h8m-8 6h16"
-                }
-              />
-            </svg>
+            <Bars3Icon className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -336,19 +310,7 @@ export default function Table<T extends Record<string, unknown>>({
                     onClick={() => handleFilterChange(columnKey, null)}
                     className="ml-1 text-secondary-600 hover:text-secondary-900"
                   >
-                    <svg
-                      className="w-3 h-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
+                    <FunnelIcon className="w-5 h-5" />
                   </button>
                 </div>
               );
@@ -384,8 +346,12 @@ export default function Table<T extends Record<string, unknown>>({
         </table>
       </div>
 
-      {showPagination && totalPages > 1 && (
-        <div className="mt-4">
+      <div className="mt-4 flex items-center justify-between">
+        <div className="text-sm text-gray-600">
+          Showing {displayData.length} of {sortedData.length} rows
+        </div>
+
+        {showPagination && totalPages > 1 && (
           <TablePagination
             currentPage={currentPage}
             totalPages={totalPages}
@@ -393,8 +359,8 @@ export default function Table<T extends Record<string, unknown>>({
             showPagination={showPagination}
             togglePagination={togglePagination}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

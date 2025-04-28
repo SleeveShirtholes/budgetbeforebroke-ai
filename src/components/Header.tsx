@@ -1,8 +1,12 @@
 "use client";
 
+import {
+  NavDropdownWithReactIcon,
+  navigationData,
+} from "@/utils/navigationLoader";
 import { useEffect, useRef, useState } from "react";
 
-import { navigationData } from "@/utils/navigationLoader";
+import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -59,23 +63,6 @@ export default function Header({
     }
   };
 
-  // Create SVG icons for navigation items
-  const createSvgIcon = (pathData: string) => (
-    <svg
-      className="w-5 h-5"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d={pathData}
-      />
-    </svg>
-  );
-
   return (
     <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -88,7 +75,12 @@ export default function Header({
               BudgetBeforeBroke
             </Link>
             <nav className="ml-10 flex space-x-8">
-              {Object.entries(navigationData).map(([key, dropdown]) => (
+              {(
+                Object.entries(navigationData) as [
+                  string,
+                  NavDropdownWithReactIcon,
+                ][]
+              ).map(([key, dropdown]) => (
                 <div
                   key={key}
                   className="relative"
@@ -103,20 +95,11 @@ export default function Header({
                     }`}
                   >
                     <span>{dropdown.label}</span>
-                    <svg
+                    <ChevronDownIcon
                       className={`ml-1 h-5 w-5 transition-transform duration-200 ${
                         openDropdown === key ? "transform rotate-180" : ""
                       }`}
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                    />
                   </button>
                   {openDropdown === key && (
                     <div className="absolute left-0 mt-2 w-64 rounded-md shadow-sm bg-white border border-gray-100 divide-y divide-gray-100 overflow-hidden">
@@ -130,7 +113,7 @@ export default function Header({
                             onClick={() => setOpenDropdown(null)}
                           >
                             <div className="flex-shrink-0 mr-3 p-1 rounded-full bg-gray-50 text-gray-400 group-hover:text-primary-500">
-                              {createSvgIcon(item.icon)}
+                              {item.icon}
                             </div>
                             <div>
                               <p className="font-medium">{item.label}</p>
@@ -163,20 +146,11 @@ export default function Header({
                 />
               </div>
               <span className="text-secondary-700">{userName}</span>
-              <svg
+              <ChevronDownIcon
                 className={`ml-1 h-5 w-5 transition-transform duration-200 ${
                   isUserDropdownOpen ? "transform rotate-180" : ""
                 }`}
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              />
             </button>
 
             {isUserDropdownOpen && (

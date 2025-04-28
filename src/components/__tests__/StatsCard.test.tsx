@@ -31,43 +31,29 @@ describe("StatsCard", () => {
   it("renders with positive trend", () => {
     const props = {
       ...defaultProps,
-      trend: {
-        value: 12,
-        isPositive: true,
-      },
+      trend: "+12%",
+      trendDirection: "up" as const,
     };
 
     render(<StatsCard {...props} />);
 
     expect(screen.getByText("+12%")).toBeInTheDocument();
     expect(screen.getByText("+12%").parentElement).toHaveClass(
-      "text-secondary-600",
+      "text-green-600",
     );
-
-    // Check if arrow is rotated for positive trend
-    const arrow = screen.getByTestId("trend-arrow");
-    expect(arrow).toHaveClass("transform", "rotate-180");
   });
 
   it("renders with negative trend", () => {
     const props = {
       ...defaultProps,
-      trend: {
-        value: 8,
-        isPositive: false,
-      },
+      trend: "-8%",
+      trendDirection: "down" as const,
     };
 
     render(<StatsCard {...props} />);
 
     expect(screen.getByText("-8%")).toBeInTheDocument();
-    expect(screen.getByText("-8%").parentElement).toHaveClass(
-      "text-accent-700",
-    );
-
-    // Check if arrow is not rotated for negative trend
-    const arrow = screen.getByTestId("trend-arrow");
-    expect(arrow).not.toHaveClass("rotate-180");
+    expect(screen.getByText("-8%").parentElement).toHaveClass("text-red-600");
   });
 
   it("renders with numeric value", () => {

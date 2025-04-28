@@ -1,5 +1,7 @@
 "use client";
 
+import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/20/solid";
+
 /**
  * A search input component for filtering table data globally.
  *
@@ -17,19 +19,7 @@ export default function TableSearch({ value, onChange }: TableSearchProps) {
   return (
     <div className="relative">
       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-        <svg
-          className="w-5 h-5 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
+        <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
       </div>
       <input
         type="text"
@@ -43,19 +33,7 @@ export default function TableSearch({ value, onChange }: TableSearchProps) {
           onClick={() => onChange("")}
           className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          <XMarkIcon className="w-5 h-5" />
         </button>
       )}
     </div>

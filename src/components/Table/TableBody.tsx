@@ -2,6 +2,7 @@
 
 import { Fragment, ReactNode, useState } from "react";
 
+import { ChevronRightIcon } from "@heroicons/react/20/solid";
 import RowActions from "./RowActions";
 import { ColumnDef } from "./types";
 
@@ -78,21 +79,11 @@ export default function TableBody<T extends Record<string, unknown>>({
                       onClick={() => toggleRowExpansion(rowId)}
                       className="text-gray-500 hover:text-primary-500 transition-colors"
                     >
-                      <svg
-                        className={`h-5 w-5 transition-transform duration-200 ${
+                      <ChevronRightIcon
+                        className={`w-5 h-5 transition-transform duration-200 ${
                           isExpanded ? "transform rotate-90" : ""
                         }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
+                      />
                     </button>
                   )}
                 </td>

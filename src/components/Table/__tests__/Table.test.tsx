@@ -86,4 +86,50 @@ describe("Table Component", () => {
     render(<Table data={[]} columns={columns} />);
     expect(screen.getByText("No data available")).toBeInTheDocument();
   });
+
+  describe("Row count display", () => {
+    it("shows correct row count with pagination enabled", () => {
+      render(<Table data={mockData} columns={columns} pageSize={2} />);
+      expect(screen.getByText("Showing 2 of 3 rows")).toBeInTheDocument();
+    });
+
+    it("shows all rows when pagination is disabled", () => {
+      render(
+        <Table data={mockData} columns={columns} showPagination={false} />,
+      );
+      expect(screen.getByText("Showing 3 of 3 rows")).toBeInTheDocument();
+    });
+
+    it("updates row count when filtering is applied", async () => {
+      render(<Table data={mockData} columns={columns} />);
+
+      // Open status filter
+      const filterButtons = screen.getAllByTitle("Filter column");
+      fireEvent.click(filterButtons[2]); // Status column
+
+      // Enter filter value
+      const filterInput = screen.getByPlaceholderText("Filter...");
+      fireEvent.change(filterInput, { target: { value: "Active" } });
+
+      // Apply filter
+      const applyButton = screen.getByText("Apply");
+      fireEvent.click(applyButton);
+
+      // Wait for filter to be applied and check row count
+      await waitFor(() => {
+        expect(screen.getByText("Showing 2 of 2 rows")).toBeInTheDocument();
+      });
+    });
+
+    it("updates row count when search is applied", () => {
+      render(<Table data={mockData} columns={columns} />);
+
+      // Enter search term
+      const searchInput = screen.getByPlaceholderText("Search...");
+      fireEvent.change(searchInput, { target: { value: "John" } });
+
+      // Check if row count updates
+      expect(screen.getByText("Showing 1 of 1 rows")).toBeInTheDocument();
+    });
+  });
 });
