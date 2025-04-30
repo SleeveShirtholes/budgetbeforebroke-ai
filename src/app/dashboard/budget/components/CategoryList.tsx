@@ -6,12 +6,12 @@ import { formatCurrency } from "../utils/budget.utils";
 import { HighlightedText } from "./HighlightedText";
 
 interface CategoryListProps {
-    categories: BudgetCategory[];
-    searchQuery: string;
-    onEdit: (category: BudgetCategory) => void;
-    onDelete: (id: string) => void;
-    deleteConfirmId: string | null;
-    setDeleteConfirmId: (id: string | null) => void;
+  categories: BudgetCategory[];
+  searchQuery: string;
+  onEdit: (category: BudgetCategory) => void;
+  onDelete: (id: string) => void;
+  deleteConfirmId: string | null;
+  setDeleteConfirmId: (id: string | null) => void;
 }
 
 /**
@@ -30,59 +30,71 @@ interface CategoryListProps {
  * @returns {JSX.Element} Rendered list of budget categories or empty state message
  */
 export const CategoryList = ({
-    categories,
-    searchQuery,
-    onEdit,
-    onDelete,
-    deleteConfirmId,
-    setDeleteConfirmId,
+  categories,
+  searchQuery,
+  onEdit,
+  onDelete,
+  deleteConfirmId,
+  setDeleteConfirmId,
 }: CategoryListProps) => {
-    if (categories.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-secondary-500">
-                <InboxIcon className="h-8 w-8 mb-2 text-secondary-300" />
-                <div className="text-base font-semibold mb-1">No budget categories</div>
-                <div className="text-sm text-secondary-400 max-w-md">
-                    Click <span className="font-semibold">Add Category</span> to create your first budget category.
-                </div>
-            </div>
-        );
-    }
-
+  if (categories.length === 0) {
     return (
-        <div className="space-y-4">
-            {categories.map((category) => (
-                <div
-                    key={category.id}
-                    className="flex items-center justify-between p-4 bg-white border border-secondary-100 rounded-lg"
-                >
-                    <div className="flex items-center">
-                        <span className="font-medium text-secondary-900">
-                            <HighlightedText text={category.name} searchQuery={searchQuery} />
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="font-semibold text-primary-600">${formatCurrency(category.amount)}</span>
-                        <Button variant="text" size="sm" onClick={() => onEdit(category)} aria-label="Edit category">
-                            <PencilIcon className="w-5 h-5" />
-                        </Button>
-                        {deleteConfirmId === category.id ? (
-                            <Button variant="danger" size="sm" onClick={() => onDelete(category.id)}>
-                                Confirm?
-                            </Button>
-                        ) : (
-                            <Button
-                                variant="text"
-                                size="sm"
-                                onClick={() => setDeleteConfirmId(category.id)}
-                                aria-label="Delete category"
-                            >
-                                <TrashIcon className="w-5 h-5" />
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            ))}
+      <div className="flex flex-col items-center justify-center py-8 text-center text-secondary-500">
+        <InboxIcon className="h-8 w-8 mb-2 text-secondary-300" />
+        <div className="text-base font-semibold mb-1">No budget categories</div>
+        <div className="text-sm text-secondary-400 max-w-md">
+          Click <span className="font-semibold">Add Category</span> to create
+          your first budget category.
         </div>
+      </div>
     );
+  }
+
+  return (
+    <div className="space-y-4">
+      {categories.map((category) => (
+        <div
+          key={category.id}
+          className="flex items-center justify-between p-4 bg-white border border-secondary-100 rounded-lg"
+        >
+          <div className="flex items-center">
+            <span className="font-medium text-secondary-900">
+              <HighlightedText text={category.name} searchQuery={searchQuery} />
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-primary-600">
+              ${formatCurrency(category.amount)}
+            </span>
+            <Button
+              variant="text"
+              size="sm"
+              onClick={() => onEdit(category)}
+              aria-label="Edit category"
+            >
+              <PencilIcon className="w-5 h-5" />
+            </Button>
+            {deleteConfirmId === category.id ? (
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => onDelete(category.id)}
+              >
+                Confirm?
+              </Button>
+            ) : (
+              <Button
+                variant="text"
+                size="sm"
+                onClick={() => setDeleteConfirmId(category.id)}
+                aria-label="Delete category"
+              >
+                <TrashIcon className="w-5 h-5" />
+              </Button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 };

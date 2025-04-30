@@ -10,37 +10,47 @@ import { ReactNode } from "react";
  * @returns {JSX.Element} A styled card container
  */
 interface CardProps {
-    children: ReactNode;
-    className?: string;
-    variant?: "default" | "outline" | "filled";
-    padding?: "none" | "sm" | "md" | "lg";
+  children: ReactNode;
+  className?: string;
+  variant?: "default" | "outline" | "filled";
+  padding?: "none" | "sm" | "md" | "lg";
 }
 
-const Card = ({ children, className = "", variant = "default", padding = "md" }: CardProps) => {
-    // Base styles that are always applied to the card
-    const baseStyles = "rounded-xl shadow";
+const Card = ({
+  children,
+  className = "",
+  variant = "default",
+  padding = "md",
+}: CardProps) => {
+  // Base styles that are always applied to the card
+  const baseStyles = "rounded-xl shadow";
 
-    // Different visual variants of the card
-    const variantStyles = {
-        default: "bg-white border border-secondary-100", // White background with light border
-        outline: "bg-transparent border border-secondary-200", // Transparent with darker border
-        filled: "bg-secondary-50 border border-secondary-100", // Light gray background
-    };
+  // Different visual variants of the card
+  const variantStyles = {
+    default: "bg-white border border-secondary-100", // White background with light border
+    outline: "bg-transparent border border-secondary-200", // Transparent with darker border
+    filled: "bg-secondary-50 border border-secondary-100", // Light gray background
+  };
 
-    // Padding options for the card content
-    const paddingStyles = {
-        none: "", // No padding
-        sm: "p-4", // Small padding
-        md: "p-6", // Medium padding (default)
-        lg: "p-8", // Large padding
-    };
+  // Padding options for the card content
+  const paddingStyles = {
+    none: "", // No padding
+    sm: "p-4", // Small padding
+    md: "p-6", // Medium padding (default)
+    lg: "p-8", // Large padding
+  };
 
-    // Combine all styles
-    const combinedStyles = [baseStyles, variantStyles[variant], paddingStyles[padding], className]
-        .filter(Boolean)
-        .join(" ");
+  // Combine all styles
+  const combinedStyles = [
+    baseStyles,
+    variantStyles[variant],
+    paddingStyles[padding],
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-    return <div className={combinedStyles}>{children}</div>;
+  return <div className={combinedStyles}>{children}</div>;
 };
 
 export default Card;

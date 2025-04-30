@@ -7,30 +7,33 @@
  * @returns {JSX.Element} The text with matching search terms highlighted in yellow
  */
 interface HighlightedTextProps {
-    text: string;
-    searchQuery: string;
+  text: string;
+  searchQuery: string;
 }
 
-export const HighlightedText = ({ text, searchQuery }: HighlightedTextProps) => {
-    // If no search query is provided, return the original text without highlighting
-    if (!searchQuery) return <>{text}</>;
+export const HighlightedText = ({
+  text,
+  searchQuery,
+}: HighlightedTextProps) => {
+  // If no search query is provided, return the original text without highlighting
+  if (!searchQuery) return <>{text}</>;
 
-    // Create a case-insensitive regex pattern from the search query
-    const regex = new RegExp(`(${searchQuery})`, "gi");
+  // Create a case-insensitive regex pattern from the search query
+  const regex = new RegExp(`(${searchQuery})`, "gi");
 
-    // Split the text by the regex pattern and map each part
-    // If the part matches the search query, wrap it in a highlighted span
-    return (
-        <>
-            {text.split(regex).map((part, i) =>
-                regex.test(part) ? (
-                    <span key={i} className="bg-yellow-200">
-                        {part}
-                    </span>
-                ) : (
-                    part
-                )
-            )}
-        </>
-    );
+  // Split the text by the regex pattern and map each part
+  // If the part matches the search query, wrap it in a highlighted span
+  return (
+    <>
+      {text.split(regex).map((part, i) =>
+        regex.test(part) ? (
+          <span key={i} className="bg-yellow-200">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
 };
