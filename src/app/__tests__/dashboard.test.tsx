@@ -40,20 +40,19 @@ jest.mock("@/components/BudgetCategoriesProgress", () => {
 
 describe("Dashboard Page", () => {
   it("renders all stats cards with correct data", () => {
-    render(<DashboardPage />);
+    const { container } = render(<DashboardPage />);
 
-    const statsCards = screen.getAllByTestId("stats-card");
-    expect(statsCards).toHaveLength(4);
+    // Check for the number of cards
+    const cards = container.querySelectorAll(".rounded-xl.shadow.bg-white");
+    expect(cards).toHaveLength(3);
 
     // Check for specific stats card content
     expect(screen.getByText("Total Balance")).toBeInTheDocument();
-    expect(screen.getByText("$24,000")).toBeInTheDocument();
-    expect(screen.getByText("Income")).toBeInTheDocument();
-    expect(screen.getByText("$4,200")).toBeInTheDocument();
-    expect(screen.getByText("Expenses")).toBeInTheDocument();
-    expect(screen.getByText("$2,800")).toBeInTheDocument();
-    expect(screen.getByText("Savings")).toBeInTheDocument();
-    expect(screen.getByText("$1,400")).toBeInTheDocument();
+    expect(screen.getByText("$24,000.00")).toBeInTheDocument();
+    expect(screen.getByText("Monthly Income")).toBeInTheDocument();
+    expect(screen.getByText("$4,200.00")).toBeInTheDocument();
+    expect(screen.getByText("Monthly Expenses")).toBeInTheDocument();
+    expect(screen.getByText("$2,800.00")).toBeInTheDocument();
   });
 
   it("renders the monthly spending chart", () => {
@@ -73,7 +72,7 @@ describe("Dashboard Page", () => {
 
     // Check for grid layouts
     expect(
-      container.querySelector(".grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4"),
+      container.querySelector(".grid-cols-1.md\\:grid-cols-3"),
     ).toBeInTheDocument();
     expect(
       container.querySelector(".grid-cols-1.lg\\:grid-cols-3"),

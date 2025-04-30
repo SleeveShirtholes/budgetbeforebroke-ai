@@ -9,8 +9,9 @@ import Link from "next/link";
  * @property {string} secondary - Light blue background with blue text
  * @property {string} outline - Purple border with purple text
  * @property {string} text - Text-only with hover underline
+ * @property {string} danger - Red background with white text
  */
-type ButtonVariant = "primary" | "secondary" | "outline" | "text";
+type ButtonVariant = "primary" | "secondary" | "outline" | "text" | "danger";
 
 /**
  * Available button sizes
@@ -52,8 +53,10 @@ const variantStyles = {
   secondary:
     "bg-secondary-100 text-secondary-700 hover:bg-secondary-200 hover:shadow-md hover:-translate-y-0.5",
   outline:
-    "border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:border-primary-700",
+    "border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:border-primary-700 hover:shadow-md hover:-translate-y-0.5",
   text: "text-primary-600 hover:text-primary-800 hover:underline",
+  danger:
+    "bg-red-600 text-white hover:bg-red-700 hover:shadow-lg hover:-translate-y-1",
 };
 
 /**

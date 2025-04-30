@@ -2,14 +2,25 @@ import {
   ArrowTrendingDownIcon,
   ArrowTrendingUpIcon,
   BanknotesIcon,
-  CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
 
 import BudgetCategoriesProgress from "@/components/BudgetCategoriesProgress";
+import Card from "@/components/Card";
 import MonthlySpendingChart from "@/components/MonthlySpendingChart";
-import StatsCard from "@/components/StatsCard";
+
+// Format number as currency string
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
 
 // Mock data - replace with real data from your backend
+const totalBalance = 24000;
+const monthlyIncome = 4200;
+const monthlyExpenses = 2800;
+
 const monthlySpendingData = [
   { month: "Jan", amount: 1200 },
   { month: "Feb", amount: 1800 },
@@ -46,35 +57,55 @@ const budgetCategories = [
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Total Balance"
-          value="$24,000"
-          trend="+2.5%"
-          trendDirection="up"
-          icon={<BanknotesIcon className="w-6 h-6 text-primary-500" />}
-        />
-        <StatsCard
-          title="Income"
-          value="$4,200"
-          trend="+8.1%"
-          trendDirection="up"
-          icon={<ArrowTrendingUpIcon className="w-6 h-6 text-green-500" />}
-        />
-        <StatsCard
-          title="Expenses"
-          value="$2,800"
-          trend="-3.2%"
-          trendDirection="down"
-          icon={<ArrowTrendingDownIcon className="w-6 h-6 text-red-500" />}
-        />
-        <StatsCard
-          title="Savings"
-          value="$1,400"
-          trend="+4.3%"
-          trendDirection="up"
-          icon={<CurrencyDollarIcon className="w-6 h-6 text-primary-500" />}
-        />
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-secondary-600">
+                Total Balance
+              </h3>
+              <p className="mt-2 text-2xl font-semibold text-secondary-900">
+                ${formatCurrency(totalBalance)}
+              </p>
+            </div>
+            <div className="p-3 bg-primary-50 rounded-lg">
+              <BanknotesIcon className="w-6 h-6 text-primary-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-secondary-600">
+                Monthly Income
+              </h3>
+              <p className="mt-2 text-2xl font-semibold text-green-600">
+                ${formatCurrency(monthlyIncome)}
+              </p>
+            </div>
+            <div className="p-3 bg-green-50 rounded-lg">
+              <ArrowTrendingUpIcon className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-secondary-600">
+                Monthly Expenses
+              </h3>
+              <p className="mt-2 text-2xl font-semibold text-red-600">
+                ${formatCurrency(monthlyExpenses)}
+              </p>
+            </div>
+            <div className="p-3 bg-red-50 rounded-lg">
+              <ArrowTrendingDownIcon className="w-6 h-6 text-red-600" />
+            </div>
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
