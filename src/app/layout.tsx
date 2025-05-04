@@ -1,6 +1,5 @@
 import "./globals.css";
 
-import Header from "@/components/Header";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
@@ -24,9 +23,8 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <Header />
-        <main className="pt-16">{children}</main>
+      <body className={`bg-pastel-gradient ${inter.className}`}>
+        <main className="pt-0">{children}</main>
       </body>
     </html>
   );

@@ -8,13 +8,6 @@ jest.mock("next/font/google", () => ({
   }),
 }));
 
-// Mock the Header component
-jest.mock("@/components/Header", () => {
-  return function MockHeader() {
-    return <header data-testid="header">Mock Header</header>;
-  };
-});
-
 describe("RootLayout", () => {
   it("renders with correct structure and props", async () => {
     const testContent = "Test Content";
@@ -26,15 +19,12 @@ describe("RootLayout", () => {
 
     const body = layout.props.children;
     expect(body.type).toBe("body");
-    expect(body.props.className).toBe("inter-font");
-
-    // Verify the body contains Header and main
-    const [header, main] = body.props.children;
-    expect(header.type.name).toBe("MockHeader");
-    expect(main.type).toBe("main");
-    expect(main.props.className).toBe("pt-16");
+    expect(body.props.className).toBe("bg-pastel-gradient inter-font");
 
     // Verify the main content
+    const main = body.props.children;
+    expect(main.type).toBe("main");
+    expect(main.props.className).toBe("pt-0");
     expect(main.props.children.props.children).toBe(testContent);
   });
 });

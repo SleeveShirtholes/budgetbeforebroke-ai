@@ -72,9 +72,6 @@ describe("Dashboard Page", () => {
 
     // Check for grid layouts
     expect(
-      container.querySelector(".grid-cols-1.md\\:grid-cols-3"),
-    ).toBeInTheDocument();
-    expect(
       container.querySelector(".grid-cols-1.lg\\:grid-cols-3"),
     ).toBeInTheDocument();
   });

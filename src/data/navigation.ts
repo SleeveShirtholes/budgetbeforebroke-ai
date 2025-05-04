@@ -1,4 +1,10 @@
-import navigationJson from "./navigation.json";
+import fs from "fs";
+import yaml from "js-yaml";
+import path from "path";
+
+const navigationYaml = yaml.load(
+  fs.readFileSync(path.join(__dirname, "navigation.yaml"), "utf8"),
+);
 
 export interface NavItem {
   label: string;
@@ -14,4 +20,4 @@ export interface NavDropdown {
 
 export type NavigationData = Record<string, NavDropdown>;
 
-export const navigationData: NavigationData = navigationJson;
+export const navigationData: NavigationData = navigationYaml as NavigationData;

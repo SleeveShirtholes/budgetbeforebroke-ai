@@ -70,8 +70,10 @@ describe("BudgetCategoriesProgress", () => {
       ".absolute.h-full.rounded-full",
     );
     progressBars.forEach((bar, index) => {
+      const isOverspent =
+        mockCategories[index].spent > mockCategories[index].budget;
       expect(bar).toHaveStyle({
-        backgroundColor: mockCategories[index].color,
+        backgroundColor: isOverspent ? "#EF4444" : "#4e008e",
         width: `${Math.min((mockCategories[index].spent / mockCategories[index].budget) * 100, 100)}%`,
       });
     });

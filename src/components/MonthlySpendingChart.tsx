@@ -41,12 +41,12 @@ export default function MonthlySpendingChart({
       {
         label: "Monthly Spending",
         data: data.map((item) => item.amount),
-        borderColor: "rgb(78, 0, 142)", // primary-500
+        borderColor: "#4e008e", // primary-500
         backgroundColor: "rgba(78, 0, 142, 0.1)", // primary-500 with opacity
         tension: 0.4,
         fill: true,
-        pointBackgroundColor: "rgb(61, 0, 112)", // primary-600
-        pointBorderColor: "rgb(78, 0, 142)", // primary-500
+        pointBackgroundColor: "#4e008e", // primary-500
+        pointBorderColor: "#4e008e", // primary-500
         pointRadius: 4,
         pointHoverRadius: 6,
       },

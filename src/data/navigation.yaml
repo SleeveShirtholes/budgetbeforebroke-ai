@@ -1,0 +1,43 @@
+transactions:
+  label: Transactions
+  items:
+    - label: All Transactions
+      href: /dashboard/transactions
+      icon: Bars4Icon
+      description: View your complete transaction history
+    - label: Add Transaction
+      href: /dashboard/transactions/new
+      icon: PlusIcon
+      description: Record a new expense or income
+    - label: Recurring
+      href: /dashboard/transactions/recurring
+      icon: ArrowPathIcon
+      description: Manage your recurring transactions
+
+analytics:
+  label: Analytics
+  items:
+    - label: Overview
+      href: /dashboard/analytics
+      icon: ChartBarSquareIcon
+      description: Get insights into your spending patterns
+    - label: Reports
+      href: /dashboard/analytics/reports
+      icon: PresentationChartLineIcon
+      description: View detailed financial reports
+
+account:
+  label: Account Management
+  items:
+    - label: General Settings
+      href: /dashboard/account
+      icon: Cog6ToothIcon
+      description: Manage your account settings
+    - label: Manage Categories
+      href: /dashboard/categories
+      icon: FolderIcon
+      description: Manage your categories
+    - label: Manage Merchants
+      href: /dashboard/merchants
+      icon: ShoppingBagIcon
+      description: Manage your merchants

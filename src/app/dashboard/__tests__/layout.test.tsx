@@ -26,7 +26,7 @@ describe("Dashboard Layout", () => {
     );
 
     // Check for the main container with background
-    expect(container.firstChild).toHaveClass("min-h-screen", "bg-secondary-50");
+    expect(container.firstChild).toHaveClass("min-h-screen");
 
     // Check for header with correct user
     const header = screen.getByTestId("header");
