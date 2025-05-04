@@ -26,12 +26,15 @@ export const HighlightedText = ({
   // Create a case-insensitive regex pattern from the escaped search query
   const regex = new RegExp(`(${escapeRegExp(searchQuery)})`, "gi");
 
+  // Create a non-global regex for testing matches
+  const testRegex = new RegExp(`^${escapeRegExp(searchQuery)}$`, "i");
+
   // Split the text by the regex pattern and map each part
   // If the part matches the search query, wrap it in a highlighted span
   return (
     <>
       {text.split(regex).map((part, i) =>
-        regex.test(part) ? (
+        testRegex.test(part) ? (
           <span key={i} className="bg-yellow-200">
             {part}
           </span>

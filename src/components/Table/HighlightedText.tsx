@@ -29,11 +29,14 @@ export default function HighlightedText({
   // Split text into parts based on highlight matches
   const parts = text.toString().split(regex);
 
+  // Create a non-global regex for testing matches
+  const testRegex = new RegExp(`^${highlight}$`, "i");
+
   // Render text with highlighted portions
   return (
     <span>
       {parts.map((part, i) =>
-        regex.test(part) ? (
+        testRegex.test(part) ? (
           <span key={i} className="bg-yellow-200">
             {part}
           </span>
