@@ -2,7 +2,6 @@
 
 import {
   TRANSACTION_CATEGORIES,
-  Transaction,
   TransactionCategory,
 } from "@/types/transaction";
 import {
@@ -11,13 +10,14 @@ import {
   BanknotesIcon,
 } from "@heroicons/react/24/outline";
 import { format, startOfDay } from "date-fns";
-import { useEffect, useState } from "react";
 
+import Button from "@/components/Button";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import Modal from "@/components/Modal";
 import Table from "@/components/Table/Table";
 import TransactionForm from "@/components/TransactionForm";
-import { mockTransactions } from "@/data/mockTransactions";
+import useTransactionsStore from "@/stores/transactionsStore";
+import { useEffect } from "react";
 
 /**
  * Transactions component that displays and manages financial transactions.
@@ -31,17 +31,19 @@ import { mockTransactions } from "@/data/mockTransactions";
  * @returns {JSX.Element} The rendered Transactions component
  */
 export default function Transactions() {
-  // State management for transactions, modal visibility, and loading state
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    transactions,
+    isModalOpen,
+    setIsModalOpen,
+    createTransaction,
+    updateCategory,
+    initializeTransactions,
+  } = useTransactionsStore();
 
   // Load mock transactions on component mount
   useEffect(() => {
-    // Initialize transactions after component mounts to ensure consistent date handling
-    setTransactions(mockTransactions);
-    setIsLoading(false);
-  }, []);
+    initializeTransactions();
+  }, [initializeTransactions]);
 
   // Calculate insights
   const getTimeframeDate = () => {
@@ -66,34 +68,6 @@ export default function Transactions() {
 
   // Calculate net savings (income - expenses)
   const netSavings = totalIncome - totalExpenses;
-
-  // Handler for creating new transactions
-  const handleCreateTransaction = (
-    transaction: Omit<Transaction, "id" | "createdAt" | "updatedAt">,
-  ) => {
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: `tr-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setTransactions([newTransaction, ...transactions]);
-    setIsModalOpen(false);
-  };
-
-  // Handler for updating transaction categories
-  const handleUpdateCategory = (
-    transactionId: string,
-    newCategory: TransactionCategory,
-  ) => {
-    setTransactions(
-      transactions.map((t) =>
-        t.id === transactionId
-          ? { ...t, category: newCategory, updatedAt: new Date().toISOString() }
-          : t,
-      ),
-    );
-  };
 
   // Define table columns configuration with sorting, filtering, and custom rendering
   const columns = [
@@ -144,7 +118,7 @@ export default function Transactions() {
           <CustomSelect
             value={category}
             onChange={(value) =>
-              handleUpdateCategory(id, value as TransactionCategory)
+              updateCategory(id, value as TransactionCategory)
             }
             options={TRANSACTION_CATEGORIES.map((cat) => ({
               value: cat,
@@ -158,175 +132,98 @@ export default function Transactions() {
     },
   ];
 
-  // Define detail panel for expanded transaction view
-  const detailPanel = (row: Record<string, unknown>) => {
-    const transaction = {
-      id: row.id as string,
-      description: row.description as string,
-      merchant: row.merchant as string,
-      merchantLocation: row.merchantLocation as string,
-      date: row.date as string,
-      amount: row.amount as number,
-      type: row.type as "income" | "expense",
-      category: row.category as TransactionCategory,
-      createdAt: row.createdAt as string,
-      updatedAt: row.updatedAt as string,
-    };
-
-    return (
-      <div className="p-4 space-y-4">
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <p className="text-sm text-secondary-500">Description</p>
-            <p className="font-medium">{transaction.description}</p>
-          </div>
-          <div>
-            <p className="text-sm text-secondary-500">Transaction ID</p>
-            <p className="font-medium">{transaction.id}</p>
-          </div>
-          <div>
-            <p className="text-sm text-secondary-500">Merchant Location</p>
-            <p className="font-medium">
-              {transaction.merchantLocation || "N/A"}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Show loading state while data is being fetched
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
   return (
     <div className="space-y-6">
-      {/* Insights Cards Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow p-6 border border-secondary-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-secondary-600">
-                Income
-              </h3>
-              <p className="mt-2 text-xl font-semibold text-green-600">
-                $
-                {totalIncome.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
+      {/* Insights Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="p-3 bg-green-100 rounded-full">
+              <ArrowTrendingUpIcon className="h-6 w-6 text-green-600" />
             </div>
-            <div className="p-3 bg-green-50 rounded-lg">
-              <ArrowTrendingUpIcon
-                className="w-6 h-6 text-green-600"
-                aria-hidden="true"
-              />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Income</p>
+              <p className="text-2xl font-semibold text-green-600">
+                ${totalIncome.toLocaleString()}
+              </p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow p-6 border border-secondary-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-secondary-600">
-                Expenses
-              </h3>
-              <p className="mt-2 text-xl font-semibold text-red-600">
-                $
-                {totalExpenses.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="p-3 bg-red-100 rounded-full">
+              <ArrowTrendingDownIcon className="h-6 w-6 text-red-600" />
             </div>
-            <div className="p-3 bg-red-50 rounded-lg">
-              <ArrowTrendingDownIcon
-                className="w-6 h-6 text-red-600"
-                aria-hidden="true"
-              />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Expenses</p>
+              <p className="text-2xl font-semibold text-red-600">
+                ${totalExpenses.toLocaleString()}
+              </p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow p-6 border border-secondary-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-secondary-600">
-                Money Saved
-              </h3>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="p-3 bg-blue-100 rounded-full">
+              <BanknotesIcon className="h-6 w-6 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Net Savings</p>
               <p
-                className={`mt-2 text-xl font-semibold ${netSavings >= 0 ? "text-green-600" : "text-red-600"}`}
+                className={`text-2xl font-semibold ${
+                  netSavings >= 0 ? "text-green-600" : "text-red-600"
+                }`}
               >
-                $
-                {Math.abs(netSavings).toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                ${Math.abs(netSavings).toLocaleString()}
               </p>
-            </div>
-            <div
-              className={`p-3 rounded-lg ${netSavings >= 0 ? "bg-green-50" : "bg-red-50"}`}
-            >
-              <BanknotesIcon
-                className={`w-6 h-6 ${netSavings >= 0 ? "text-green-600" : "text-red-600"}`}
-                aria-hidden="true"
-              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Transactions Table Section */}
-      <div className="bg-white rounded-xl shadow border border-secondary-100">
+      {/* Transactions Table */}
+      <div className="bg-white rounded-lg shadow">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-secondary-900">
-              Transactions
-            </h2>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
+            <h2 className="text-xl font-semibold">Transactions</h2>
+            <Button variant="primary" onClick={() => setIsModalOpen(true)}>
               Add Transaction
-            </button>
+            </Button>
           </div>
-
           <Table
             data={transactions as unknown as Record<string, unknown>[]}
             columns={columns}
-            detailPanel={detailPanel}
-            pageSize={25}
-            showPagination={true}
+            pageSize={10}
           />
         </div>
       </div>
 
-      {/* Transaction Creation Modal */}
+      {/* Add Transaction Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title="Add Transaction"
-        maxWidth="xl"
-        footerButtons={
-          <>
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              Cancel
-            </button>
-            <button
-              form="transaction-form"
-              type="submit"
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              Create Transaction
-            </button>
-          </>
-        }
+        maxWidth="md"
+        footerButtons={[
+          <Button
+            key="cancel"
+            variant="secondary"
+            type="button"
+            onClick={() => setIsModalOpen(false)}
+          >
+            Cancel
+          </Button>,
+          <Button
+            key="save"
+            variant="primary"
+            type="submit"
+            form="transaction-form"
+          >
+            Save
+          </Button>,
+        ]}
       >
-        <TransactionForm onSubmit={handleCreateTransaction} />
+        <TransactionForm onSubmit={createTransaction} />
       </Modal>
     </div>
   );

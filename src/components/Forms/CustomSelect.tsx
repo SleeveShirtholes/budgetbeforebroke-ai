@@ -5,6 +5,7 @@ import {
 } from "@heroicons/react/20/solid";
 import { Fragment, forwardRef, useEffect, useRef, useState } from "react";
 
+import ReactDOM from "react-dom";
 import { Transition } from "@headlessui/react";
 
 export interface SelectOption {
@@ -91,6 +92,10 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
     const [searchQuery, setSearchQuery] = useState("");
     // Refs for handling click outside and focus
     const containerRef = useRef<HTMLDivElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const [dropdownStyles, setDropdownStyles] = useState<React.CSSProperties>(
+      {},
+    );
 
     // Find the currently selected option or undefined
     const selectedOption = options.find((option) => option.value === value);
@@ -123,6 +128,22 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }, []);
+
+    // Calculate dropdown position when opened
+    useEffect(() => {
+      if (isOpen && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setDropdownStyles({
+          position: "fixed",
+          zIndex: 9999,
+          top: rect.bottom + window.scrollY,
+          left: rect.left + window.scrollX,
+          width: rect.width,
+          maxHeight: 240,
+          overflowY: "auto",
+        });
+      }
+    }, [isOpen]);
 
     // Prevent event propagation when clicking input
     const handleInputClick = (e: React.MouseEvent) => {
@@ -216,39 +237,47 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
               </div>
             </div>
 
-            {/* Dropdown menu */}
-            <Transition
-              show={isOpen}
-              as={Fragment}
-              leave="transition ease-in duration-100"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg focus:outline-none sm:text-sm border border-gray-200">
-                {filteredOptions.map((option) => (
+            {/* Dropdown menu rendered in a portal */}
+            {typeof window !== "undefined" &&
+              ReactDOM.createPortal(
+                <Transition
+                  show={isOpen}
+                  as={Fragment}
+                  leave="transition ease-in duration-100"
+                  leaveFrom="opacity-100"
+                  leaveTo="opacity-0"
+                >
                   <div
-                    key={option.value}
-                    className={`relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-primary-50 hover:text-primary-900 ${
-                      option.value === value
-                        ? "bg-primary-50 text-primary-900"
-                        : "text-gray-900"
-                    }`}
-                    onClick={() => handleOptionSelect(option)}
+                    ref={dropdownRef}
+                    style={dropdownStyles}
+                    className="rounded-md shadow-lg bg-white border border-gray-200 overflow-auto py-1 text-base focus:outline-none sm:text-sm"
                   >
-                    <span
-                      className={`block truncate ${option.value === value ? "font-semibold" : "font-normal"}`}
-                    >
-                      {option.label}
-                    </span>
-                    {option.value === value && (
-                      <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-primary-600">
-                        <CheckIcon className="h-5 w-5" aria-hidden="true" />
-                      </span>
-                    )}
+                    {filteredOptions.map((option) => (
+                      <div
+                        key={option.value}
+                        className={`relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-primary-50 hover:text-primary-900 ${
+                          option.value === value
+                            ? "bg-primary-50 text-primary-900"
+                            : "text-gray-900"
+                        }`}
+                        onClick={() => handleOptionSelect(option)}
+                      >
+                        <span
+                          className={`block truncate ${option.value === value ? "font-semibold" : "font-normal"}`}
+                        >
+                          {option.label}
+                        </span>
+                        {option.value === value && (
+                          <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-primary-600">
+                            <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </Transition>
+                </Transition>,
+                document.body,
+              )}
           </div>
         </div>
         {/* Error or helper text */}

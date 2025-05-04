@@ -179,13 +179,13 @@ describe("Transactions Page", () => {
       .getByText("Expenses")
       .closest("div")?.parentElement;
     const savingsCard = screen
-      .getByText("Money Saved")
+      .getByText("Net Savings")
       .closest("div")?.parentElement;
 
     // Check the amounts within each card
-    expect(within(incomeCard!).getByText("$1,000.00")).toBeInTheDocument();
-    expect(within(expensesCard!).getByText("$500.00")).toBeInTheDocument();
-    expect(within(savingsCard!).getByText("$500.00")).toBeInTheDocument();
+    expect(within(incomeCard!).getByText("$1,000")).toBeInTheDocument();
+    expect(within(expensesCard!).getByText("$500")).toBeInTheDocument();
+    expect(within(savingsCard!).getByText("$500")).toBeInTheDocument();
   });
 
   it("opens modal and creates new transaction", async () => {
