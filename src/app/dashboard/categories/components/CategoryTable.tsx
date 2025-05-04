@@ -16,42 +16,44 @@ import Table from "@/components/Table/Table";
 
 // Category type for table rows
 interface Category extends Record<string, unknown> {
-    id: string;
-    name: string;
-    description?: string;
-    transactionCount: number;
+  id: string;
+  name: string;
+  description?: string;
+  transactionCount: number;
 }
 
 // Row action type for table actions
 interface RowAction {
-    label: string;
-    icon?: React.ReactNode;
-    onClick: () => void;
+  label: string;
+  icon?: React.ReactNode;
+  onClick: () => void;
 }
 
 // Props for CategoryTable
 interface CategoryTableProps {
-    categories: Category[];
-    columns: ColumnDef<Category>[];
-    getRowActions: (row: Category) => RowAction[];
-    detailPanel: (row: Category) => React.ReactNode;
+  categories: Category[];
+  columns: ColumnDef<Category>[];
+  getRowActions: (row: Category) => RowAction[];
+  detailPanel: (row: Category) => React.ReactNode;
 }
 
 /**
  * CategoryTable renders the main categories table with actions and expandable detail panels.
  */
 const CategoryTable: React.FC<CategoryTableProps> = React.memo(
-    ({ categories, columns, getRowActions, detailPanel }) => {
-        return (
-            <Table
-                data={categories as Record<string, unknown>[]}
-                columns={columns as ColumnDef<Record<string, unknown>>[]}
-                actions={getRowActions as (row: Record<string, unknown>) => RowAction[]}
-                pageSize={10}
-                detailPanel={detailPanel as (row: Record<string, unknown>) => React.ReactNode}
-            />
-        );
-    }
+  ({ categories, columns, getRowActions, detailPanel }) => {
+    return (
+      <Table
+        data={categories as Record<string, unknown>[]}
+        columns={columns as ColumnDef<Record<string, unknown>>[]}
+        actions={getRowActions as (row: Record<string, unknown>) => RowAction[]}
+        pageSize={10}
+        detailPanel={
+          detailPanel as (row: Record<string, unknown>) => React.ReactNode
+        }
+      />
+    );
+  },
 );
 CategoryTable.displayName = "CategoryTable";
 
