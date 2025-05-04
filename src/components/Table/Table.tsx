@@ -5,8 +5,8 @@ import {
   ChevronUpDownIcon,
   FunnelIcon,
 } from "@heroicons/react/20/solid";
-import { ReactNode, useState } from "react";
 import { ColumnDef, FilterValue, FiltersState, SortingState } from "./types";
+import { ReactNode, useState } from "react";
 
 import TableBody from "./TableBody";
 import TableHeader from "./TableHeader";
@@ -175,11 +175,6 @@ export default function Table<T extends Record<string, unknown>>({
         const stringValue = value.toString().toLowerCase();
         const searchTerm = searchQuery.toLowerCase();
 
-        // For name columns, match exact words
-        if (typeof value === "string") {
-          const regex = new RegExp(`\\b${searchTerm}\\b`, "i");
-          return regex.test(stringValue);
-        }
         return stringValue.includes(searchTerm);
       });
       if (!matchesSearch) return false;
@@ -342,6 +337,7 @@ export default function Table<T extends Record<string, unknown>>({
             toggleRowExpansion={toggleRowExpansion}
             detailPanel={detailPanel}
             actions={actions}
+            searchQuery={searchQuery}
           />
         </table>
       </div>

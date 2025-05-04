@@ -121,15 +121,37 @@ describe("Table Component", () => {
       });
     });
 
-    it("updates row count when search is applied", () => {
+    it("updates row count when search is applied", async () => {
       render(<Table data={mockData} columns={columns} />);
 
       // Enter search term
       const searchInput = screen.getByPlaceholderText("Search...");
       fireEvent.change(searchInput, { target: { value: "John" } });
 
-      // Check if row count updates
-      expect(screen.getByText("Showing 1 of 1 rows")).toBeInTheDocument();
+      // Wait for and check if the filtered data is displayed
+      await waitFor(() => {
+        // Both rows containing "John" should be present
+        const rows = screen.getAllByRole("row");
+        // First row is header, so we expect 3 rows total (header + 2 data rows)
+        expect(rows).toHaveLength(3);
+
+        // Check that both rows containing "John" are present
+        const cells = screen.getAllByRole("cell");
+        const nameCells = cells.filter((cell) =>
+          cell.textContent?.includes("John"),
+        );
+        expect(nameCells).toHaveLength(2);
+        expect(nameCells[0].textContent).toContain("John Doe");
+        expect(nameCells[1].textContent).toContain("Bob Johnson");
+
+        // Jane Smith should not be present
+        expect(
+          screen.queryByText(
+            (content, element) =>
+              element?.textContent?.includes("Jane Smith") ?? false,
+          ),
+        ).not.toBeInTheDocument();
+      });
     });
   });
 });

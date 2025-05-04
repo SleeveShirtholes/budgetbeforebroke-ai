@@ -2,7 +2,7 @@
 
 import {
   NavDropdownWithReactIcon,
-  navigationData,
+  getNavigationData,
 } from "@/utils/navigationLoader";
 import { useEffect, useRef, useState } from "react";
 
@@ -21,8 +21,23 @@ export default function Header({
 }: HeaderProps) {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [navigationData, setNavigationData] = useState<
+    Record<string, NavDropdownWithReactIcon>
+  >({});
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const userDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    async function loadNavigationData() {
+      try {
+        const data = await getNavigationData();
+        setNavigationData(data);
+      } catch (error) {
+        console.error("Failed to load navigation data:", error);
+      }
+    }
+    loadNavigationData();
+  }, []);
 
   // Handle click outside to close dropdowns
   useEffect(() => {
@@ -64,7 +79,7 @@ export default function Header({
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
+    <header className="fixed top-0 left-0 right-0 bg-white/70 backdrop-blur-md shadow-sm z-50 border-b border-accent-200 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">

@@ -3,8 +3,9 @@
 import { Fragment, ReactNode, useState } from "react";
 
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
-import RowActions from "./RowActions";
 import { ColumnDef } from "./types";
+import HighlightedText from "./HighlightedText";
+import RowActions from "./RowActions";
 
 /**
  * Renders the body of the table including data rows, expandable detail panels, and row actions.
@@ -17,6 +18,7 @@ import { ColumnDef } from "./types";
  * @param {(id: string) => void} props.toggleRowExpansion - Function to toggle row expansion
  * @param {(row: T) => ReactNode} [props.detailPanel] - Optional function to render expanded row details
  * @param {(row: T) => Array<{label: string, icon?: ReactNode, onClick: () => void}>} [props.actions] - Optional function to generate row actions
+ * @param {string} props.searchQuery - The current search query
  */
 
 interface TableBodyProps<T extends Record<string, unknown>> {
@@ -30,6 +32,7 @@ interface TableBodyProps<T extends Record<string, unknown>> {
     icon?: ReactNode;
     onClick: () => void;
   }[];
+  searchQuery: string;
 }
 
 export default function TableBody<T extends Record<string, unknown>>({
@@ -39,6 +42,7 @@ export default function TableBody<T extends Record<string, unknown>>({
   toggleRowExpansion,
   detailPanel,
   actions,
+  searchQuery,
 }: TableBodyProps<T>) {
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
 
@@ -94,12 +98,17 @@ export default function TableBody<T extends Record<string, unknown>>({
                     key={column.key}
                     className="px-4 py-4 text-sm text-gray-700"
                   >
-                    {column.accessor
-                      ? column.accessor(row)
-                      : row[column.key] !== undefined &&
-                          row[column.key] !== null
-                        ? String(row[column.key])
-                        : ""}
+                    {column.accessor ? (
+                      column.accessor(row)
+                    ) : row[column.key] !== undefined &&
+                      row[column.key] !== null ? (
+                      <HighlightedText
+                        text={String(row[column.key])}
+                        highlight={searchQuery}
+                      />
+                    ) : (
+                      ""
+                    )}
                   </td>
                 ))}
 

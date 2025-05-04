@@ -24,6 +24,7 @@ export default function BudgetCategoriesProgress({
             100,
           );
           const remaining = Math.max(category.budget - category.spent, 0);
+          const isOverspent = category.spent > category.budget;
 
           return (
             <div key={category.name} className="space-y-2">
@@ -40,7 +41,7 @@ export default function BudgetCategoriesProgress({
                   className="absolute h-full rounded-full transition-all duration-300 ease-in-out"
                   style={{
                     width: `${percentage}%`,
-                    backgroundColor: category.color,
+                    backgroundColor: isOverspent ? "#EF4444" : "#4e008e",
                   }}
                 />
               </div>

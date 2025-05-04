@@ -3,9 +3,9 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { ImageProps } from "next/image";
 import Header from "../Header";
 
-// Mock the navigationData
+// Mock the getNavigationData function
 jest.mock("@/utils/navigationLoader", () => ({
-  navigationData: {
+  getNavigationData: jest.fn().mockResolvedValue({
     features: {
       label: "Features",
       items: [
@@ -17,7 +17,7 @@ jest.mock("@/utils/navigationLoader", () => ({
         },
       ],
     },
-  },
+  }),
 }));
 
 // Mock next/image
@@ -38,27 +38,31 @@ describe("Header", () => {
     jest.clearAllMocks();
   });
 
-  it("renders with default props", () => {
+  it("renders with default props", async () => {
     render(<Header />);
     expect(screen.getByText("User")).toBeInTheDocument();
     expect(screen.getByAltText("User")).toHaveAttribute(
       "src",
       "/default-avatar.png",
     );
+    // Wait for navigation data to load
+    expect(await screen.findByText("Features")).toBeInTheDocument();
   });
 
-  it("renders with custom props", () => {
+  it("renders with custom props", async () => {
     render(<Header userName={mockUserName} userAvatar={mockUserAvatar} />);
     expect(screen.getByText(mockUserName)).toBeInTheDocument();
     expect(screen.getByAltText(mockUserName)).toHaveAttribute(
       "src",
       mockUserAvatar,
     );
+    // Wait for navigation data to load
+    expect(await screen.findByText("Features")).toBeInTheDocument();
   });
 
-  it("toggles navigation dropdown on click", () => {
+  it("toggles navigation dropdown on click", async () => {
     render(<Header />);
-    const featuresButton = screen.getByText("Features");
+    const featuresButton = await screen.findByText("Features");
 
     // Open dropdown
     fireEvent.click(featuresButton);
@@ -72,11 +76,12 @@ describe("Header", () => {
     expect(screen.queryByText("Analytics")).not.toBeInTheDocument();
   });
 
-  it("closes navigation dropdown when clicking outside", () => {
+  it("closes navigation dropdown when clicking outside", async () => {
     render(<Header />);
 
     // Open dropdown
-    fireEvent.click(screen.getByText("Features"));
+    const featuresButton = await screen.findByText("Features");
+    fireEvent.click(featuresButton);
     expect(screen.getByText("Analytics")).toBeInTheDocument();
 
     // Click outside
@@ -84,8 +89,11 @@ describe("Header", () => {
     expect(screen.queryByText("Analytics")).not.toBeInTheDocument();
   });
 
-  it("toggles user dropdown on click", () => {
+  it("toggles user dropdown on click", async () => {
     render(<Header userName={mockUserName} />);
+
+    // Wait for navigation data to load
+    await screen.findByText("Features");
 
     // Find and click the user button by its role
     const userButton = screen.getByRole("button", {
@@ -104,8 +112,11 @@ describe("Header", () => {
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
   });
 
-  it("closes user dropdown when clicking outside", () => {
+  it("closes user dropdown when clicking outside", async () => {
     render(<Header userName={mockUserName} />);
+
+    // Wait for navigation data to load
+    await screen.findByText("Features");
 
     // Open dropdown using the button
     const userButton = screen.getByRole("button", {
@@ -119,8 +130,11 @@ describe("Header", () => {
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
   });
 
-  it("closes dropdowns when clicking menu items", () => {
+  it("closes dropdowns when clicking menu items", async () => {
     render(<Header userName={mockUserName} />);
+
+    // Wait for navigation data to load
+    await screen.findByText("Features");
 
     // Test navigation dropdown
     fireEvent.click(screen.getByText("Features"));
@@ -138,8 +152,11 @@ describe("Header", () => {
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
   });
 
-  it("handles click events on all user dropdown items", () => {
+  it("handles click events on all user dropdown items", async () => {
     render(<Header userName={mockUserName} />);
+
+    // Wait for navigation data to load
+    await screen.findByText("Features");
 
     // Open user dropdown
     const userButton = screen.getByRole("button", {

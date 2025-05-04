@@ -37,7 +37,7 @@ const monthlySpendingData = [
 ];
 
 const budgetCategories = [
-  { name: "Housing", spent: 1200, budget: 1500, color: "rgb(78, 0, 142)" }, // primary-500
+  { name: "Housing", spent: 1600, budget: 1500, color: "rgb(78, 0, 142)" }, // primary-500
   { name: "Food", spent: 400, budget: 500, color: "rgb(153, 51, 255)" }, // primary-400
   {
     name: "Transportation",
@@ -58,7 +58,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
           <div className="flex items-center justify-between">
             <div>
@@ -109,11 +109,11 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <MonthlySpendingChart data={monthlySpendingData} />
-        </div>
         <div>
           <BudgetCategoriesProgress categories={budgetCategories} />
+        </div>
+        <div className="lg:col-span-2">
+          <MonthlySpendingChart data={monthlySpendingData} />
         </div>
       </div>
     </div>
