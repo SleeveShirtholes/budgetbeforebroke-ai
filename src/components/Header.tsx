@@ -6,8 +6,8 @@ import {
 } from "@/utils/navigationLoader";
 import { useEffect, useRef, useState } from "react";
 
+import Avatar from "@/components/Avatar";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-import Image from "next/image";
 import Link from "next/link";
 
 interface HeaderProps {
@@ -15,6 +15,16 @@ interface HeaderProps {
   userName?: string;
 }
 
+/**
+ * Header component that displays the main navigation bar with dropdown menus and user profile.
+ *
+ * @component
+ * @param {Object} props - Component props
+ * @param {string} [props.userAvatar="/default-avatar.png"] - URL of the user's avatar image
+ * @param {string} [props.userName="User"] - Display name of the user
+ *
+ * @returns {JSX.Element} A responsive header with navigation dropdowns and user profile menu
+ */
 export default function Header({
   userAvatar = "/default-avatar.png",
   userName = "User",
@@ -151,15 +161,7 @@ export default function Header({
               onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
               className="flex items-center space-x-3 focus:outline-none"
             >
-              <div className="w-8 h-8 rounded-full overflow-hidden">
-                <Image
-                  src={userAvatar}
-                  alt={userName}
-                  width={32}
-                  height={32}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+              <Avatar src={userAvatar} name={userName} size={40} />
               <span className="text-secondary-700">{userName}</span>
               <ChevronDownIcon
                 className={`ml-1 h-5 w-5 transition-transform duration-200 ${

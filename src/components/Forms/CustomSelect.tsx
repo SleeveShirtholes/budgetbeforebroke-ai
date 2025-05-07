@@ -5,8 +5,8 @@ import {
 } from "@heroicons/react/20/solid";
 import { Fragment, forwardRef, useEffect, useRef, useState } from "react";
 
-import ReactDOM from "react-dom";
 import { Transition } from "@headlessui/react";
+import ReactDOM from "react-dom";
 
 export interface SelectOption {
   value: string;
@@ -15,7 +15,7 @@ export interface SelectOption {
 
 export interface CustomSelectProps {
   /** The label text displayed above the select input */
-  label: string;
+  label?: string;
   /** Array of options to display in the dropdown */
   options: SelectOption[];
   /** Currently selected value */
@@ -163,11 +163,13 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
     return (
       <div className={`${fullWidth ? "w-full" : ""}`}>
         <div className="relative" ref={containerRef}>
-          {/* Label */}
-          <label className="block text-sm font-medium leading-6 text-gray-900">
-            {label}
-            {required && <span className="text-red-500 ml-1">*</span>}
-          </label>
+          {/* Label (optional) */}
+          {label && (
+            <label className="block text-sm font-medium leading-6 text-gray-900">
+              {label}
+              {required && <span className="text-red-500 ml-1">*</span>}
+            </label>
+          )}
           <div className="relative mt-1.5">
             {/* Input container */}
             <div
@@ -210,7 +212,9 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
                   }
                 }}
                 disabled={disabled}
-                aria-label={`${label}${required ? " (required)" : ""}`}
+                aria-label={
+                  label ? `${label}${required ? " (required)" : ""}` : undefined
+                }
                 name={label?.toLowerCase()}
                 id={id}
               />
