@@ -18,6 +18,7 @@ interface Action {
   label: string;
   icon?: ReactNode;
   onClick: () => void;
+  id?: string;
 }
 
 interface RowActionsProps {
@@ -90,7 +91,7 @@ export default function RowActions({ actions }: RowActionsProps) {
               const isDelete = action.label.toLowerCase().includes("delete");
               return (
                 <button
-                  key={index}
+                  key={action.id || `${action.label}-${index}`}
                   onClick={() => {
                     action.onClick();
                     setIsOpen(false);
