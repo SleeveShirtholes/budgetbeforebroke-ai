@@ -86,24 +86,35 @@ export default function RowActions({ actions }: RowActionsProps) {
           }}
         >
           <div className="py-1" role="menu">
-            {actions.map((action, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  action.onClick();
-                  setIsOpen(false);
-                }}
-                className="w-full text-left px-4 py-2 text-sm text-secondary-700 hover:bg-secondary-50 flex items-center space-x-2 group"
-                role="menuitem"
-              >
-                {action.icon && (
-                  <span className="text-secondary-600 group-hover:text-primary-600 transition-colors">
-                    {action.icon}
-                  </span>
-                )}
-                <span>{action.label}</span>
-              </button>
-            ))}
+            {actions.map((action, index) => {
+              const isDelete = action.label.toLowerCase().includes("delete");
+              return (
+                <button
+                  key={index}
+                  onClick={() => {
+                    action.onClick();
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-2 text-sm flex items-center space-x-2 group
+                    ${
+                      isDelete
+                        ? "text-red-600 hover:bg-primary-50 hover:text-red-600"
+                        : "text-secondary-700 hover:bg-primary-50 hover:text-primary-600"
+                    }
+                  `}
+                  role="menuitem"
+                >
+                  {action.icon && (
+                    <span
+                      className={`${isDelete ? "text-red-500 group-hover:text-red-600" : "text-secondary-600 group-hover:text-primary-600"} transition-colors`}
+                    >
+                      {action.icon}
+                    </span>
+                  )}
+                  <span>{action.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

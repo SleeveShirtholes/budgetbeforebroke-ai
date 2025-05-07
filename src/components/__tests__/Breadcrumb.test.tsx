@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 
-import { usePathname } from "next/navigation";
 import Breadcrumb from "../Breadcrumb";
+import { usePathname } from "next/navigation";
 
 // Mock the next/navigation usePathname hook
 jest.mock("next/navigation", () => ({
@@ -59,5 +59,14 @@ describe("Breadcrumb", () => {
 
     expect(dashboardLink).toHaveClass("text-primary-500");
     expect(budgetLink).toHaveClass("text-secondary-500");
+  });
+
+  it("renders 'Home' as root for non-dashboard routes", () => {
+    mockUsePathname.mockReturnValue("/account");
+    render(<Breadcrumb />);
+
+    expect(screen.getByText("Home")).toBeInTheDocument();
+    expect(screen.getByText("Account")).toBeInTheDocument();
+    expect(screen.queryByText("Dashboard")).not.toBeInTheDocument();
   });
 });

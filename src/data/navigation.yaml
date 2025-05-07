@@ -30,7 +30,7 @@ account:
   label: Account Management
   items:
     - label: General Settings
-      href: /dashboard/account
+      href: /account
       icon: Cog6ToothIcon
       description: Manage your account settings
     - label: Manage Categories
