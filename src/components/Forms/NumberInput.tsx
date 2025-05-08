@@ -1,3 +1,5 @@
+"use client";
+
 import { forwardRef } from "react";
 
 export interface NumberInputProps {
@@ -131,7 +133,10 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
     return (
       <div className={`${fullWidth ? "w-full" : ""}`}>
         {/* Label */}
-        <label className="block text-sm font-medium leading-6 text-gray-900">
+        <label
+          htmlFor={id}
+          className="block text-sm font-medium leading-6 text-gray-900"
+        >
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>

@@ -21,8 +21,12 @@ describe("RootLayout", () => {
     expect(body.type).toBe("body");
     expect(body.props.className).toBe("bg-pastel-gradient inter-font");
 
-    // Verify the main content
-    const main = body.props.children;
+    // Verify the ToastProvider and main content
+    const toastProvider = body.props.children;
+    expect(toastProvider.type.name).toBe("ToastProvider");
+    expect(toastProvider.props.defaultPosition).toBe("bottom-left");
+
+    const main = toastProvider.props.children;
     expect(main.type).toBe("main");
     expect(main.props.className).toBe("pt-0");
     expect(main.props.children.props.children).toBe(testContent);
