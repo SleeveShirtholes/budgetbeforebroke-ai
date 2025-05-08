@@ -1,9 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useRef } from "react";
 
 import { XMarkIcon } from "@heroicons/react/20/solid";
-import { useEffect } from "react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -45,6 +45,8 @@ export default function Modal({
   maxWidth = "lg",
   footerButtons,
 }: ModalProps) {
+  const hasAutoSelected = useRef(false);
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -55,6 +57,25 @@ export default function Modal({
     if (isOpen) {
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
+
+      // Auto-select first input field only once when modal first opens
+      if (!hasAutoSelected.current) {
+        const modalContent = document.querySelector(
+          '[data-testid="modal-content"]',
+        );
+        if (modalContent) {
+          const firstInput = modalContent.querySelector(
+            'input:not([type="hidden"]), textarea, select',
+          );
+          if (firstInput instanceof HTMLElement) {
+            firstInput.focus();
+            hasAutoSelected.current = true;
+          }
+        }
+      }
+    } else {
+      // Reset the auto-select flag when modal closes
+      hasAutoSelected.current = false;
     }
 
     return () => {

@@ -1,14 +1,18 @@
+budgets:
+  label: Budgets
+  items:
+    - label: All Budgets
+      href: /dashboard/budgets
+      icon: BanknotesIcon
+      description: View all your budgets
+
 transactions:
   label: Transactions
   items:
     - label: All Transactions
       href: /dashboard/transactions
       icon: Bars4Icon
-      description: View your complete transaction history
-    - label: Add Transaction
-      href: /dashboard/transactions/new
-      icon: PlusIcon
-      description: Record a new expense or income
+      description: View your complete transaction history and record new expenses or income
     - label: Recurring
       href: /dashboard/transactions/recurring
       icon: ArrowPathIcon

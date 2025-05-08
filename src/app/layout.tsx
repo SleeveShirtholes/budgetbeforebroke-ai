@@ -1,5 +1,6 @@
 import "./globals.css";
 
+import { ToastProvider } from "@/components/Toast";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
@@ -24,7 +25,9 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={`bg-pastel-gradient ${inter.className}`}>
-        <main className="pt-0">{children}</main>
+        <ToastProvider defaultPosition="bottom-left">
+          <main className="pt-0">{children}</main>
+        </ToastProvider>
       </body>
     </html>
   );

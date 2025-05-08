@@ -5,8 +5,8 @@ import {
   ChevronUpDownIcon,
   FunnelIcon,
 } from "@heroicons/react/20/solid";
-import { ColumnDef, FilterValue, FiltersState, SortingState } from "./types";
 import { ReactNode, useState } from "react";
+import { ColumnDef, FilterValue, FiltersState, SortingState } from "./types";
 
 import TableBody from "./TableBody";
 import TableHeader from "./TableHeader";
