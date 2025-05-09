@@ -1,5 +1,7 @@
 import { ArrowDownIcon, ArrowUpIcon } from "@heroicons/react/20/solid";
 
+import Card from "./Card";
+
 interface StatsCardProps {
   title: string;
   value: string | number;
@@ -8,6 +10,21 @@ interface StatsCardProps {
   trendDirection?: "up" | "down";
 }
 
+/**
+ * StatsCard Component
+ *
+ * A reusable card component that displays a statistic with an optional icon and trend indicator.
+ * Used for displaying key metrics and statistics in a visually appealing way.
+ *
+ * @component
+ * @param {Object} props - Component props
+ * @param {string} props.title - The title/label of the statistic
+ * @param {string|number} props.value - The main value to display
+ * @param {React.ReactNode} [props.icon] - Optional icon to display alongside the statistic
+ * @param {string} [props.trend] - Optional trend value to display (e.g., "+12%")
+ * @param {"up"|"down"} [props.trendDirection] - Direction of the trend, determines color and arrow icon
+ * @returns {JSX.Element} A card displaying the statistic with optional trend information
+ */
 export default function StatsCard({
   title,
   value,
@@ -16,7 +33,8 @@ export default function StatsCard({
   trendDirection,
 }: StatsCardProps) {
   return (
-    <div className="bg-white rounded-xl shadow p-6 border border-secondary-100">
+    <Card variant="default">
+      {/* Main content container with title, value, and optional icon */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-secondary-600">{title}</p>
@@ -24,12 +42,14 @@ export default function StatsCard({
             {value}
           </p>
         </div>
+        {/* Optional icon display with background styling */}
         {icon && (
           <div className="w-12 h-12 bg-secondary-50 rounded-full flex items-center justify-center text-secondary-500 ring-4 ring-secondary-100">
             {icon}
           </div>
         )}
       </div>
+      {/* Optional trend indicator with directional arrow */}
       {trend && (
         <div className="mt-4">
           <div
@@ -46,6 +66,6 @@ export default function StatsCard({
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

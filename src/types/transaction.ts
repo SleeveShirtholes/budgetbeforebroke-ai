@@ -26,6 +26,7 @@ export interface Transaction {
   tags?: string[];
   createdAt: string;
   updatedAt: string;
+  [key: string]: unknown;
 }
 
 export const TRANSACTION_CATEGORIES: TransactionCategory[] = [

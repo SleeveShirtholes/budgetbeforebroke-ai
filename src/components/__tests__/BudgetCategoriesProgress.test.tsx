@@ -73,7 +73,7 @@ describe("BudgetCategoriesProgress", () => {
       const isOverspent =
         mockCategories[index].spent > mockCategories[index].budget;
       expect(bar).toHaveStyle({
-        backgroundColor: isOverspent ? "#EF4444" : "#4e008e",
+        backgroundColor: isOverspent ? "#EF4444" : mockCategories[index].color,
         width: `${Math.min((mockCategories[index].spent / mockCategories[index].budget) * 100, 100)}%`,
       });
     });

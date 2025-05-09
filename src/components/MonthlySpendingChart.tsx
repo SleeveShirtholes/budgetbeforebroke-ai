@@ -28,16 +28,31 @@ interface MonthlySpendingData {
   amount: number;
 }
 
+interface Dataset {
+  label: string;
+  data: number[];
+  borderColor: string;
+  backgroundColor: string;
+  tension: number;
+  fill: boolean;
+  pointBackgroundColor: string;
+  pointBorderColor: string;
+  pointRadius: number;
+  pointHoverRadius: number;
+}
+
 interface MonthlySpendingChartProps {
   data: MonthlySpendingData[];
+  datasets?: Dataset[];
 }
 
 export default function MonthlySpendingChart({
   data,
+  datasets,
 }: MonthlySpendingChartProps) {
   const chartData = {
     labels: data.map((item) => item.month),
-    datasets: [
+    datasets: datasets || [
       {
         label: "Monthly Spending",
         data: data.map((item) => item.amount),
@@ -58,7 +73,8 @@ export default function MonthlySpendingChart({
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false,
+        display: datasets !== undefined,
+        position: "top" as const,
       },
       title: {
         display: true,
