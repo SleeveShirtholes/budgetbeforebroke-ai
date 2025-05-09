@@ -29,10 +29,21 @@ const useTransactionsStore = create<TransactionState>((set) => ({
   setIsModalOpen: (isOpen) => set({ isModalOpen: isOpen }),
   setIsLoading: (isLoading) => set({ isLoading }),
 
-  createTransaction: (transaction) => {
+  createTransaction: (
+    transaction: Omit<Transaction, "id" | "createdAt" | "updatedAt">,
+  ) => {
     const newTransaction: Transaction = {
-      ...transaction,
       id: `tr-${Date.now()}`,
+      date: transaction.date as string,
+      description: transaction.description as string,
+      merchant: transaction.merchant as string,
+      merchantLocation: transaction.merchantLocation as string,
+      amount: transaction.amount as number,
+      type: transaction.type as "expense" | "income",
+      category: transaction.category as TransactionCategory,
+      notes: transaction.notes as string | undefined,
+      account: transaction.account as string | undefined,
+      tags: transaction.tags as string[] | undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

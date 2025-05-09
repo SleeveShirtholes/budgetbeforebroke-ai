@@ -3,9 +3,8 @@ import {
   ChevronUpDownIcon,
   XMarkIcon,
 } from "@heroicons/react/20/solid";
-import { Fragment, forwardRef, useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 
-import { Transition } from "@headlessui/react";
 import ReactDOM from "react-dom";
 
 export interface SelectOption {
@@ -96,6 +95,7 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
     const [dropdownStyles, setDropdownStyles] = useState<React.CSSProperties>(
       {},
     );
+    const [isVisible, setIsVisible] = useState(false);
 
     // Find the currently selected option or undefined
     const selectedOption = options.find((option) => option.value === value);
@@ -116,7 +116,9 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
       function handleClickOutside(event: MouseEvent) {
         if (
           containerRef.current &&
-          !containerRef.current.contains(event.target as Node)
+          !containerRef.current.contains(event.target as Node) &&
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target as Node)
         ) {
           setIsOpen(false);
           setSearchQuery("");
@@ -142,6 +144,10 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
           maxHeight: 240,
           overflowY: "auto",
         });
+        // Add a small delay to ensure the transition works
+        setTimeout(() => setIsVisible(true), 0);
+      } else {
+        setIsVisible(false);
       }
     }, [isOpen]);
 
@@ -242,44 +248,47 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
             </div>
 
             {/* Dropdown menu rendered in a portal */}
-            {typeof window !== "undefined" &&
+            {isOpen &&
+              typeof window !== "undefined" &&
               ReactDOM.createPortal(
-                <Transition
-                  show={isOpen}
-                  as={Fragment}
-                  leave="transition ease-in duration-100"
-                  leaveFrom="opacity-100"
-                  leaveTo="opacity-0"
+                <div
+                  ref={dropdownRef}
+                  style={{
+                    ...dropdownStyles,
+                    opacity: isVisible ? 1 : 0,
+                    transform: `translateY(${isVisible ? "0" : "-10px"})`,
+                    transition:
+                      "opacity 100ms ease-in-out, transform 100ms ease-in-out",
+                  }}
+                  className="rounded-md shadow-lg bg-white border border-gray-200 overflow-auto py-1 text-base focus:outline-none sm:text-sm"
                 >
-                  <div
-                    ref={dropdownRef}
-                    style={dropdownStyles}
-                    className="rounded-md shadow-lg bg-white border border-gray-200 overflow-auto py-1 text-base focus:outline-none sm:text-sm"
-                  >
-                    {filteredOptions.map((option) => (
-                      <div
-                        key={option.value}
-                        className={`relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-primary-50 hover:text-primary-900 ${
+                  {filteredOptions.map((option) => (
+                    <div
+                      key={option.value}
+                      className={`relative cursor-pointer select-none py-2 pl-3 pr-9 hover:bg-primary-50 hover:text-primary-900 ${
+                        option.value === value
+                          ? "bg-primary-50 text-primary-900"
+                          : "text-gray-900"
+                      }`}
+                      onClick={() => handleOptionSelect(option)}
+                    >
+                      <span
+                        className={`block truncate ${
                           option.value === value
-                            ? "bg-primary-50 text-primary-900"
-                            : "text-gray-900"
+                            ? "font-semibold"
+                            : "font-normal"
                         }`}
-                        onClick={() => handleOptionSelect(option)}
                       >
-                        <span
-                          className={`block truncate ${option.value === value ? "font-semibold" : "font-normal"}`}
-                        >
-                          {option.label}
+                        {option.label}
+                      </span>
+                      {option.value === value && (
+                        <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-primary-600">
+                          <CheckIcon className="h-5 w-5" aria-hidden="true" />
                         </span>
-                        {option.value === value && (
-                          <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-primary-600">
-                            <CheckIcon className="h-5 w-5" aria-hidden="true" />
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </Transition>,
+                      )}
+                    </div>
+                  ))}
+                </div>,
                 document.body,
               )}
           </div>
