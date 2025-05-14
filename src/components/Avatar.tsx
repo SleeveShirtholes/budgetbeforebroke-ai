@@ -8,6 +8,7 @@ interface AvatarProps {
   name: string;
   size?: number;
   className?: string;
+  onClick?: () => void;
 }
 
 /**
@@ -34,6 +35,7 @@ function getInitials(name: string) {
  * @param {string} props.name - Full name of the user (used for initials fallback)
  * @param {number} [props.size=40] - Size of the avatar in pixels
  * @param {string} [props.className=""] - Additional CSS classes to apply
+ * @param {() => void} [props.onClick] - Optional click handler
  * @returns {JSX.Element} A circular avatar component
  */
 const Avatar: React.FC<AvatarProps> = ({
@@ -42,6 +44,7 @@ const Avatar: React.FC<AvatarProps> = ({
   name,
   size = 40,
   className = "",
+  onClick,
 }) => {
   // State to track if the image failed to load
   const [imgError, setImgError] = useState(false);
@@ -52,6 +55,7 @@ const Avatar: React.FC<AvatarProps> = ({
     <div
       className={`rounded-full bg-primary-100 flex items-center justify-center overflow-hidden ${className}`}
       style={{ width: size, height: size }}
+      onClick={onClick}
     >
       {src && !imgError ? (
         <Image

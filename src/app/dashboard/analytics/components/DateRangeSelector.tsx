@@ -1,5 +1,4 @@
-import Card from "@/components/Card";
-import { QuestionMarkCircleIcon } from "@heroicons/react/24/outline";
+import PageInfo from "@/components/PageInfo";
 import { format } from "date-fns";
 
 /**
@@ -25,68 +24,51 @@ export default function DateRangeSelector({
   endDate,
   onDateRangeChange,
 }: DateRangeSelectorProps) {
+  const pageInfoContent = (
+    <ul className="text-sm text-secondary-700 space-y-4 list-none leading-relaxed">
+      <li>
+        <span className="font-semibold text-secondary-900">
+          Select a date range
+        </span>{" "}
+        to view your financial data for a specific period.
+      </li>
+      <li>
+        <span className="font-semibold text-secondary-900">
+          Click on any category
+        </span>{" "}
+        in the Budget Categories list to filter both the graph and transactions.
+      </li>
+      <li>
+        <span className="font-semibold text-secondary-900">
+          Use the view selector
+        </span>{" "}
+        to switch between different chart views:
+        <ul className="ml-6 mt-2 space-y-2 list-disc text-secondary-700">
+          <li>
+            <span className="font-semibold">Total Spending:</span> Shows your
+            overall spending over time
+          </li>
+          <li>
+            <span className="font-semibold">By Category:</span> Compare spending
+            across different categories
+          </li>
+          <li>
+            <span className="font-semibold">Income vs Expenses:</span> Track
+            your income against expenses
+          </li>
+        </ul>
+      </li>
+      <li>
+        In the{" "}
+        <span className="font-semibold text-secondary-900">By Category</span>{" "}
+        view, you can select multiple categories to compare them.
+      </li>
+    </ul>
+  );
+
   return (
     <div className="flex items-center justify-end space-x-4">
-      {/* Help tooltip section */}
-      <div className="relative group">
-        <div className="flex items-center space-x-1 text-secondary-400 hover:text-secondary-600 transition-colors">
-          <QuestionMarkCircleIcon className="w-5 h-5" />
-          <span className="text-sm font-medium">Page Info</span>
-        </div>
-        {/* Help tooltip content */}
-        <div className="absolute right-0 top-full mt-2 z-10 hidden group-hover:block">
-          <Card className="w-96 bg-white border border-secondary-200 shadow-xl rounded-2xl p-6">
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-primary-600">
-                How to use this page:
-              </h3>
-              <hr className="border-t border-secondary-200 mb-2" />
-              <ul className="text-sm text-secondary-700 space-y-4 list-none leading-relaxed">
-                <li>
-                  <span className="font-semibold text-secondary-900">
-                    Select a date range
-                  </span>{" "}
-                  to view your financial data for a specific period.
-                </li>
-                <li>
-                  <span className="font-semibold text-secondary-900">
-                    Click on any category
-                  </span>{" "}
-                  in the Budget Categories list to filter both the graph and
-                  transactions.
-                </li>
-                <li>
-                  <span className="font-semibold text-secondary-900">
-                    Use the view selector
-                  </span>{" "}
-                  to switch between different chart views:
-                  <ul className="ml-6 mt-2 space-y-2 list-disc text-secondary-700">
-                    <li>
-                      <span className="font-semibold">Total Spending:</span>{" "}
-                      Shows your overall spending over time
-                    </li>
-                    <li>
-                      <span className="font-semibold">By Category:</span>{" "}
-                      Compare spending across different categories
-                    </li>
-                    <li>
-                      <span className="font-semibold">Income vs Expenses:</span>{" "}
-                      Track your income against expenses
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  In the{" "}
-                  <span className="font-semibold text-secondary-900">
-                    By Category
-                  </span>{" "}
-                  view, you can select multiple categories to compare them.
-                </li>
-              </ul>
-            </div>
-          </Card>
-        </div>
-      </div>
+      <PageInfo content={pageInfoContent} />
       {/* Date range input fields */}
       <div className="flex items-center space-x-2">
         <input
