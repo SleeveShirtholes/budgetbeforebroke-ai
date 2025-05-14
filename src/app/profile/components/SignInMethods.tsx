@@ -10,9 +10,9 @@ import { KeyIcon } from "@heroicons/react/24/outline";
  * @property {string} lastUsed - The timestamp of when this method was last used
  */
 interface SignInMethod {
-    type: string;
-    provider: string;
-    lastUsed: string;
+  type: string;
+  provider: string;
+  lastUsed: string;
 }
 
 /**
@@ -21,7 +21,7 @@ interface SignInMethod {
  * @property {SignInMethod[]} methods - Array of sign-in methods to display
  */
 interface SignInMethodsProps {
-    methods: SignInMethod[];
+  methods: SignInMethod[];
 }
 
 /**
@@ -35,24 +35,30 @@ interface SignInMethodsProps {
  * @returns {JSX.Element} A list of sign-in method cards
  */
 export default function SignInMethods({ methods }: SignInMethodsProps) {
-    return (
-        <div role="list" className="space-y-4">
-            {methods.map((method) => (
-                <div
-                    key={method.type}
-                    role="listitem"
-                    className="flex items-center justify-between p-4 bg-secondary-50 rounded-lg"
-                >
-                    <div className="flex items-center space-x-3">
-                        <KeyIcon className="h-5 w-5 text-secondary-500" />
-                        <div>
-                            <p className="font-medium text-secondary-900">{method.provider}</p>
-                            <p className="text-sm text-secondary-600">Last used: {method.lastUsed}</p>
-                        </div>
-                    </div>
-                    <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">Manage</button>
-                </div>
-            ))}
+  return (
+    <div role="list" className="space-y-4">
+      {methods.map((method) => (
+        <div
+          key={method.type}
+          role="listitem"
+          className="flex items-center justify-between p-4 bg-secondary-50 rounded-lg"
+        >
+          <div className="flex items-center space-x-3">
+            <KeyIcon className="h-5 w-5 text-secondary-500" />
+            <div>
+              <p className="font-medium text-secondary-900">
+                {method.provider}
+              </p>
+              <p className="text-sm text-secondary-600">
+                Last used: {method.lastUsed}
+              </p>
+            </div>
+          </div>
+          <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
+            Manage
+          </button>
         </div>
-    );
+      ))}
+    </div>
+  );
 }

@@ -3,12 +3,12 @@ import React, { useState } from "react";
 import Image from "next/image";
 
 interface AvatarProps {
-    src?: string;
-    alt?: string;
-    name: string;
-    size?: number;
-    className?: string;
-    onClick?: () => void;
+  src?: string;
+  alt?: string;
+  name: string;
+  size?: number;
+  className?: string;
+  onClick?: () => void;
 }
 
 /**
@@ -17,12 +17,12 @@ interface AvatarProps {
  * @returns A string containing up to 2 uppercase initials
  */
 function getInitials(name: string) {
-    return name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 }
 
 /**
@@ -38,32 +38,41 @@ function getInitials(name: string) {
  * @param {() => void} [props.onClick] - Optional click handler
  * @returns {JSX.Element} A circular avatar component
  */
-const Avatar: React.FC<AvatarProps> = ({ src, alt, name, size = 40, className = "", onClick }) => {
-    // State to track if the image failed to load
-    const [imgError, setImgError] = useState(false);
-    // Get initials from the name for fallback display
-    const initials = getInitials(name);
+const Avatar: React.FC<AvatarProps> = ({
+  src,
+  alt,
+  name,
+  size = 40,
+  className = "",
+  onClick,
+}) => {
+  // State to track if the image failed to load
+  const [imgError, setImgError] = useState(false);
+  // Get initials from the name for fallback display
+  const initials = getInitials(name);
 
-    return (
-        <div
-            className={`rounded-full bg-primary-100 flex items-center justify-center overflow-hidden ${className}`}
-            style={{ width: size, height: size }}
-            onClick={onClick}
-        >
-            {src && !imgError ? (
-                <Image
-                    src={src}
-                    alt={alt || name}
-                    width={size}
-                    height={size}
-                    className="object-cover w-full h-full"
-                    onError={() => setImgError(true)}
-                />
-            ) : (
-                <span className="text-primary-700 font-semibold text-base select-none">{initials}</span>
-            )}
-        </div>
-    );
+  return (
+    <div
+      className={`rounded-full bg-primary-100 flex items-center justify-center overflow-hidden ${className}`}
+      style={{ width: size, height: size }}
+      onClick={onClick}
+    >
+      {src && !imgError ? (
+        <Image
+          src={src}
+          alt={alt || name}
+          width={size}
+          height={size}
+          className="object-cover w-full h-full"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <span className="text-primary-700 font-semibold text-base select-none">
+          {initials}
+        </span>
+      )}
+    </div>
+  );
 };
 
 export default Avatar;
