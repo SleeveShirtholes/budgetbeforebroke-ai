@@ -1,47 +1,55 @@
 budgets:
-  label: Budgets
-  items:
-    - label: All Budgets
-      href: /dashboard/budgets
-      icon: BanknotesIcon
-      description: View all your budgets
+    label: Budgets
+    items:
+        - label: All Budgets
+          href: /dashboard/budgets
+          icon: BanknotesIcon
+          description: View all your budgets
 
 transactions:
-  label: Transactions
-  items:
-    - label: All Transactions
-      href: /dashboard/transactions
-      icon: Bars4Icon
-      description: View your complete transaction history and record new expenses or income
-    - label: Recurring
-      href: /dashboard/transactions/recurring
-      icon: ArrowPathIcon
-      description: Manage your recurring transactions
+    label: Transactions
+    items:
+        - label: All Transactions
+          href: /dashboard/transactions
+          icon: Bars4Icon
+          description: View your complete transaction history and record new expenses or income
+        - label: Recurring
+          href: /dashboard/transactions/recurring
+          icon: ArrowPathIcon
+          description: Manage your recurring transactions
 
 analytics:
-  label: Analytics
-  items:
-    - label: Overview
-      href: /dashboard/analytics
-      icon: ChartBarSquareIcon
-      description: Get insights into your spending patterns
-    - label: Reports
-      href: /dashboard/analytics/reports
-      icon: PresentationChartLineIcon
-      description: View detailed financial reports
+    label: Analytics
+    items:
+        - label: Overview
+          href: /dashboard/analytics
+          icon: ChartBarSquareIcon
+          description: Get insights into your spending patterns
+        - label: Reports
+          href: /dashboard/analytics/reports
+          icon: PresentationChartLineIcon
+          description: View detailed financial reports
 
 account:
-  label: Account Management
-  items:
-    - label: General Settings
-      href: /account
-      icon: Cog6ToothIcon
-      description: Manage your account settings
-    - label: Manage Categories
-      href: /dashboard/categories
-      icon: FolderIcon
-      description: Manage your categories
-    - label: Manage Merchants
-      href: /dashboard/merchants
-      icon: ShoppingBagIcon
-      description: Manage your merchants
+    label: Account Management
+    items:
+        - label: General Settings
+          href: /account
+          icon: Cog6ToothIcon
+          description: Manage your account settings
+        - label: Manage Categories
+          href: /dashboard/categories
+          icon: FolderIcon
+          description: Manage your categories
+        - label: Manage Merchants
+          href: /dashboard/merchants
+          icon: ShoppingBagIcon
+          description: Manage your merchants
+
+support:
+    label: Support
+    items:
+        - label: Support
+          href: /support
+          icon: QuestionMarkCircleIcon
+          description: Get help and support
