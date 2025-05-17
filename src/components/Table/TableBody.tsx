@@ -53,12 +53,67 @@ export default function TableBody<T extends Record<string, unknown>>({
     return JSON.stringify(row);
   };
 
+  /**
+   * Handles the click event on a table row.
+   * Toggles the detail panel if the click is not on an interactive element.
+   * @param {React.MouseEvent<HTMLTableRowElement, MouseEvent>} event - The click event.
+   * @param {string} rowId - The ID of the row that was clicked.
+   */
+  const handleRowClick = (
+    event: React.MouseEvent<HTMLTableRowElement, MouseEvent>,
+    rowId: string,
+  ) => {
+    if (!detailPanel) return;
+
+    let targetElement = event.target as HTMLElement;
+    const interactiveTags = [
+      "BUTTON",
+      "A",
+      "INPUT",
+      "SELECT",
+      "TEXTAREA",
+      "LABEL",
+    ];
+
+    // Traverse up the DOM tree from the clicked element up to the row itself (event.currentTarget)
+    while (targetElement && targetElement !== event.currentTarget) {
+      if (
+        interactiveTags.includes(targetElement.tagName) ||
+        targetElement.getAttribute("role") === "button" ||
+        targetElement.dataset.interactive === "true" || // Explicitly marked interactive via data attribute
+        (typeof targetElement.hasAttribute === "function" &&
+          targetElement.hasAttribute("onclick")) // Check for inline onclick handlers
+      ) {
+        // If any parent up to the row is interactive, do not toggle.
+        return;
+      }
+      // A more specific check for elements that look clickable but might not be standard interactive tags
+      if (targetElement.classList.contains("cursor-pointer")) {
+        // If it has cursor-pointer and it's not the row itself (event.currentTarget),
+        // assume it's meant to be interactive independently.
+        return;
+      }
+      targetElement = targetElement.parentElement as HTMLElement;
+    }
+
+    // After checking children, ensure the row (event.currentTarget / the <tr> itself) isn't an inherently interactive tag.
+    // This is mostly a safeguard, as a <tr> shouldn't typically be one of these tags.
+    // We don't check event.currentTarget.onclick because WE are setting it.
+    if (
+      interactiveTags.includes((event.currentTarget as HTMLElement).tagName)
+    ) {
+      return;
+    }
+
+    toggleRowExpansion(rowId);
+  };
+
   return (
     <tbody className="divide-y divide-gray-200 bg-white">
       {data.length === 0 ? (
         <tr>
           <td
-            colSpan={columns.length + (actions ? 2 : 1)}
+            colSpan={columns.length + (actions ? 1 : 0) + (detailPanel ? 1 : 0)}
             className="px-4 py-8 text-center text-gray-500"
           >
             No data available
@@ -72,25 +127,23 @@ export default function TableBody<T extends Record<string, unknown>>({
           return (
             <Fragment key={rowId}>
               <tr
-                className={`transition-colors ${hoveredRowId === rowId ? "bg-secondary-50" : ""}`}
+                className={`transition-colors ${
+                  detailPanel ? "cursor-pointer" : ""
+                } ${hoveredRowId === rowId ? "bg-secondary-50" : ""}`}
                 onMouseEnter={() => setHoveredRowId(rowId)}
                 onMouseLeave={() => setHoveredRowId(null)}
+                onClick={(e) => handleRowClick(e, rowId)}
               >
-                {/* Expansion column */}
-                <td className="w-10 px-4 py-4">
-                  {detailPanel && (
-                    <button
-                      onClick={() => toggleRowExpansion(rowId)}
-                      className="text-gray-500 hover:text-primary-500 transition-colors"
-                    >
-                      <ChevronRightIcon
-                        className={`w-5 h-5 transition-transform duration-200 ${
-                          isExpanded ? "transform rotate-90" : ""
-                        }`}
-                      />
-                    </button>
-                  )}
-                </td>
+                {/* Expansion column - only show icon if detailPanel exists */}
+                {detailPanel && (
+                  <td className="w-10 px-4 py-4">
+                    <ChevronRightIcon
+                      className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
+                        isExpanded ? "transform rotate-90 text-primary-500" : ""
+                      }`}
+                    />
+                  </td>
+                )}
 
                 {/* Row data */}
                 {columns.map((column) => (
@@ -123,7 +176,13 @@ export default function TableBody<T extends Record<string, unknown>>({
               {/* Detail panel */}
               {isExpanded && detailPanel && (
                 <tr>
-                  <td colSpan={columns.length + (actions ? 2 : 1)}>
+                  <td
+                    colSpan={
+                      columns.length +
+                      (actions ? 1 : 0) +
+                      (typeof detailPanel !== "undefined" ? 1 : 0)
+                    }
+                  >
                     <div className="px-8 py-4 bg-secondary-50 border-t border-b border-secondary-100">
                       {detailPanel(row)}
                     </div>

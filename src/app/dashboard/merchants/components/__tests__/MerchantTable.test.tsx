@@ -123,20 +123,15 @@ describe("MerchantTable", () => {
       />,
     );
 
-    // Find and click the first row's expand button
-    const expandButtons = screen.getAllByRole("button", { name: "" });
-    const expandButton = expandButtons.find((button) =>
-      button.querySelector("svg.w-5.h-5"),
-    );
-    expect(expandButton).toBeTruthy();
-    fireEvent.click(expandButton!);
+    // The row itself is clickable for expansion, not a button.
+    // Find the cell containing the merchant name and click it.
+    const merchantCell = screen.getByText("Test Merchant 1");
+    fireEvent.click(merchantCell);
 
     // Wait for the detail panel to be rendered
     await waitFor(() => {
       expect(
-        screen.getByText((content) =>
-          content.includes("Detail Panel for Test Merchant 1"),
-        ),
+        screen.getByText("Detail Panel for Test Merchant 1"),
       ).toBeInTheDocument();
     });
   });

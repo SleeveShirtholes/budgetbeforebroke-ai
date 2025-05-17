@@ -45,3 +45,11 @@ account:
       href: /dashboard/merchants
       icon: ShoppingBagIcon
       description: Manage your merchants
+
+support:
+  label: Support
+  items:
+    - label: Support
+      href: /support
+      icon: QuestionMarkCircleIcon
+      description: Get help and support

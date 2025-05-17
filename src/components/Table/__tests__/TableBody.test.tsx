@@ -71,20 +71,34 @@ describe("TableBody Component", () => {
     const detailPanel = (row: (typeof mockData)[0]) => (
       <div>Details for {row.name}</div>
     );
-    const expandedRows = { "1": true };
+    const expandedRows = { "1": true }; // Assume row with id "1" is expanded
+
+    // Clear mock before each assertion in this test if needed, or ensure it's fresh.
+    mockToggleRowExpansion.mockClear();
 
     renderWithTable(
       <TableBody
         {...defaultProps}
+        // Ensure data has an item with id "1" for consistency with expandedRows
+        data={[{ id: 1, name: "John Doe", age: 30, status: "Active" }]}
+        columns={columns.filter((col) => col.key !== "status")} // Reduce columns for simplicity if needed
         expandedRows={expandedRows}
         detailPanel={detailPanel}
+        toggleRowExpansion={mockToggleRowExpansion} // Ensure the mock is passed
       />,
     );
 
-    const expandButtons = screen.getAllByRole("button");
-    fireEvent.click(expandButtons[0]);
+    // Find a cell in the first row to click. For example, the cell containing "John Doe".
+    // Note: ensure rowId generation in TableBody matches "1" for this data.
+    // The getRowId function uses row.id if present.
+    const rowCellToClick = screen.getByText("John Doe");
+    fireEvent.click(rowCellToClick);
 
+    // Expect toggleRowExpansion to be called with the ID of the clicked row.
+    // The getRowId function converts the id to a string.
     expect(mockToggleRowExpansion).toHaveBeenCalledWith("1");
+
+    // Check if the detail panel content is rendered.
     expect(screen.getByText("Details for John Doe")).toBeInTheDocument();
   });
 
@@ -230,6 +244,131 @@ describe("TableBody Component", () => {
     const nameCells = screen.getAllByText(/John Doe|Jane Smith/);
     nameCells.forEach((cell) => {
       expect(cell).not.toHaveClass("bg-yellow-200");
+    });
+  });
+
+  it("does not toggle expansion when clicking an interactive element within the row", () => {
+    const detailPanel = (row: (typeof mockData)[0]) => (
+      <div>Details for {row.name}</div>
+    );
+    mockToggleRowExpansion.mockClear();
+
+    const columnsWithButton: ColumnDef<(typeof mockData)[0]>[] = [
+      { key: "name", header: "Name" },
+      {
+        key: "action",
+        header: "Action",
+        accessor: (row) => (
+          <button
+            onClick={() => {
+              /* dummy action */
+            }}
+          >
+            Clickable: {row.id}
+          </button>
+        ),
+      },
+    ];
+
+    renderWithTable(
+      <TableBody
+        {...defaultProps}
+        data={[{ id: 1, name: "John Doe", age: 30, status: "Active" }]}
+        columns={columnsWithButton}
+        detailPanel={detailPanel}
+        toggleRowExpansion={mockToggleRowExpansion}
+      />,
+    );
+
+    const buttonInCell = screen.getByText("Clickable: 1");
+    fireEvent.click(buttonInCell);
+
+    expect(mockToggleRowExpansion).not.toHaveBeenCalled();
+  });
+
+  it("does not attempt to toggle expansion if detailPanel is not provided", () => {
+    mockToggleRowExpansion.mockClear();
+
+    renderWithTable(
+      <TableBody
+        {...defaultProps}
+        data={[{ id: 1, name: "John Doe", age: 30, status: "Active" }]}
+        // detailPanel is omitted
+        toggleRowExpansion={mockToggleRowExpansion}
+      />,
+    );
+
+    const rowCellToClick = screen.getByText("John Doe");
+    fireEvent.click(rowCellToClick);
+
+    expect(mockToggleRowExpansion).not.toHaveBeenCalled();
+  });
+
+  describe("Chevron Icon for Expandable Rows", () => {
+    const detailPanel = (row: (typeof mockData)[0]) => (
+      <div>Details for {row.name}</div>
+    );
+
+    it("renders chevron icon when detailPanel is provided", () => {
+      renderWithTable(
+        <TableBody
+          {...defaultProps}
+          data={[{ id: 1, name: "John Doe", age: 30, status: "Active" }]}
+          detailPanel={detailPanel}
+        />,
+      );
+      // The chevron is rendered as an SVG, difficult to select directly by text or role.
+      // We can check for its presence by looking for the td cell that contains it.
+      // Or, if the icon had a title or specific class, we could use that.
+      // Assuming ChevronRightIcon renders a specific path or has a known structure.
+      // For now, let's check if the first cell (where it should be) exists.
+      const rows = screen.getAllByRole("row");
+      const firstCellOfFirstDataRow =
+        rows[0].querySelector("td:first-child svg");
+      expect(firstCellOfFirstDataRow).toBeInTheDocument();
+    });
+
+    it("chevron icon rotates when row is expanded", () => {
+      renderWithTable(
+        <TableBody
+          {...defaultProps}
+          data={[{ id: 1, name: "John Doe", age: 30, status: "Active" }]}
+          expandedRows={{ "1": true }} // Row is expanded
+          detailPanel={detailPanel}
+        />,
+      );
+      const rows = screen.getAllByRole("row");
+      const chevronIcon = rows[0].querySelector("td:first-child svg");
+      expect(chevronIcon).toHaveClass("transform rotate-90");
+    });
+
+    it("chevron icon does not rotate when row is not expanded", () => {
+      renderWithTable(
+        <TableBody
+          {...defaultProps}
+          data={[{ id: 1, name: "John Doe", age: 30, status: "Active" }]}
+          expandedRows={{ "1": false }} // Row is not expanded
+          detailPanel={detailPanel}
+        />,
+      );
+      const rows = screen.getAllByRole("row");
+      const chevronIcon = rows[0].querySelector("td:first-child svg");
+      expect(chevronIcon).not.toHaveClass("transform rotate-90");
+    });
+
+    it("does not render chevron icon if detailPanel is not provided", () => {
+      renderWithTable(
+        <TableBody
+          {...defaultProps}
+          data={[{ id: 1, name: "John Doe", age: 30, status: "Active" }]}
+          // detailPanel is omitted
+        />,
+      );
+      const rows = screen.getAllByRole("row");
+      // The first `td` should exist for row data, but it shouldn't contain an SVG if no detail panel
+      const firstCellOfFirstDataRow =
+        rows[0].querySelector("td:first-child svg");
+      expect(firstCellOfFirstDataRow).not.toBeInTheDocument();
     });
   });
 });

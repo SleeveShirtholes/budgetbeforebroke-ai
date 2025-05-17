@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 
-import { CalendarIcon } from "@heroicons/react/24/outline";
-import userEvent from "@testing-library/user-event";
+import { CalendarIcon } from "@heroicons/react/20/solid";
 import CustomSelect from "../CustomSelect";
+import userEvent from "@testing-library/user-event";
 
 const mockOptions = [
   { value: "option1", label: "First Option" },
@@ -282,5 +282,17 @@ describe("CustomSelect", () => {
     const clearButton = screen.getByRole("button");
     await userEvent.click(clearButton);
     expect(input).toHaveValue("");
+  });
+
+  it("closes dropdown when clicking outside the options box", async () => {
+    render(<CustomSelect {...defaultProps} />);
+    const input = screen.getByPlaceholderText("First Option");
+    await userEvent.click(input);
+    expect(screen.getByText("Second Option")).toBeInTheDocument();
+    // Simulate clicking outside (on document body)
+    await userEvent.click(document.body);
+    // Wait for animation to complete
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(screen.queryByText("Second Option")).not.toBeInTheDocument();
   });
 });

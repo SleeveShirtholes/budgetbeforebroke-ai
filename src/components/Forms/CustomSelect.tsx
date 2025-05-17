@@ -3,7 +3,14 @@ import {
   ChevronUpDownIcon,
   XMarkIcon,
 } from "@heroicons/react/20/solid";
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { Ref, forwardRef, useEffect, useRef, useState } from "react";
+import {
+  autoUpdate,
+  flip,
+  offset,
+  shift,
+  useFloating,
+} from "@floating-ui/react-dom";
 
 import ReactDOM from "react-dom";
 
@@ -85,17 +92,23 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
     },
     ref,
   ) => {
-    // State for dropdown visibility
     const [isOpen, setIsOpen] = useState(false);
-    // State for search/filter input
     const [searchQuery, setSearchQuery] = useState("");
-    // Refs for handling click outside and focus
     const containerRef = useRef<HTMLDivElement>(null);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-    const [dropdownStyles, setDropdownStyles] = useState<React.CSSProperties>(
-      {},
-    );
     const [isVisible, setIsVisible] = useState(false);
+
+    // Floating UI setup
+    const { x, y, strategy, update, refs } = useFloating({
+      placement: "bottom-start",
+      middleware: [offset(4), flip(), shift({ padding: 8 })],
+      whileElementsMounted: autoUpdate,
+    });
+
+    // Update floating position when open
+    useEffect(() => {
+      if (isOpen && update) update();
+      setIsVisible(isOpen);
+    }, [isOpen, update]);
 
     // Find the currently selected option or undefined
     const selectedOption = options.find((option) => option.value === value);
@@ -113,43 +126,24 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
 
     // Handle clicks outside the component to close the dropdown
     useEffect(() => {
-      function handleClickOutside(event: MouseEvent) {
+      function handleClickOutside(event: MouseEvent | TouchEvent) {
         if (
-          containerRef.current &&
-          !containerRef.current.contains(event.target as Node) &&
-          dropdownRef.current &&
-          !dropdownRef.current.contains(event.target as Node)
+          refs.reference.current instanceof HTMLElement &&
+          !refs.reference.current.contains(event.target as Node) &&
+          refs.floating.current instanceof HTMLElement &&
+          !refs.floating.current.contains(event.target as Node)
         ) {
           setIsOpen(false);
           setSearchQuery("");
         }
       }
-
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
       return () => {
         document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("touchstart", handleClickOutside);
       };
-    }, []);
-
-    // Calculate dropdown position when opened
-    useEffect(() => {
-      if (isOpen && containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setDropdownStyles({
-          position: "fixed",
-          zIndex: 9999,
-          top: rect.bottom + window.scrollY,
-          left: rect.left + window.scrollX,
-          width: rect.width,
-          maxHeight: 240,
-          overflowY: "auto",
-        });
-        // Add a small delay to ensure the transition works
-        setTimeout(() => setIsVisible(true), 0);
-      } else {
-        setIsVisible(false);
-      }
-    }, [isOpen]);
+    }, [refs.reference, refs.floating]);
 
     // Prevent event propagation when clicking input
     const handleInputClick = (e: React.MouseEvent) => {
@@ -168,7 +162,7 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
 
     return (
       <div className={`${fullWidth ? "w-full" : ""}`}>
-        <div className="relative" ref={containerRef}>
+        <div className="relative" ref={refs.reference as Ref<HTMLDivElement>}>
           {/* Label (optional) */}
           {label && (
             <label className="block text-sm font-medium leading-6 text-gray-900">
@@ -252,13 +246,19 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
               typeof window !== "undefined" &&
               ReactDOM.createPortal(
                 <div
-                  ref={dropdownRef}
+                  ref={refs.floating as Ref<HTMLDivElement>}
                   style={{
-                    ...dropdownStyles,
+                    position: strategy,
+                    top: y ?? 0,
+                    left: x ?? 0,
+                    width: containerRef.current?.offsetWidth,
+                    zIndex: 9999,
                     opacity: isVisible ? 1 : 0,
                     transform: `translateY(${isVisible ? "0" : "-10px"})`,
                     transition:
                       "opacity 100ms ease-in-out, transform 100ms ease-in-out",
+                    maxHeight: 240,
+                    overflowY: "auto",
                   }}
                   className="rounded-md shadow-lg bg-white border border-gray-200 overflow-auto py-1 text-base focus:outline-none sm:text-sm"
                 >

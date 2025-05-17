@@ -11,8 +11,8 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@floating-ui/react-dom": "^2.1.2",
     "@heroicons/react": "^2.2.0",
-    "@types/react-datepicker": "^6.2.0",
     "chart.js": "^4.4.9",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.9.2",
