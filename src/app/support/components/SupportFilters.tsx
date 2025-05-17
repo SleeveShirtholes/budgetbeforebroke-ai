@@ -11,9 +11,9 @@ import React from "react";
  * @property {() => void} onCreateRequest - Callback when the create request button is clicked
  */
 interface SupportFiltersProps {
-    issueView: "my" | "public";
-    onIssueViewChange: (value: "my" | "public") => void;
-    onCreateRequest: () => void;
+  issueView: "my" | "public";
+  onIssueViewChange: (value: "my" | "public") => void;
+  onCreateRequest: () => void;
 }
 
 /**
@@ -21,8 +21,8 @@ interface SupportFiltersProps {
  * @constant
  */
 const mainTabOptions: TabOption[] = [
-    { label: "My Issues", value: "my" },
-    { label: "All Public Issues", value: "public" },
+  { label: "My Issues", value: "my" },
+  { label: "All Public Issues", value: "public" },
 ];
 
 /**
@@ -37,17 +37,21 @@ const mainTabOptions: TabOption[] = [
  * @param {SupportFiltersProps} props - The component props
  * @returns {JSX.Element} A container with tabs and create button
  */
-const SupportFilters: React.FC<SupportFiltersProps> = ({ issueView, onIssueViewChange, onCreateRequest }) => (
-    <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-        <Tabs
-            options={mainTabOptions}
-            value={issueView}
-            onChange={(val) => onIssueViewChange(val as "my" | "public")}
-        />
-        <Button variant="primary" onClick={onCreateRequest}>
-            Create New Support Request
-        </Button>
-    </div>
+const SupportFilters: React.FC<SupportFiltersProps> = ({
+  issueView,
+  onIssueViewChange,
+  onCreateRequest,
+}) => (
+  <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+    <Tabs
+      options={mainTabOptions}
+      value={issueView}
+      onChange={(val) => onIssueViewChange(val as "my" | "public")}
+    />
+    <Button variant="primary" onClick={onCreateRequest}>
+      Create New Support Request
+    </Button>
+  </div>
 );
 
 export default SupportFilters;

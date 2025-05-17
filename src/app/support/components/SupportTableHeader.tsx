@@ -10,9 +10,9 @@ import React from "react";
  * @property {(value: "open" | "closed") => void} onStatusViewChange - Callback when the status filter changes
  */
 interface SupportTableHeaderProps {
-    tableTitle: string;
-    statusView: "open" | "closed";
-    onStatusViewChange: (value: "open" | "closed") => void;
+  tableTitle: string;
+  statusView: "open" | "closed";
+  onStatusViewChange: (value: "open" | "closed") => void;
 }
 
 /**
@@ -20,8 +20,8 @@ interface SupportTableHeaderProps {
  * @constant
  */
 const statusDropdownOptions: SelectOption[] = [
-    { label: "Open & In Progress", value: "open" },
-    { label: "Closed", value: "closed" },
+  { label: "Open & In Progress", value: "open" },
+  { label: "Closed", value: "closed" },
 ];
 
 /**
@@ -36,18 +36,22 @@ const statusDropdownOptions: SelectOption[] = [
  * @param {SupportTableHeaderProps} props - The component props
  * @returns {JSX.Element} A container with title and status filter
  */
-const SupportTableHeader: React.FC<SupportTableHeaderProps> = ({ tableTitle, statusView, onStatusViewChange }) => (
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-2">
-        <h2 className="text-2xl font-semibold text-gray-700">{tableTitle}</h2>
-        <CustomSelect
-            options={statusDropdownOptions}
-            value={statusView}
-            onChange={(val) => onStatusViewChange(val as "open" | "closed")}
-            id="status-dropdown"
-            aria-label="Status Filter"
-            fullWidth={false}
-        />
-    </div>
+const SupportTableHeader: React.FC<SupportTableHeaderProps> = ({
+  tableTitle,
+  statusView,
+  onStatusViewChange,
+}) => (
+  <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-2">
+    <h2 className="text-2xl font-semibold text-gray-700">{tableTitle}</h2>
+    <CustomSelect
+      options={statusDropdownOptions}
+      value={statusView}
+      onChange={(val) => onStatusViewChange(val as "open" | "closed")}
+      id="status-dropdown"
+      aria-label="Status Filter"
+      fullWidth={false}
+    />
+  </div>
 );
 
 export default SupportTableHeader;
