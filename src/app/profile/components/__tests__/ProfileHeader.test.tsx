@@ -1,53 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
-import userEvent from "@testing-library/user-event";
 import ProfileHeader from "../ProfileHeader";
-
-// Mock next/image
-jest.mock("next/image", () => ({
-  __esModule: true,
-  default: ({
-    src,
-    alt,
-    width,
-    height,
-    ...props
-  }: {
-    src: string;
-    alt: string;
-    width: number;
-    height: number;
-    [key: string]: string | number | boolean | undefined;
-  }) => {
-    // Using a div with data-testid to make it easier to test
-    return (
-      <div
-        data-testid="next-image"
-        style={{
-          position: "relative",
-          width: width,
-          height: height,
-        }}
-        {...props}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundImage: `url(${src})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-          role="img"
-          aria-label={alt}
-        />
-      </div>
-    );
-  },
-}));
+import userEvent from "@testing-library/user-event";
 
 // Mock URL.createObjectURL
 beforeAll(() => {
@@ -80,7 +34,6 @@ describe("ProfileHeader", () => {
     expect(avatar).toHaveStyle({
       backgroundImage: `url(${mockProps.avatar})`,
     });
-    expect(screen.getByTestId("next-image")).toBeInTheDocument();
   });
 
   it("handles avatar click and file selection", async () => {
@@ -107,8 +60,8 @@ describe("ProfileHeader", () => {
     const user = userEvent.setup();
     render(<ProfileHeader {...mockProps} />);
 
-    const avatarContainer = screen.getByTestId("next-image");
-    await user.hover(avatarContainer);
+    const avatar = screen.getByRole("img", { name: mockProps.name });
+    await user.hover(avatar);
     expect(screen.getByTestId("camera-icon")).toBeVisible();
   });
 });

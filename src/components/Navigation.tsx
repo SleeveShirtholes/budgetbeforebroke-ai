@@ -11,10 +11,10 @@ export default function Navigation() {
             </span>
           </div>
           <div className="flex items-center space-x-4">
-            <Button variant="text" href="/login">
+            <Button variant="text" href="/auth/signin">
               Sign In
             </Button>
-            <Button variant="primary" href="/signup">
+            <Button variant="primary" href="/auth/signup">
               Sign Up
             </Button>
           </div>

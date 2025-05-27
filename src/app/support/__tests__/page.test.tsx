@@ -88,10 +88,6 @@ describe("Support Page", () => {
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
     // Log visibility for debugging
 
-    console.log(
-      "Modal heading visible after cancel:",
-      heading.offsetParent !== null,
-    );
     // Modal title (heading) should not be in the document or should not be visible
     expect(heading).not.toBeVisible();
   });

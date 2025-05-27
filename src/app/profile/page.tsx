@@ -1,15 +1,25 @@
 "use client";
 
 import Breadcrumb from "@/components/Breadcrumb";
+import Button from "@/components/Button";
 import Card from "@/components/Card";
 import PageInfo from "@/components/PageInfo";
 import { useToast } from "@/components/Toast";
+import { authClient } from "@/lib/auth-client";
 import { useState } from "react";
+import useSWR from "swr";
 import AccountInformation from "./components/AccountInformation";
 import AccountSecurity from "./components/AccountSecurity";
 import ProfileHeader from "./components/ProfileHeader";
+import type { ProfileFormValues } from "./components/ProfileInformation";
 import ProfileInformation from "./components/ProfileInformation";
 import SignInMethods from "./components/SignInMethods";
+
+// SWR fetcher using server action
+const fetchProfile = async () => {
+  const { getProfile } = await import("./actions");
+  return getProfile();
+};
 
 /**
  * ProfilePage Component
@@ -27,59 +37,53 @@ import SignInMethods from "./components/SignInMethods";
  * @returns {JSX.Element} A fully interactive profile management interface
  */
 export default function ProfilePage() {
-  // State management for editable profile fields
-  const [phoneNumber, setPhoneNumber] = useState("(555) 123-4567");
+  const {
+    data: profileData,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR("/profile", fetchProfile);
   const [isEditing, setIsEditing] = useState(false);
-  const [tempPhoneNumber, setTempPhoneNumber] = useState(phoneNumber);
-  const [preferredName, setPreferredName] = useState("John");
-  const [tempPreferredName, setTempPreferredName] = useState(preferredName);
+  const [isSaving, setIsSaving] = useState(false);
   const { showToast } = useToast();
+  const { data: session } = authClient.useSession();
 
-  // Mock user data - replace with actual user data from your auth system
-  const [userData, setUserData] = useState({
-    name: "John Doe",
-    email: "john.doe@example.com",
-    avatar: "/default-avatar.png",
-    signInMethods: [
-      { type: "email", provider: "Email", lastUsed: "2024-03-20" },
-      { type: "google", provider: "Google", lastUsed: "2024-03-19" },
-    ],
-    accountCreated: "2024-01-01",
-    lastLogin: "2024-03-20",
-  });
+  // Handlers for form actions
+  const handleCancel = () => setIsEditing(false);
 
-  // Handlers for profile updates
-  const handleAvatarChange = (previewUrl: string) => {
-    setUserData((prev) => ({
-      ...prev,
-      avatar: previewUrl,
-    }));
+  // RHF onSubmit handler
+  const handleSubmit = async (values: ProfileFormValues) => {
+    setIsSaving(true);
+    try {
+      const { updateProfile } = await import("./actions");
+      await updateProfile({
+        name: values.name.trim(),
+        phoneNumber: values.phoneNumber.replace(/\D/g, ""),
+      });
+      mutate();
+      setIsEditing(false);
+      showToast("Profile updated successfully!", { type: "success" });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      showToast("Failed to update profile", { type: "error" });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // Toggle edit mode and initialize temporary state
-  const handleEdit = () => {
-    setIsEditing(true);
-    setTempPhoneNumber(phoneNumber);
-    setTempPreferredName(preferredName);
-  };
-
-  // Save changes and update profile information
-  const handleSave = () => {
-    setPhoneNumber(tempPhoneNumber);
-    setPreferredName(tempPreferredName);
-    setIsEditing(false);
-    // Here you would typically make an API call to update the phone number and preferred name
-    console.log("Saving phone number:", tempPhoneNumber);
-    console.log("Saving preferred name:", tempPreferredName);
-    showToast("Profile updated successfully!", { type: "success" });
-  };
-
-  // Cancel editing and revert temporary changes
-  const handleCancel = () => {
-    setTempPhoneNumber(phoneNumber);
-    setTempPreferredName(preferredName);
-    setIsEditing(false);
-  };
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-secondary-200 rounded w-1/4"></div>
+          <div className="h-32 bg-secondary-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+  if (error) {
+    return <div className="text-red-600">Failed to load profile data.</div>;
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
@@ -91,10 +95,14 @@ export default function ProfilePage() {
       {/* Profile Header */}
       <div className="flex items-center justify-between">
         <ProfileHeader
-          name={userData.name}
-          email={userData.email}
-          avatar={userData.avatar}
-          onAvatarChange={handleAvatarChange}
+          name={profileData?.name || session?.user?.name || "User"}
+          email={
+            profileData?.email || session?.user?.email || "user@example.com"
+          }
+          avatar={
+            profileData?.image || session?.user?.image || "/default-avatar.png"
+          }
+          onAvatarChange={() => {}}
         />
         <PageInfo
           title="Profile Page Guide"
@@ -120,7 +128,9 @@ export default function ProfilePage() {
                 </h4>
                 <p>Update your basic information:</p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>Click &quot;Edit&quot; to modify your phone number</li>
+                  <li>
+                    Click &quot;Edit&quot; to modify your name and phone number
+                  </li>
                   <li>Use &quot;Save Changes&quot; to confirm updates</li>
                   <li>Click &quot;Cancel&quot; to discard changes</li>
                 </ul>
@@ -162,41 +172,28 @@ export default function ProfilePage() {
           Profile Information
         </h2>
         <ProfileInformation
-          name={userData.name}
-          email={userData.email}
-          phoneNumber={phoneNumber}
-          preferredName={preferredName}
+          name={
+            (profileData && profileData.name) || session?.user?.name || "User"
+          }
+          email={
+            (profileData && profileData.email) ||
+            session?.user?.email ||
+            "user@example.com"
+          }
+          phoneNumber={(profileData && profileData.phoneNumber) || ""}
           isEditing={isEditing}
-          tempPhoneNumber={tempPhoneNumber}
-          tempPreferredName={tempPreferredName}
-          onPhoneNumberChange={setTempPhoneNumber}
-          onPreferredNameChange={setTempPreferredName}
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+          isLoading={isSaving}
         />
-        <div className="mt-6 flex justify-end space-x-3">
-          {isEditing ? (
-            <>
-              <button
-                onClick={handleCancel}
-                className="px-4 py-2 text-sm font-medium text-secondary-700 bg-white border border-secondary-300 rounded-md hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                Save Changes
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={handleEdit}
-              className="px-4 py-2 text-sm font-medium text-primary-600 bg-white border border-primary-300 rounded-md hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
+        {/* Show Edit button when not editing */}
+        {!isEditing && (
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => setIsEditing(true)} type="button">
               Edit
-            </button>
-          )}
-        </div>
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Sign-in Methods */}
@@ -204,7 +201,12 @@ export default function ProfilePage() {
         <h2 className="text-xl font-semibold text-secondary-900 mb-4">
           Sign-in Methods
         </h2>
-        <SignInMethods methods={userData.signInMethods} />
+        <SignInMethods />
+        {!session?.user?.emailVerified && (
+          <div className="mt-6 text-sm text-yellow-600">
+            Please verify your email to enable passkey sign-in.
+          </div>
+        )}
       </Card>
 
       {/* Account Security */}
@@ -220,10 +222,7 @@ export default function ProfilePage() {
         <h2 className="text-xl font-semibold text-secondary-900 mb-4">
           Account Information
         </h2>
-        <AccountInformation
-          accountCreated={userData.accountCreated}
-          lastLogin={userData.lastLogin}
-        />
+        <AccountInformation />
       </Card>
     </div>
   );

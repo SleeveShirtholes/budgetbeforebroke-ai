@@ -1,15 +1,8 @@
 "use client";
 
-/**
- * Props interface for the AccountInformation component
- * @interface AccountInformationProps
- * @property {string} accountCreated - The date when the account was created
- * @property {string} lastLogin - The date of the user's last login
- */
-interface AccountInformationProps {
-  accountCreated: string;
-  lastLogin: string;
-}
+import { formatDate } from "@/utils/date";
+import { getAccountInformation } from "../actions";
+import useSWR from "swr";
 
 /**
  * AccountInformation Component
@@ -17,13 +10,39 @@ interface AccountInformationProps {
  * Displays key account information including creation date and last login time
  * in a two-column grid layout.
  *
- * @param {AccountInformationProps} props - The component props
  * @returns {JSX.Element} A grid layout displaying account information
  */
-export default function AccountInformation({
-  accountCreated,
-  lastLogin,
-}: AccountInformationProps) {
+export default function AccountInformation() {
+  const { data, error, isLoading } = useSWR(
+    "accountInformation",
+    getAccountInformation,
+  );
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="text-red-600">Failed to load account information</div>
+      </div>
+    );
+  }
+
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-secondary-600">Account Created</p>
+            <p className="text-secondary-900">Loading...</p>
+          </div>
+          <div>
+            <p className="text-sm text-secondary-600">Last Login</p>
+            <p className="text-secondary-900">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     // Main container with vertical spacing
     <div className="space-y-4">
@@ -32,12 +51,14 @@ export default function AccountInformation({
         {/* Account creation date section */}
         <div>
           <p className="text-sm text-secondary-600">Account Created</p>
-          <p className="text-secondary-900">{accountCreated}</p>
+          <p className="text-secondary-900">
+            {formatDate(data.accountCreated)}
+          </p>
         </div>
         {/* Last login date section */}
         <div>
           <p className="text-sm text-secondary-600">Last Login</p>
-          <p className="text-secondary-900">{lastLogin}</p>
+          <p className="text-secondary-900">{formatDate(data.lastLogin)}</p>
         </div>
       </div>
     </div>

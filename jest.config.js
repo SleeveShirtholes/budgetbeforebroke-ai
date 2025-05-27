@@ -11,8 +11,18 @@ const customJestConfig = {
   testEnvironment: "jest-environment-jsdom",
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^next/image$": "<rootDir>/src/__mocks__/next/image.js",
+    "^better-auth$": "<rootDir>/src/__mocks__/better-auth.js",
+    "^better-auth/(.*)$": "<rootDir>/src/__mocks__/better-auth/$1",
   },
   testMatch: ["**/__tests__/**/*.test.[jt]s?(x)"],
+  // Allow ESM modules for problematic packages
+  transformIgnorePatterns: [
+    "/node_modules/(?!(uncrypto|better-auth|nanostores|better-call|@floating-ui|react-hook-form)/)",
+  ],
+  transform: {
+    "^.+\\.(js|jsx|ts|tsx|mjs)$": ["babel-jest", { presets: ["next/babel"] }],
+  },
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

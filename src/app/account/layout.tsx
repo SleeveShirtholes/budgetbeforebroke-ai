@@ -10,7 +10,7 @@ export default function AccountLayout({
 }) {
   return (
     <div className="min-h-screen">
-      <Header userAvatar="/default-avatar.png" userName="John Doe" />
+      <Header />
 
       <main className="max-w-7xl mx-auto py-8 pt-22">
         <div className="px-4 sm:px-6 lg:px-8">

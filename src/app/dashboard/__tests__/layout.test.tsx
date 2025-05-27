@@ -4,8 +4,8 @@ import DashboardLayout from "../layout";
 
 // Mock the Header component
 jest.mock("@/components/Header", () => {
-  return function MockHeader({ userName }: { userName: string }) {
-    return <header data-testid="header">Header for {userName}</header>;
+  return function MockHeader() {
+    return <header data-testid="header">Header for John Doe</header>;
   };
 });
 

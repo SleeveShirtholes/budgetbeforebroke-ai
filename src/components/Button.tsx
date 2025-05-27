@@ -32,6 +32,7 @@ type ButtonSize = "sm" | "md" | "lg";
  * @property {ReactNode} children - The content of the button
  * @property {string} [className] - Additional CSS classes to apply
  * @property {boolean} [fullWidth=false] - Whether the button should take full width
+ * @property {boolean} [isLoading=false] - Whether the button is in a loading state
  */
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -40,6 +41,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   className?: string;
   fullWidth?: boolean;
+  isLoading?: boolean;
 }
 
 /**
@@ -92,6 +94,9 @@ const sizeStyles = {
  *
  * // Full width button
  * <Button variant="primary" fullWidth>Full Width</Button>
+ *
+ * // Loading state
+ * <Button variant="primary" isLoading>Loading...</Button>
  * ```
  *
  * @param {ButtonProps} props - The props for the Button component
@@ -104,17 +109,21 @@ export default function Button({
   children,
   className = "",
   fullWidth = false,
+  isLoading = false,
+  disabled,
   ...props
 }: ButtonProps) {
   const baseStyles =
     "rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center";
   const widthStyle = fullWidth ? "w-full" : "";
+  const loadingStyles = isLoading ? "opacity-70 cursor-not-allowed" : "";
 
   const buttonStyles = `
         ${baseStyles}
         ${variantStyles[variant]}
         ${sizeStyles[size]}
         ${widthStyle}
+        ${loadingStyles}
         ${className}
     `;
 
@@ -127,8 +136,19 @@ export default function Button({
   }
 
   return (
-    <button className={buttonStyles} {...props}>
-      {children}
+    <button
+      className={buttonStyles}
+      disabled={disabled || isLoading}
+      {...props}
+    >
+      {isLoading ? (
+        <div className="flex items-center space-x-2">
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <span>{children}</span>
+        </div>
+      ) : (
+        children
+      )}
     </button>
   );
 }

@@ -1,92 +1,147 @@
 "use client";
 
+import { AsYouType, isValidPhoneNumber } from "libphonenumber-js";
+import { Controller, useForm } from "react-hook-form";
 import { EnvelopeIcon, PhoneIcon, UserIcon } from "@heroicons/react/24/outline";
 
+import Button from "@/components/Button";
+import React from "react";
 import TextField from "@/components/Forms/TextField";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const profileSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Full name must be at least 2 characters.")
+    .regex(/^[A-Za-z ]+$/, "Full name can only contain letters and spaces."),
+  phoneNumber: z
+    .string()
+    .refine((val) => val === "" || isValidPhoneNumber(val, "US"), {
+      message:
+        "Please enter a valid US phone number (e.g., (801) 673-1947 or +1 801-673-1947)",
+    }),
+});
+
+export type ProfileFormValues = z.infer<typeof profileSchema>;
 
 interface ProfileInformationProps {
   name: string;
   email: string;
   phoneNumber: string;
-  preferredName: string;
   isEditing: boolean;
-  tempPhoneNumber: string;
-  tempPreferredName: string;
-  onPhoneNumberChange: (value: string) => void;
-  onPreferredNameChange: (value: string) => void;
+  onSubmit: (values: ProfileFormValues) => void;
+  onCancel: () => void;
+  isLoading: boolean;
 }
 
 /**
  * ProfileInformation Component
  *
- * Displays and manages user profile information including name, email, preferred name, and phone number.
+ * Displays and manages user profile information including name, email, and phone number.
  * Supports both view and edit modes for certain fields.
- *
- * @param {string} name - User's full name (read-only)
- * @param {string} email - User's email address (read-only)
- * @param {string} phoneNumber - User's current phone number
- * @param {string} preferredName - User's current preferred name
- * @param {boolean} isEditing - Whether the component is in edit mode
- * @param {string} tempPhoneNumber - Temporary phone number value during editing
- * @param {string} tempPreferredName - Temporary preferred name value during editing
- * @param {function} onPhoneNumberChange - Callback for phone number changes
- * @param {function} onPreferredNameChange - Callback for preferred name changes
  */
 export default function ProfileInformation({
   name,
   email,
   phoneNumber,
-  preferredName,
   isEditing,
-  tempPhoneNumber,
-  tempPreferredName,
-  onPhoneNumberChange,
-  onPreferredNameChange,
+  onSubmit,
+  onCancel,
+  isLoading,
 }: ProfileInformationProps) {
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors, isDirty, isValid },
+    reset,
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    mode: "onChange",
+    defaultValues: { name, phoneNumber },
+  });
+
+  // Reset form when switching between edit/view or when data changes
+  React.useEffect(() => {
+    reset({ name, phoneNumber });
+  }, [name, phoneNumber, isEditing, reset]);
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center space-x-3">
-        <UserIcon className="h-5 w-5 text-secondary-500" />
-        <div>
-          <p className="text-sm text-secondary-600">Full Name</p>
-          <p className="text-secondary-900">{name}</p>
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <div className="space-y-4">
+        <div className="flex items-center space-x-3">
+          <UserIcon className="h-5 w-5 text-secondary-500" />
+          <div className="flex-grow">
+            <TextField
+              label="Full Name"
+              type="text"
+              {...register("name")}
+              placeholder="Enter your full name"
+              disabled={!isEditing || isLoading}
+              className={!isEditing ? "bg-secondary-50 cursor-not-allowed" : ""}
+              error={errors.name?.message || ""}
+              helperText={errors.name?.message}
+            />
+          </div>
+        </div>
+        <div className="flex items-center space-x-3">
+          <EnvelopeIcon className="h-5 w-5 text-secondary-500" />
+          <div>
+            <p className="text-sm text-secondary-600">Email Address</p>
+            <p className="text-secondary-900">{email}</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-3">
+          <PhoneIcon className="h-5 w-5 text-secondary-500" />
+          <div className="flex-grow">
+            <Controller
+              name="phoneNumber"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  label="Phone Number"
+                  type="tel"
+                  value={field.value}
+                  onChange={(e) => {
+                    const formatter = new AsYouType("US");
+                    const formatted = formatter.input(e.target.value);
+                    field.onChange(formatted);
+                  }}
+                  placeholder="Enter phone number"
+                  disabled={!isEditing || isLoading}
+                  className={
+                    !isEditing ? "bg-secondary-50 cursor-not-allowed" : ""
+                  }
+                  error={errors.phoneNumber?.message || ""}
+                  helperText={errors.phoneNumber?.message}
+                />
+              )}
+            />
+          </div>
         </div>
       </div>
-      <div className="flex items-center space-x-3">
-        <EnvelopeIcon className="h-5 w-5 text-secondary-500" />
-        <div>
-          <p className="text-sm text-secondary-600">Email Address</p>
-          <p className="text-secondary-900">{email}</p>
+      {isEditing && (
+        <div className="mt-6 flex flex-col items-end space-y-2">
+          <div className="flex space-x-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onCancel}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isLoading || !isDirty || !isValid}
+            >
+              {isLoading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center space-x-3">
-        <UserIcon className="h-5 w-5 text-secondary-500" />
-        <div className="flex-grow">
-          <TextField
-            label="Preferred Name"
-            type="text"
-            value={isEditing ? tempPreferredName : preferredName}
-            onChange={(e) => onPreferredNameChange(e.target.value)}
-            placeholder="Enter your preferred name"
-            disabled={!isEditing}
-            className={!isEditing ? "bg-secondary-50 cursor-not-allowed" : ""}
-          />
-        </div>
-      </div>
-      <div className="flex items-center space-x-3">
-        <PhoneIcon className="h-5 w-5 text-secondary-500" />
-        <div className="flex-grow">
-          <TextField
-            label="Phone Number"
-            type="tel"
-            value={isEditing ? tempPhoneNumber : phoneNumber}
-            onChange={(e) => onPhoneNumberChange(e.target.value)}
-            placeholder="Enter phone number"
-            disabled={!isEditing}
-            className={!isEditing ? "bg-secondary-50 cursor-not-allowed" : ""}
-          />
-        </div>
-      </div>
-    </div>
+      )}
+    </form>
   );
 }

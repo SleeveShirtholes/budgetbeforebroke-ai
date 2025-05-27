@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import ProfileInformation from "../ProfileInformation";
 
@@ -7,12 +7,17 @@ describe("ProfileInformation", () => {
     name: "John Doe",
     email: "john@example.com",
     phoneNumber: "123-456-7890",
-    preferredName: "Johnny",
     isEditing: false,
-    tempPhoneNumber: "",
-    tempPreferredName: "",
-    onPhoneNumberChange: jest.fn(),
-    onPreferredNameChange: jest.fn(),
+    onSubmit: jest.fn(),
+    onCancel: jest.fn(),
+    isLoading: false,
+  };
+
+  const editProps = {
+    ...mockProps,
+    isEditing: true,
+    tempName: "Johnny Boy",
+    tempPhoneNumber: "987-654-3210",
   };
 
   beforeEach(() => {
@@ -25,73 +30,57 @@ describe("ProfileInformation", () => {
     // Check if all labels are present
     expect(screen.getByText("Full Name")).toBeInTheDocument();
     expect(screen.getByText("Email Address")).toBeInTheDocument();
-    expect(screen.getByText("Preferred Name")).toBeInTheDocument();
     expect(screen.getByText("Phone Number")).toBeInTheDocument();
 
     // Check if all values are rendered correctly
-    expect(screen.getByText(mockProps.name)).toBeInTheDocument();
-    expect(screen.getByText(mockProps.email)).toBeInTheDocument();
-    expect(
-      screen.getByDisplayValue(mockProps.preferredName),
-    ).toBeInTheDocument();
-    expect(screen.getByDisplayValue(mockProps.phoneNumber)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("John Doe")).toBeInTheDocument();
+    expect(screen.getByText("john@example.com")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("123-456-7890")).toBeInTheDocument();
   });
 
   it("renders the component in edit mode", () => {
-    const editProps = {
-      ...mockProps,
-      isEditing: true,
-      tempPhoneNumber: "987-654-3210",
-      tempPreferredName: "Johnny Boy",
-    };
-
     render(<ProfileInformation {...editProps} />);
 
     // Check if fields are editable
-    const preferredNameInput = screen.getByDisplayValue(
-      editProps.tempPreferredName,
-    );
-    const phoneNumberInput = screen.getByDisplayValue(
-      editProps.tempPhoneNumber,
-    );
+    const nameInput = screen.getByPlaceholderText("Enter your full name");
+    const phoneNumberInput = screen.getByPlaceholderText("Enter phone number");
 
-    expect(preferredNameInput).not.toBeDisabled();
+    expect(nameInput).not.toBeDisabled();
     expect(phoneNumberInput).not.toBeDisabled();
+
+    // Check if buttons are present
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /save changes/i }),
+    ).toBeInTheDocument();
   });
 
   it("handles input changes correctly", () => {
-    const editProps = {
-      ...mockProps,
-      isEditing: true,
-    };
-
     render(<ProfileInformation {...editProps} />);
 
-    // Test preferred name change
-    const preferredNameInput = screen.getByPlaceholderText(
-      "Enter your preferred name",
-    );
-    fireEvent.change(preferredNameInput, { target: { value: "New Name" } });
-    expect(editProps.onPreferredNameChange).toHaveBeenCalledWith("New Name");
+    // Test name change
+    const nameInput = screen.getByPlaceholderText("Enter your full name");
+    act(() => {
+      fireEvent.change(nameInput, { target: { value: "New Name" } });
+    });
+    expect(nameInput).toHaveValue("New Name");
 
     // Test phone number change
     const phoneNumberInput = screen.getByPlaceholderText("Enter phone number");
-    fireEvent.change(phoneNumberInput, { target: { value: "555-555-5555" } });
-    expect(editProps.onPhoneNumberChange).toHaveBeenCalledWith("555-555-5555");
+    act(() => {
+      fireEvent.change(phoneNumberInput, { target: { value: "987-654-3210" } });
+    });
+    expect(phoneNumberInput).toHaveValue("(987) 654-3210");
   });
 
   it("disables inputs when not in edit mode", () => {
     render(<ProfileInformation {...mockProps} />);
 
-    const preferredNameInput = screen.getByPlaceholderText(
-      "Enter your preferred name",
-    );
+    const nameInput = screen.getByPlaceholderText("Enter your full name");
     const phoneNumberInput = screen.getByPlaceholderText("Enter phone number");
 
-    expect(preferredNameInput).toBeDisabled();
+    expect(nameInput).toBeDisabled();
     expect(phoneNumberInput).toBeDisabled();
-    expect(preferredNameInput).toHaveClass("bg-secondary-50");
-    expect(phoneNumberInput).toHaveClass("bg-secondary-50");
   });
 
   it("maintains the correct layout structure", () => {
@@ -99,10 +88,14 @@ describe("ProfileInformation", () => {
 
     // Check if all sections are present
     const sections = container.querySelectorAll(".space-y-4 > div");
-    expect(sections).toHaveLength(4);
+    expect(sections).toHaveLength(3);
 
     // Check if icons are present
     const icons = container.querySelectorAll("svg");
-    expect(icons).toHaveLength(4);
+    expect(icons).toHaveLength(3);
+
+    // Check if form structure is correct
+    expect(container.querySelector("form")).toBeInTheDocument();
+    expect(container.querySelector(".space-y-4")).toBeInTheDocument();
   });
 });

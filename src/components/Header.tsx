@@ -1,39 +1,29 @@
 "use client";
 
 import {
-  NavDropdownWithReactIcon,
-  getNavigationData,
-} from "@/utils/navigationLoader";
-import {
   ArrowRightStartOnRectangleIcon,
   Cog6ToothIcon,
   UserIcon,
 } from "@heroicons/react/24/outline";
+import {
+  NavDropdownWithReactIcon,
+  getNavigationData,
+} from "@/utils/navigationLoader";
 import { useEffect, useRef, useState } from "react";
 
 import Avatar from "@/components/Avatar";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
-
-interface HeaderProps {
-  userAvatar?: string;
-  userName?: string;
-}
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 /**
  * Header component that displays the main navigation bar with dropdown menus and user profile.
  *
  * @component
- * @param {Object} props - Component props
- * @param {string} [props.userAvatar="/default-avatar.png"] - URL of the user's avatar image
- * @param {string} [props.userName="User"] - Display name of the user
- *
  * @returns {JSX.Element} A responsive header with navigation dropdowns and user profile menu
  */
-export default function Header({
-  userAvatar = "/default-avatar.png",
-  userName = "User",
-}: HeaderProps) {
+export default function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [navigationData, setNavigationData] = useState<
@@ -41,6 +31,14 @@ export default function Header({
   >({});
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const userDropdownRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
+
+  const { data: session } = authClient.useSession();
+
+  // Only use the session user image if it exists
+  const userAvatar = session?.user?.image || undefined;
+  const userName = session?.user?.name || "User";
+  const userEmail = session?.user?.email || "user@example.com";
 
   useEffect(() => {
     async function loadNavigationData() {
@@ -91,6 +89,19 @@ export default function Header({
     if (dropdownRefs.current) {
       dropdownRefs.current[key] = el;
     }
+  };
+
+  /**
+   * Handles user sign out and redirects to the login page on success.
+   */
+  const handleLogout = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/auth/signin");
+        },
+      },
+    });
   };
 
   return (
@@ -181,9 +192,7 @@ export default function Header({
                   <p className="text-sm font-medium text-gray-900">
                     {userName}
                   </p>
-                  <p className="text-sm text-gray-500 truncate">
-                    user@example.com
-                  </p>
+                  <p className="text-sm text-gray-500 truncate">{userEmail}</p>
                 </div>
                 <div className="py-2 px-1" role="menu">
                   <Link
@@ -208,15 +217,18 @@ export default function Header({
                   </Link>
                 </div>
                 <div className="py-2 px-1" role="menu">
-                  <Link
-                    href="/logout"
-                    className="group flex items-center px-4 py-2 mx-1 my-1 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                  <button
+                    type="button"
+                    className="group flex items-center px-4 py-2 mx-1 my-1 rounded-md text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
                     role="menuitem"
-                    onClick={() => setIsUserDropdownOpen(false)}
+                    onClick={() => {
+                      setIsUserDropdownOpen(false);
+                      handleLogout();
+                    }}
                   >
                     <ArrowRightStartOnRectangleIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-500" />
                     Logout
-                  </Link>
+                  </button>
                 </div>
               </div>
             )}
