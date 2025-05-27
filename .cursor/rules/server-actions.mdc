@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+When interacting with the database, please use Nextjs server actions rather then creating api routes.

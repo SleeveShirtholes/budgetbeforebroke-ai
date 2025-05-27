@@ -32,14 +32,16 @@ type ButtonSize = "sm" | "md" | "lg";
  * @property {ReactNode} children - The content of the button
  * @property {string} [className] - Additional CSS classes to apply
  * @property {boolean} [fullWidth=false] - Whether the button should take full width
+ * @property {boolean} [isLoading=false] - Whether the button is in a loading state
  */
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  href?: string;
-  children: ReactNode;
-  className?: string;
-  fullWidth?: boolean;
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+    href?: string;
+    children: ReactNode;
+    className?: string;
+    fullWidth?: boolean;
+    isLoading?: boolean;
 }
 
 /**
@@ -48,15 +50,12 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * @type {Record<ButtonVariant, string>}
  */
 const variantStyles = {
-  primary:
-    "bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg hover:-translate-y-1",
-  secondary:
-    "bg-secondary-100 text-secondary-700 hover:bg-secondary-200 hover:shadow-md hover:-translate-y-0.5",
-  outline:
-    "border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:border-primary-700 hover:shadow-md hover:-translate-y-0.5",
-  text: "text-primary-600 hover:text-primary-800 hover:underline",
-  danger:
-    "bg-red-600 text-white hover:bg-red-700 hover:shadow-lg hover:-translate-y-1",
+    primary: "bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg hover:-translate-y-1",
+    secondary: "bg-secondary-100 text-secondary-700 hover:bg-secondary-200 hover:shadow-md hover:-translate-y-0.5",
+    outline:
+        "border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:border-primary-700 hover:shadow-md hover:-translate-y-0.5",
+    text: "text-primary-600 hover:text-primary-800 hover:underline",
+    danger: "bg-red-600 text-white hover:bg-red-700 hover:shadow-lg hover:-translate-y-1",
 };
 
 /**
@@ -65,9 +64,9 @@ const variantStyles = {
  * @type {Record<ButtonSize, string>}
  */
 const sizeStyles = {
-  sm: "px-3 py-1.5 text-sm",
-  md: "px-4 py-2 text-base",
-  lg: "px-8 py-3 text-lg",
+    sm: "px-3 py-1.5 text-sm",
+    md: "px-4 py-2 text-base",
+    lg: "px-8 py-3 text-lg",
 };
 
 /**
@@ -92,43 +91,56 @@ const sizeStyles = {
  *
  * // Full width button
  * <Button variant="primary" fullWidth>Full Width</Button>
+ *
+ * // Loading state
+ * <Button variant="primary" isLoading>Loading...</Button>
  * ```
  *
  * @param {ButtonProps} props - The props for the Button component
  * @returns {JSX.Element} A button or link element with the specified styles
  */
 export default function Button({
-  variant = "primary",
-  size = "md",
-  href,
-  children,
-  className = "",
-  fullWidth = false,
-  ...props
+    variant = "primary",
+    size = "md",
+    href,
+    children,
+    className = "",
+    fullWidth = false,
+    isLoading = false,
+    disabled,
+    ...props
 }: ButtonProps) {
-  const baseStyles =
-    "rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center";
-  const widthStyle = fullWidth ? "w-full" : "";
+    const baseStyles = "rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center";
+    const widthStyle = fullWidth ? "w-full" : "";
+    const loadingStyles = isLoading ? "opacity-70 cursor-not-allowed" : "";
 
-  const buttonStyles = `
+    const buttonStyles = `
         ${baseStyles}
         ${variantStyles[variant]}
         ${sizeStyles[size]}
         ${widthStyle}
+        ${loadingStyles}
         ${className}
     `;
 
-  if (href) {
-    return (
-      <Link href={href} className={buttonStyles}>
-        {children}
-      </Link>
-    );
-  }
+    if (href) {
+        return (
+            <Link href={href} className={buttonStyles}>
+                {children}
+            </Link>
+        );
+    }
 
-  return (
-    <button className={buttonStyles} {...props}>
-      {children}
-    </button>
-  );
+    return (
+        <button className={buttonStyles} disabled={disabled || isLoading} {...props}>
+            {isLoading ? (
+                <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>{children}</span>
+                </div>
+            ) : (
+                children
+            )}
+        </button>
+    );
 }
