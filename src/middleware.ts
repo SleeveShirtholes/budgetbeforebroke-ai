@@ -7,15 +7,15 @@ import { getSessionCookie } from "better-auth/cookies";
  * Redirects to the home page if the session is missing.
  */
 export async function middleware(request: NextRequest) {
-    const sessionCookie = getSessionCookie(request);
+  const sessionCookie = getSessionCookie(request);
 
-    if (!sessionCookie) {
-        return NextResponse.redirect(new URL("/auth/signin", request.url));
-    }
+  if (!sessionCookie) {
+    return NextResponse.redirect(new URL("/auth/signin", request.url));
+  }
 
-    return NextResponse.next();
+  return NextResponse.next();
 }
 
 export const config = {
-    matcher: ["/dashboard", "/profile"], // Specify the routes the middleware applies to
+  matcher: ["/dashboard", "/profile"], // Specify the routes the middleware applies to
 };

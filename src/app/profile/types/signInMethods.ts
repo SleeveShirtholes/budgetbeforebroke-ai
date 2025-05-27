@@ -7,10 +7,10 @@
  * @property {string} id - The unique identifier for the sign-in method
  */
 export interface SignInMethod {
-    type: string;
-    provider: string;
-    lastUsed: string;
-    id: string;
+  type: string;
+  provider: string;
+  lastUsed: string;
+  id: string;
 }
 
 /**
@@ -20,8 +20,8 @@ export interface SignInMethod {
  * @property {() => void} onDelete - Callback when the delete button is clicked
  */
 export interface SignInMethodCardProps {
-    method: SignInMethod;
-    onDelete: () => void;
+  method: SignInMethod;
+  onDelete: () => void;
 }
 
 /**
@@ -31,6 +31,6 @@ export interface SignInMethodCardProps {
  * @property {() => void} onAdd - Callback when the connect button is clicked
  */
 export interface AddGoogleAccountCardProps {
-    isLoading: boolean;
-    onAdd: () => void;
+  isLoading: boolean;
+  onAdd: () => void;
 }

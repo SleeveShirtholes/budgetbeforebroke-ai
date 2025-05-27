@@ -1,6 +1,6 @@
 export interface Passkey {
-    id: string;
-    name: string;
-    deviceType: string;
-    createdAt: Date | null;
+  id: string;
+  name: string;
+  deviceType: string;
+  createdAt: Date | null;
 }

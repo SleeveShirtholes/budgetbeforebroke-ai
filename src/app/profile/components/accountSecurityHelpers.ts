@@ -18,35 +18,38 @@ export type AccountSecurityShowToast = ReturnType<typeof useToast>["showToast"];
  * Extracted for clarity and maintainability.
  */
 export async function handleDeletePasskeyFn(
-    passkeyToDelete: Passkey | null,
-    showToast: AccountSecurityShowToast,
-    mutatePasskeys: () => Promise<unknown>,
-    setIsDeletePasskeyModalOpen: (open: boolean) => void,
-    setPasskeyToDelete: (passkey: Passkey | null) => void,
-    authClient: typeof import("@/lib/auth-client").authClient
+  passkeyToDelete: Passkey | null,
+  showToast: AccountSecurityShowToast,
+  mutatePasskeys: () => Promise<unknown>,
+  setIsDeletePasskeyModalOpen: (open: boolean) => void,
+  setPasskeyToDelete: (passkey: Passkey | null) => void,
+  authClient: typeof import("@/lib/auth-client").authClient,
 ) {
-    if (!passkeyToDelete) {
-        showToast("No passkey selected", { type: "error" });
-        return;
-    }
+  if (!passkeyToDelete) {
+    showToast("No passkey selected", { type: "error" });
+    return;
+  }
 
-    try {
-        const result: APIResult = await authClient.passkey.deletePasskey({ id: passkeyToDelete.id });
-        if (result && result.error) {
-            showToast(
-                typeof result.error === "string"
-                    ? result.error
-                    : (result.error as { message?: string })?.message || "Failed to delete passkey",
-                { type: "error" }
-            );
-            return;
-        }
-        showToast("Passkey deleted successfully", { type: "success" });
-        await mutatePasskeys();
-        setIsDeletePasskeyModalOpen(false);
-        setPasskeyToDelete(null);
-    } catch (error) {
-        console.error("Error deleting passkey:", error);
-        showToast("Failed to delete passkey", { type: "error" });
+  try {
+    const result: APIResult = await authClient.passkey.deletePasskey({
+      id: passkeyToDelete.id,
+    });
+    if (result && result.error) {
+      showToast(
+        typeof result.error === "string"
+          ? result.error
+          : (result.error as { message?: string })?.message ||
+              "Failed to delete passkey",
+        { type: "error" },
+      );
+      return;
     }
+    showToast("Passkey deleted successfully", { type: "success" });
+    await mutatePasskeys();
+    setIsDeletePasskeyModalOpen(false);
+    setPasskeyToDelete(null);
+  } catch (error) {
+    console.error("Error deleting passkey:", error);
+    showToast("Failed to delete passkey", { type: "error" });
+  }
 }
