@@ -37,8 +37,6 @@ jest.mock("next/navigation", () => ({
 }));
 
 describe("Header", () => {
-  const mockUserName = "Test User";
-
   beforeEach(() => {
     // Reset all mocks before each test
     jest.clearAllMocks();
@@ -46,7 +44,6 @@ describe("Header", () => {
 
   it("renders with default props", async () => {
     render(<Header />);
-    expect(screen.getByText("Test User")).toBeInTheDocument();
     expect(screen.getByText("TU")).toBeInTheDocument();
     // Wait for navigation data to load
     expect(await screen.findByText("Features")).toBeInTheDocument();
@@ -54,7 +51,6 @@ describe("Header", () => {
 
   it("renders with custom props", async () => {
     render(<Header />);
-    expect(screen.getByText(mockUserName)).toBeInTheDocument();
     expect(screen.getByText("TU")).toBeInTheDocument();
     // Wait for navigation data to load
     expect(await screen.findByText("Features")).toBeInTheDocument();
@@ -93,14 +89,11 @@ describe("Header", () => {
     render(<Header />);
     // Wait for navigation data to load
     await screen.findByText("Features");
-    // Find and click the user button by its role
-    const userButton = screen.getByRole("button", {
-      name: new RegExp(mockUserName),
-    });
+    // Find and click the user button by its role and text content
+    const userButton = screen.getByRole("button", { name: "TU" });
     fireEvent.click(userButton);
     // Verify dropdown content is visible
     expect(screen.getByText("Profile")).toBeInTheDocument();
-    expect(screen.getByText("Settings")).toBeInTheDocument();
     expect(screen.getByText("Logout")).toBeInTheDocument();
     expect(screen.getByText("test@example.com")).toBeInTheDocument();
     // Close dropdown
@@ -113,9 +106,7 @@ describe("Header", () => {
     // Wait for navigation data to load
     await screen.findByText("Features");
     // Open dropdown using the button
-    const userButton = screen.getByRole("button", {
-      name: new RegExp(mockUserName),
-    });
+    const userButton = screen.getByRole("button", { name: "TU" });
     fireEvent.click(userButton);
     expect(screen.getByText("Profile")).toBeInTheDocument();
     // Click outside
@@ -133,9 +124,7 @@ describe("Header", () => {
     fireEvent.click(analyticsLink);
     expect(screen.queryByText("Analytics")).not.toBeInTheDocument();
     // Test user dropdown
-    const userButton = screen.getByRole("button", {
-      name: new RegExp(mockUserName),
-    });
+    const userButton = screen.getByRole("button", { name: "TU" });
     fireEvent.click(userButton);
     const profileLink = screen.getByText("Profile");
     fireEvent.click(profileLink);
@@ -145,14 +134,11 @@ describe("Header", () => {
   it("handles click events on all user dropdown items", async () => {
     render(<Header />);
     await screen.findByText("Features");
-    const userButton = screen.getByRole("button", { name: /Test User/ });
+    const userButton = screen.getByRole("button", { name: "TU" });
 
     // Profile
     fireEvent.click(userButton);
     fireEvent.click(screen.getByText("Profile"));
-    // Settings
-    fireEvent.click(userButton);
-    fireEvent.click(screen.getByText("Settings"));
     // Logout
     fireEvent.click(userButton);
     fireEvent.click(screen.getByText("Logout"));

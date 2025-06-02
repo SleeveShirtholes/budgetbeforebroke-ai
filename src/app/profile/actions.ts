@@ -1,13 +1,13 @@
 "use server";
 
-import { account, passkey, session, user } from "@/db/auth-schema";
+import { account, passkey, session, user } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 
+import { db } from "@/db/config";
 import { auth } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
-import { db } from "@/db/config";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 
 export async function getPasskeyStatus(userId: string) {
   try {

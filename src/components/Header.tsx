@@ -1,20 +1,19 @@
 "use client";
 
 import {
-  ArrowRightStartOnRectangleIcon,
-  Cog6ToothIcon,
-  UserIcon,
-} from "@heroicons/react/24/outline";
-import {
   NavDropdownWithReactIcon,
   getNavigationData,
 } from "@/utils/navigationLoader";
+import {
+  ArrowRightStartOnRectangleIcon,
+  UserIcon,
+} from "@heroicons/react/24/outline";
 import { useEffect, useRef, useState } from "react";
 
 import Avatar from "@/components/Avatar";
+import { authClient } from "@/lib/auth-client";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
-import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 /**
@@ -178,9 +177,8 @@ export default function Header() {
               className="flex items-center space-x-3 focus:outline-none"
             >
               <Avatar src={userAvatar} name={userName} size={40} />
-              <span className="text-secondary-700">{userName}</span>
               <ChevronDownIcon
-                className={`ml-1 h-5 w-5 transition-transform duration-200 ${
+                className={`h-5 w-5 transition-transform duration-200 ${
                   isUserDropdownOpen ? "transform rotate-180" : ""
                 }`}
               />
@@ -205,17 +203,17 @@ export default function Header() {
                     Profile
                   </Link>
                 </div>
-                <div className="py-2 px-1" role="menu">
-                  <Link
-                    href="/settings"
-                    className="group flex items-center px-4 py-2 mx-1 my-1 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-                    role="menuitem"
-                    onClick={() => setIsUserDropdownOpen(false)}
-                  >
-                    <Cog6ToothIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-500" />
-                    Settings
-                  </Link>
-                </div>
+                {/* <div className="py-2 px-1" role="menu">
+                                    <Link
+                                        href="/settings"
+                                        className="group flex items-center px-4 py-2 mx-1 my-1 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                                        role="menuitem"
+                                        onClick={() => setIsUserDropdownOpen(false)}
+                                    >
+                                        <Cog6ToothIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-500" />
+                                        Settings
+                                    </Link>
+                                </div> */}
                 <div className="py-2 px-1" role="menu">
                   <button
                     type="button"

@@ -18,7 +18,7 @@ const customJestConfig = {
   testMatch: ["**/__tests__/**/*.test.[jt]s?(x)"],
   // Allow ESM modules for problematic packages
   transformIgnorePatterns: [
-    "/node_modules/(?!(uncrypto|better-auth|nanostores|better-call|@floating-ui|react-hook-form)/)",
+    "/node_modules/(?!(uncrypto|better-auth|nanostores|better-call|@floating-ui|react-hook-form|nanoid)/)",
   ],
   transform: {
     "^.+\\.(js|jsx|ts|tsx|mjs)$": ["babel-jest", { presets: ["next/babel"] }],

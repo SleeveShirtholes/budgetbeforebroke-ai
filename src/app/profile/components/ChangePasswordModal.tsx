@@ -1,7 +1,7 @@
 import Button from "@/components/Button";
-import Modal from "@/components/Modal";
 import PasswordField from "@/components/Forms/PasswordField";
 import PasswordStrengthMeter from "@/components/Forms/PasswordStrengthMeter";
+import Modal from "@/components/Modal";
 import { useState } from "react";
 
 interface ChangePasswordModalProps {
@@ -93,6 +93,7 @@ export default function ChangePasswordModal({
               !newPassword ||
               !confirmPassword
             }
+            isLoading={isLoading}
           >
             {isLoading
               ? hasPassword

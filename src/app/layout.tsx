@@ -1,8 +1,10 @@
 import "./globals.css";
 
+import Spinner from "@/components/Spinner";
 import { ToastProvider } from "@/components/Toast";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,8 +27,10 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={`bg-pastel-gradient ${inter.className}`}>
-        <ToastProvider defaultPosition="bottom-left">
-          <main className="pt-0">{children}</main>
+        <ToastProvider defaultPosition="top-center">
+          <Suspense fallback={<Spinner size="md" />}>
+            <main className="pt-0">{children}</main>
+          </Suspense>
         </ToastProvider>
       </body>
     </html>
