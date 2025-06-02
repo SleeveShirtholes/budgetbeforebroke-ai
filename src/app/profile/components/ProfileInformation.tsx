@@ -136,8 +136,9 @@ export default function ProfileInformation({
               type="submit"
               variant="primary"
               disabled={isLoading || !isDirty || !isValid}
+              isLoading={isLoading}
             >
-              {isLoading ? "Saving..." : "Save Changes"}
+              Save Changes
             </Button>
           </div>
         </div>

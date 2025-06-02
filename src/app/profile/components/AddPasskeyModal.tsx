@@ -1,6 +1,6 @@
 import Button from "@/components/Button";
-import Modal from "@/components/Modal";
 import TextField from "@/components/Forms/TextField";
+import Modal from "@/components/Modal";
 import { useState } from "react";
 
 interface AddPasskeyModalProps {
@@ -52,6 +52,7 @@ export default function AddPasskeyModal({
             variant="primary"
             size="sm"
             disabled={isLoading}
+            isLoading={isLoading}
           >
             {isLoading ? "Adding..." : "Add Passkey"}
           </Button>

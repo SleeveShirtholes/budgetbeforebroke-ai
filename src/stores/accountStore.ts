@@ -1,22 +1,31 @@
 import { create } from "zustand";
 
-export interface AccountUser {
+export type AccountUser = {
   id: string;
   email: string;
   name: string;
   role: "owner" | "member";
   avatar?: string;
-  accepted?: boolean; // true if invite accepted, false if pending
-}
+  accepted: boolean;
+};
 
-export interface Account {
+export type AccountInvitation = {
+  id: string;
+  inviteeEmail: string;
+  role: string;
+  status: string;
+  createdAt: Date;
+};
+
+export type Account = {
   id: string;
   accountNumber: string;
   nickname: string;
   users: AccountUser[];
+  invitations?: AccountInvitation[];
   createdAt: string;
   updatedAt: string;
-}
+};
 
 interface AccountState {
   accounts: Account[];
@@ -83,6 +92,7 @@ const useAccountStore = create<AccountState>((set) => ({
         email,
         name: email.split("@")[0],
         role: "member",
+        accepted: false,
       };
 
       set((state) => ({

@@ -17,8 +17,10 @@ interface AccountDetailsProps {
   onEditNickname: () => void;
   onInviteUser: () => void;
   onRemoveUser: (userId: string) => void;
+  onDeleteInvitation: (invitationId: string) => void;
   onUpdateUserRole: (userId: string, role: "owner" | "member") => void;
   onResendInvite: (userId: string) => void;
+  isOwner: boolean;
 }
 
 const roleOptions = [
@@ -39,20 +41,27 @@ const roleOptions = [
  * @param {() => void} onEditNickname - Callback function to open the edit nickname modal
  * @param {() => void} onInviteUser - Callback function to open the invite user modal
  * @param {(userId: string) => void} onRemoveUser - Callback function to remove a user from the account
+ * @param {(invitationId: string) => void} onDeleteInvitation - Callback function to delete an invitation
  * @param {(userId: string, role: "owner" | "member") => void} onUpdateUserRole - Callback function to update a user's role
  * @param {(userId: string) => void} onResendInvite - Callback function to resend an invitation
+ * @param {boolean} isOwner - Indicates whether the current user is the owner of the account
  */
 export default function AccountDetails({
   account,
   onEditNickname,
   onInviteUser,
   onRemoveUser,
+  onDeleteInvitation,
   onUpdateUserRole,
   onResendInvite,
+  isOwner,
 }: AccountDetailsProps) {
-  // Split users into accepted and pending
-  const acceptedUsers = account.users.filter((u) => u.accepted);
-  const pendingUsers = account.users.filter((u) => !u.accepted);
+  // Deduplicate accepted users by id
+  const acceptedUsers = Array.from(
+    new Map(account.users.map((u) => [u.id, u])).values(),
+  );
+  const pendingInvites =
+    account.invitations?.filter((inv) => inv.status === "pending") || [];
 
   return (
     <Card>
@@ -60,12 +69,17 @@ export default function AccountDetails({
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold">{account.nickname}</h2>
-            <p className="text-gray-500">{account.accountNumber}</p>
+            <p className="text-gray-500">
+              <span className="font-bold">Account #: </span>
+              {account.accountNumber}
+            </p>
           </div>
-          <Button variant="primary" onClick={onEditNickname}>
-            <PencilIcon className="w-4 h-4 mr-2" />
-            Edit Nickname
-          </Button>
+          {isOwner && (
+            <Button variant="primary" onClick={onEditNickname}>
+              <PencilIcon className="w-4 h-4 mr-2" />
+              Edit Nickname
+            </Button>
+          )}
         </div>
 
         {/* Account Members */}
@@ -92,50 +106,68 @@ export default function AccountDetails({
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <div className="w-32">
-                    <CustomSelect
-                      value={user.role}
-                      onChange={(value) =>
-                        onUpdateUserRole(user.id, value as "owner" | "member")
-                      }
-                      options={roleOptions}
-                      fullWidth={false}
-                    />
-                  </div>
-                  <button
-                    onClick={() => onRemoveUser(user.id)}
-                    className="ml-1 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200 p-1.5 h-8 w-8 flex-shrink-0 self-center"
-                    aria-label={`Remove ${user.name}`}
-                    type="button"
-                  >
-                    <XMarkIcon className="w-4 h-4" />
-                  </button>
+                  {isOwner ? (
+                    <div className="w-32">
+                      <CustomSelect
+                        value={user.role}
+                        onChange={(value) =>
+                          onUpdateUserRole(user.id, value as "owner" | "member")
+                        }
+                        options={roleOptions}
+                        fullWidth={false}
+                      />
+                    </div>
+                  ) : (
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
+                                                ${
+                                                  user.role === "owner"
+                                                    ? "bg-purple-100 text-purple-800"
+                                                    : "bg-gray-100 text-gray-700"
+                                                }
+                                            `}
+                      style={{ minWidth: 56, justifyContent: "center" }}
+                    >
+                      {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                    </span>
+                  )}
+                  {isOwner && (
+                    <button
+                      onClick={() => onRemoveUser(user.id)}
+                      className="ml-1 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200 p-1.5 h-8 w-8 flex-shrink-0 self-center"
+                      aria-label={`Remove ${user.name}`}
+                      type="button"
+                    >
+                      <XMarkIcon className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
 
           {/* Pending Invites Section */}
-          {pendingUsers.length > 0 && (
+          {pendingInvites.length > 0 && (
             <div className="mt-8">
               <h3 className="text-lg font-medium mb-4">Pending Invites</h3>
               <div className="space-y-4">
-                {pendingUsers.map((user) => (
+                {pendingInvites.map((invite) => (
                   <div
-                    key={user.id}
+                    key={invite.id}
                     className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg"
                   >
                     <div className="flex items-center space-x-3 min-w-0">
                       <Avatar
-                        src={user.avatar}
-                        name={user.name}
+                        name={invite.inviteeEmail.split("@")[0]}
                         size={40}
                         className="w-10 h-10"
                       />
                       <div className="min-w-0">
-                        <div className="font-medium truncate">{user.name}</div>
+                        <div className="font-medium truncate">
+                          {invite.inviteeEmail.split("@")[0]}
+                        </div>
                         <div className="text-sm text-gray-500 truncate">
-                          {user.email}
+                          {invite.inviteeEmail}
                         </div>
                       </div>
                     </div>
@@ -143,20 +175,22 @@ export default function AccountDetails({
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                         Pending
                       </span>
-                      <RowActions
-                        actions={[
-                          {
-                            label: "Resend",
-                            icon: <PaperAirplaneIcon className="w-4 h-4" />,
-                            onClick: () => onResendInvite(user.id),
-                          },
-                          {
-                            label: "Delete",
-                            icon: <XMarkIcon className="w-4 h-4" />,
-                            onClick: () => onRemoveUser(user.id),
-                          },
-                        ]}
-                      />
+                      {isOwner && (
+                        <RowActions
+                          actions={[
+                            {
+                              label: "Resend",
+                              icon: <PaperAirplaneIcon className="w-4 h-4" />,
+                              onClick: () => onResendInvite(invite.id),
+                            },
+                            {
+                              label: "Delete",
+                              icon: <XMarkIcon className="w-4 h-4" />,
+                              onClick: () => onDeleteInvitation(invite.id),
+                            },
+                          ]}
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -164,10 +198,12 @@ export default function AccountDetails({
             </div>
           )}
 
-          <Button variant="primary" onClick={onInviteUser} className="mt-4">
-            <UserPlusIcon className="w-4 h-4 mr-2" />
-            Invite User
-          </Button>
+          {isOwner && (
+            <Button variant="primary" onClick={onInviteUser} className="mt-4">
+              <UserPlusIcon className="w-4 h-4 mr-2" />
+              Invite User
+            </Button>
+          )}
         </div>
       </div>
     </Card>

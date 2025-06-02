@@ -1,4 +1,4 @@
-import * as authSchema from "../db/auth-schema";
+import * as authSchema from "../db/schema";
 
 import type { Session } from "better-auth";
 import { betterAuth } from "better-auth";

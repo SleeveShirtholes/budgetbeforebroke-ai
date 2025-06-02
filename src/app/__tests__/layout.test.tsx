@@ -1,3 +1,5 @@
+import Spinner from "@/components/Spinner";
+import { Suspense } from "react";
 import RootLayout from "../layout";
 
 // Mock the Inter font
@@ -24,9 +26,13 @@ describe("RootLayout", () => {
     // Verify the ToastProvider and main content
     const toastProvider = body.props.children;
     expect(toastProvider.type.name).toBe("ToastProvider");
-    expect(toastProvider.props.defaultPosition).toBe("bottom-left");
+    expect(toastProvider.props.defaultPosition).toBe("top-center");
 
-    const main = toastProvider.props.children;
+    const suspense = toastProvider.props.children;
+    expect(suspense.type).toBe(Suspense);
+    expect(suspense.props.fallback.type).toBe(Spinner);
+
+    const main = suspense.props.children;
     expect(main.type).toBe("main");
     expect(main.props.className).toBe("pt-0");
     expect(main.props.children.props.children).toBe(testContent);

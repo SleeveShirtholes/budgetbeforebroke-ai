@@ -106,12 +106,14 @@ describe("AccountDetails", () => {
         role: "member",
         accepted: true,
       },
+    ],
+    invitations: [
       {
         id: "3",
-        email: "pending@example.com",
-        name: "Pending User",
+        inviteeEmail: "pending@example.com",
+        status: "pending",
         role: "member",
-        accepted: false,
+        createdAt: new Date("2024-01-01T00:00:00Z"),
       },
     ],
     createdAt: "2024-01-01T00:00:00Z",
@@ -123,6 +125,7 @@ describe("AccountDetails", () => {
   const mockOnRemoveUser = jest.fn();
   const mockOnUpdateUserRole = jest.fn();
   const mockOnResendInvite = jest.fn();
+  const mockOnDeleteInvitation = jest.fn();
 
   beforeEach(() => {
     mockOnEditNickname.mockClear();
@@ -130,6 +133,7 @@ describe("AccountDetails", () => {
     mockOnRemoveUser.mockClear();
     mockOnUpdateUserRole.mockClear();
     mockOnResendInvite.mockClear();
+    mockOnDeleteInvitation.mockClear();
   });
 
   it("renders account details correctly", () => {
@@ -141,6 +145,8 @@ describe("AccountDetails", () => {
         onRemoveUser={mockOnRemoveUser}
         onUpdateUserRole={mockOnUpdateUserRole}
         onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
       />,
     );
 
@@ -158,6 +164,8 @@ describe("AccountDetails", () => {
         onRemoveUser={mockOnRemoveUser}
         onUpdateUserRole={mockOnUpdateUserRole}
         onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
       />,
     );
 
@@ -182,10 +190,12 @@ describe("AccountDetails", () => {
         onRemoveUser={mockOnRemoveUser}
         onUpdateUserRole={mockOnUpdateUserRole}
         onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
       />,
     );
 
-    const pendingUser = screen.getByText("Pending User", {
+    const pendingUser = screen.getByText("pending", {
       selector: ".font-medium",
     });
     expect(pendingUser).toBeInTheDocument();
@@ -202,11 +212,13 @@ describe("AccountDetails", () => {
         onRemoveUser={mockOnRemoveUser}
         onUpdateUserRole={mockOnUpdateUserRole}
         onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
       />,
     );
 
-    const editButton = screen.getByText("Edit Nickname").closest("button");
-    fireEvent.click(editButton!);
+    const editButton = screen.getAllByTestId("button-primary")[0];
+    fireEvent.click(editButton);
     expect(mockOnEditNickname).toHaveBeenCalled();
   });
 
@@ -219,11 +231,14 @@ describe("AccountDetails", () => {
         onRemoveUser={mockOnRemoveUser}
         onUpdateUserRole={mockOnUpdateUserRole}
         onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
       />,
     );
 
-    const inviteButton = screen.getByText("Invite User").closest("button");
-    fireEvent.click(inviteButton!);
+    const buttons = screen.getAllByTestId("button-primary");
+    const inviteButton = buttons[buttons.length - 1];
+    fireEvent.click(inviteButton);
     expect(mockOnInviteUser).toHaveBeenCalled();
   });
 
@@ -236,6 +251,8 @@ describe("AccountDetails", () => {
         onRemoveUser={mockOnRemoveUser}
         onUpdateUserRole={mockOnUpdateUserRole}
         onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
       />,
     );
 
@@ -245,14 +262,28 @@ describe("AccountDetails", () => {
   });
 
   it("calls onResendInvite when resend action is clicked for pending user", () => {
+    const accountWithInvite = {
+      ...mockAccount,
+      invitations: [
+        {
+          id: "3",
+          inviteeEmail: "pending@example.com",
+          status: "pending",
+          role: "member",
+          createdAt: new Date("2024-01-01T00:00:00Z"),
+        },
+      ],
+    };
     render(
       <AccountDetails
-        account={mockAccount}
+        account={accountWithInvite}
         onEditNickname={mockOnEditNickname}
         onInviteUser={mockOnInviteUser}
         onRemoveUser={mockOnRemoveUser}
         onUpdateUserRole={mockOnUpdateUserRole}
         onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
       />,
     );
 
