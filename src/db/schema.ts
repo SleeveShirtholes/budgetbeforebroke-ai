@@ -19,12 +19,16 @@ export const user = pgTable("user", {
     .notNull(),
   image: text("image"),
   phoneNumber: text("phone_number"),
+  defaultBudgetAccountId: text("default_budget_account_id").references(
+    () => budgetAccounts.id,
+  ),
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
   updatedAt: timestamp("updated_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
+  passwordChangedAt: timestamp("password_changed_at"),
 });
 
 export const session = pgTable("session", {

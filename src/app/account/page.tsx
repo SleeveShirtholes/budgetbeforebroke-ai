@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import {
   AccountWithMembers,
   deleteInvitation,
@@ -11,20 +10,22 @@ import {
   updateAccountName,
   updateUserRole,
 } from "../actions/account";
+import { useEffect, useRef, useState } from "react";
 
-import Card from "@/components/Card";
-import { useToast } from "@/components/Toast";
-import { authClient } from "@/lib/auth-client";
 import type { Account } from "@/stores/accountStore";
-import { useSearchParams } from "next/navigation";
-import useSWR from "swr";
-import { createAccount } from "../actions/account";
 import AccountDetails from "./components/AccountDetails";
 import AccountList from "./components/AccountList";
+import Card from "@/components/Card";
 import ChangeRoleConfirmationModal from "./components/ChangeRoleConfirmationModal";
 import CreateAccountModal from "./components/CreateAccountModal";
 import EditNicknameModal from "./components/EditNicknameModal";
 import InviteUserModal from "./components/InviteUserModal";
+import { authClient } from "@/lib/auth-client";
+import { createAccount } from "../actions/account";
+import { useDefaultAccount } from "@/hooks/useDefaultAccount";
+import useSWR from "swr";
+import { useSearchParams } from "next/navigation";
+import { useToast } from "@/components/Toast";
 
 /**
  * Maps an AccountWithMembers (from server) to the Account type used by the UI components.
@@ -100,6 +101,12 @@ function AccountPageContent() {
     newRole: string;
     userEmail: string;
   } | null>(null);
+
+  const {
+    defaultAccountId,
+    updateDefault,
+    isLoading: isLoadingDefault,
+  } = useDefaultAccount();
 
   // Find the selected account object
   const selectedAccount: Account | null =
@@ -292,6 +299,16 @@ function AccountPageContent() {
     }
   };
 
+  // Add handler to set default account
+  const handleSetDefaultAccount = async (accountId: string) => {
+    try {
+      await updateDefault(accountId);
+      showToast("Default account set!", { type: "success" });
+    } catch {
+      showToast("Failed to set default account.", { type: "error" });
+    }
+  };
+
   // Show toast if inviteAccepted param is present
   useEffect(() => {
     if (
@@ -338,6 +355,9 @@ function AccountPageContent() {
                 handleResendInvite(invitationId)
               }
               isOwner={isOwner}
+              isDefault={defaultAccountId === selectedAccount.id}
+              isLoadingDefault={isLoadingDefault}
+              onSetDefault={() => handleSetDefaultAccount(selectedAccount.id)}
             />
           ) : (
             <Card>

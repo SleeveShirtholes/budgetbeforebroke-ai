@@ -1,4 +1,8 @@
+"use client";
+
+import AccountSelector from "@/components/AccountSelector";
 import Breadcrumb from "@/components/Breadcrumb";
+import { BudgetAccountProvider } from "@/contexts/BudgetAccountContext";
 import Header from "@/components/Header";
 
 export default function DashboardLayout({
@@ -7,15 +11,18 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
-      <Header />
+    <BudgetAccountProvider>
+      <div className="min-h-screen">
+        <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-22">
-        <div className="mb-6">
-          <Breadcrumb />
-        </div>
-        {children}
-      </main>
-    </div>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-22">
+          <div className="mb-6 flex items-center justify-between">
+            <Breadcrumb />
+            <AccountSelector />
+          </div>
+          {children}
+        </main>
+      </div>
+    </BudgetAccountProvider>
   );
 }
