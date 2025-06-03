@@ -5,12 +5,12 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
+import { Account } from "@/stores/accountStore";
 import Avatar from "@/components/Avatar";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import RowActions from "@/components/Table/RowActions";
-import { Account } from "@/stores/accountStore";
 
 interface AccountDetailsProps {
   account: Account;
@@ -21,6 +21,9 @@ interface AccountDetailsProps {
   onUpdateUserRole: (userId: string, role: "owner" | "member") => void;
   onResendInvite: (userId: string) => void;
   isOwner: boolean;
+  isDefault?: boolean;
+  isLoadingDefault?: boolean;
+  onSetDefault?: () => void;
 }
 
 const roleOptions = [
@@ -45,6 +48,9 @@ const roleOptions = [
  * @param {(userId: string, role: "owner" | "member") => void} onUpdateUserRole - Callback function to update a user's role
  * @param {(userId: string) => void} onResendInvite - Callback function to resend an invitation
  * @param {boolean} isOwner - Indicates whether the current user is the owner of the account
+ * @param {boolean} isDefault - Indicates whether the account is the default account
+ * @param {boolean} isLoadingDefault - Indicates whether the default account status is being loaded
+ * @param {() => void} onSetDefault - Callback function to set the account as default
  */
 export default function AccountDetails({
   account,
@@ -55,6 +61,9 @@ export default function AccountDetails({
   onUpdateUserRole,
   onResendInvite,
   isOwner,
+  isDefault = false,
+  isLoadingDefault = false,
+  onSetDefault,
 }: AccountDetailsProps) {
   // Deduplicate accepted users by id
   const acceptedUsers = Array.from(
@@ -68,7 +77,24 @@ export default function AccountDetails({
       <div className="p-4">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-semibold">{account.nickname}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold">{account.nickname}</h2>
+              {isDefault && (
+                <span className="inline-block px-3 py-1 text-xs font-semibold bg-primary-100 text-primary-700 rounded-full">
+                  Default Account
+                </span>
+              )}
+              {!isDefault && onSetDefault && (
+                <button
+                  className="px-3 py-1 text-xs font-semibold bg-gray-200 hover:bg-primary-200 text-gray-700 rounded-full transition"
+                  onClick={onSetDefault}
+                  disabled={isLoadingDefault}
+                  style={{ marginLeft: 4 }}
+                >
+                  Set as Default
+                </button>
+              )}
+            </div>
             <p className="text-gray-500">
               <span className="font-bold">Account #: </span>
               {account.accountNumber}

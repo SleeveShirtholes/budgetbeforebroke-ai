@@ -291,4 +291,86 @@ describe("AccountDetails", () => {
     fireEvent.click(resendButton);
     expect(mockOnResendInvite).toHaveBeenCalledWith("3");
   });
+
+  it("displays Set as Default button when not default account", () => {
+    const mockOnSetDefault = jest.fn();
+    render(
+      <AccountDetails
+        account={mockAccount}
+        onEditNickname={mockOnEditNickname}
+        onInviteUser={mockOnInviteUser}
+        onRemoveUser={mockOnRemoveUser}
+        onUpdateUserRole={mockOnUpdateUserRole}
+        onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
+        isDefault={false}
+        onSetDefault={mockOnSetDefault}
+      />,
+    );
+
+    expect(screen.getByText("Set as Default")).toBeInTheDocument();
+  });
+
+  it("displays Default Account badge when account is default", () => {
+    render(
+      <AccountDetails
+        account={mockAccount}
+        onEditNickname={mockOnEditNickname}
+        onInviteUser={mockOnInviteUser}
+        onRemoveUser={mockOnRemoveUser}
+        onUpdateUserRole={mockOnUpdateUserRole}
+        onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
+        isDefault={true}
+      />,
+    );
+
+    expect(screen.getByText("Default Account")).toBeInTheDocument();
+  });
+
+  it("disables Set as Default button when loading", () => {
+    const mockOnSetDefault = jest.fn();
+    render(
+      <AccountDetails
+        account={mockAccount}
+        onEditNickname={mockOnEditNickname}
+        onInviteUser={mockOnInviteUser}
+        onRemoveUser={mockOnRemoveUser}
+        onUpdateUserRole={mockOnUpdateUserRole}
+        onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
+        isDefault={false}
+        isLoadingDefault={true}
+        onSetDefault={mockOnSetDefault}
+      />,
+    );
+
+    const setDefaultButton = screen.getByText("Set as Default");
+    expect(setDefaultButton).toBeDisabled();
+  });
+
+  it("calls onSetDefault when Set as Default button is clicked", () => {
+    const mockOnSetDefault = jest.fn();
+    render(
+      <AccountDetails
+        account={mockAccount}
+        onEditNickname={mockOnEditNickname}
+        onInviteUser={mockOnInviteUser}
+        onRemoveUser={mockOnRemoveUser}
+        onUpdateUserRole={mockOnUpdateUserRole}
+        onResendInvite={mockOnResendInvite}
+        onDeleteInvitation={mockOnDeleteInvitation}
+        isOwner={true}
+        isDefault={false}
+        onSetDefault={mockOnSetDefault}
+      />,
+    );
+
+    const setDefaultButton = screen.getByText("Set as Default");
+    fireEvent.click(setDefaultButton);
+    expect(mockOnSetDefault).toHaveBeenCalled();
+  });
 });

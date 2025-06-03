@@ -5,20 +5,20 @@
 
 "use server";
 
+import { and, eq } from "drizzle-orm";
 import {
   budgetAccountInvitations,
   budgetAccountMembers,
   budgetAccounts,
   user,
 } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
 
-import { db } from "@/db/config";
-import { auth } from "@/lib/auth";
-import { sendAccountInvite } from "@/lib/email";
-import { randomUUID } from "crypto";
 import type { InferSelectModel } from "drizzle-orm";
+import { auth } from "@/lib/auth";
+import { db } from "@/db/config";
 import { headers } from "next/headers";
+import { randomUUID } from "crypto";
+import { sendAccountInvite } from "@/lib/email";
 
 /**
  * Represents a budget account with its members and invitations
@@ -552,4 +552,48 @@ export async function deleteInvitation(invitationId: string) {
   await db
     .delete(budgetAccountInvitations)
     .where(eq(budgetAccountInvitations.id, invitationId));
+}
+
+/**
+ * Gets the user's default budget account
+ * @returns The default account ID or null if not set
+ * @throws {Error} If user is not authenticated
+ */
+export async function getDefaultAccount() {
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult || "error" in sessionResult || !sessionResult.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const userResult = await db.query.user.findFirst({
+    where: eq(user.id, sessionResult.user.id),
+    columns: {
+      defaultBudgetAccountId: true,
+    },
+  });
+
+  return userResult?.defaultBudgetAccountId || null;
+}
+
+/**
+ * Updates the user's default budget account
+ * @param accountId - The ID of the account to set as default
+ * @throws {Error} If user is not authenticated
+ */
+export async function updateDefaultAccount(accountId: string) {
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult || "error" in sessionResult || !sessionResult.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  await db
+    .update(user)
+    .set({ defaultBudgetAccountId: accountId })
+    .where(eq(user.id, sessionResult.user.id));
 }

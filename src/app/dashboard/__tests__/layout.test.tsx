@@ -1,3 +1,5 @@
+import "@testing-library/jest-dom";
+
 import { render, screen } from "@testing-library/react";
 
 import DashboardLayout from "../layout";
@@ -16,17 +18,35 @@ jest.mock("@/components/Breadcrumb", () => {
   };
 });
 
+// Mock the AccountSelector component
+jest.mock("@/components/AccountSelector", () => {
+  return function MockAccountSelector() {
+    return <div data-testid="account-selector">Account Selector</div>;
+  };
+});
+
+// Mock the BudgetAccountProvider context
+jest.mock("@/contexts/BudgetAccountContext", () => ({
+  BudgetAccountProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="budget-account-provider">{children}</div>
+  ),
+}));
+
 describe("Dashboard Layout", () => {
   it("renders with correct structure and components", () => {
     const testContent = "Test Content";
-    const { container } = render(
+    render(
       <DashboardLayout>
         <div>{testContent}</div>
       </DashboardLayout>,
     );
 
     // Check for the main container with background
-    expect(container.firstChild).toHaveClass("min-h-screen");
+    const mainContainer = document.querySelector(".min-h-screen");
+    expect(mainContainer).toBeInTheDocument();
+
+    // Check for BudgetAccountProvider
+    expect(screen.getByTestId("budget-account-provider")).toBeInTheDocument();
 
     // Check for header with correct user
     const header = screen.getByTestId("header");
@@ -45,9 +65,22 @@ describe("Dashboard Layout", () => {
       "pt-22",
     );
 
+    // Check for the flex container with breadcrumb and account selector
+    const flexContainer = main.firstChild;
+    expect(flexContainer).toHaveClass(
+      "mb-6",
+      "flex",
+      "items-center",
+      "justify-between",
+    );
+
     // Check for breadcrumb
     expect(screen.getByTestId("breadcrumb")).toBeInTheDocument();
     expect(screen.getByText("Breadcrumb Navigation")).toBeInTheDocument();
+
+    // Check for account selector
+    expect(screen.getByTestId("account-selector")).toBeInTheDocument();
+    expect(screen.getByText("Account Selector")).toBeInTheDocument();
 
     // Check for children content
     expect(screen.getByText(testContent)).toBeInTheDocument();
