@@ -7,8 +7,8 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { useToast } from "@/components/Toast";
-import { useBudgetAccount } from "@/contexts/BudgetAccountContext";
 import type { Account } from "@/stores/accountStore";
+import { useBudgetAccount } from "@/stores/budgetAccountStore";
 import { useState } from "react";
 
 export default function AccountSelector() {

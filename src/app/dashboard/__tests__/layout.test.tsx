@@ -25,11 +25,26 @@ jest.mock("@/components/AccountSelector", () => {
   };
 });
 
-// Mock the BudgetAccountProvider context
-jest.mock("@/contexts/BudgetAccountContext", () => ({
-  BudgetAccountProvider: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="budget-account-provider">{children}</div>
-  ),
+// Mock the budgetAccountStore
+jest.mock("@/stores/budgetAccountStore", () => ({
+  useBudgetAccount: () => ({
+    selectedAccount: {
+      id: "test-account-id",
+      accountNumber: "TEST-1234",
+      nickname: "Test Account",
+      users: [],
+      invitations: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    accounts: [],
+    isLoading: false,
+    error: null,
+    setSelectedAccount: jest.fn(),
+    setAccounts: jest.fn(),
+    setIsLoading: jest.fn(),
+    setError: jest.fn(),
+  }),
 }));
 
 describe("Dashboard Layout", () => {
@@ -44,9 +59,6 @@ describe("Dashboard Layout", () => {
     // Check for the main container with background
     const mainContainer = document.querySelector(".min-h-screen");
     expect(mainContainer).toBeInTheDocument();
-
-    // Check for BudgetAccountProvider
-    expect(screen.getByTestId("budget-account-provider")).toBeInTheDocument();
 
     // Check for header with correct user
     const header = screen.getByTestId("header");

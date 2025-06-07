@@ -140,6 +140,8 @@ export const budgetAccountsRelations = relations(
   ({ many }) => ({
     members: many(budgetAccountMembers),
     invitations: many(budgetAccountInvitations),
+    budgets: many(budgets),
+    categories: many(categories),
   }),
 );
 
@@ -195,6 +197,14 @@ export const budgets = pgTable(
   }),
 );
 
+export const budgetsRelations = relations(budgets, ({ one, many }) => ({
+  budgetAccount: one(budgetAccounts, {
+    fields: [budgets.budgetAccountId],
+    references: [budgetAccounts.id],
+  }),
+  categories: many(budgetCategories),
+}));
+
 // Category Management
 export const categories = pgTable("category", {
   id: text("id").primaryKey(),
@@ -209,6 +219,14 @@ export const categories = pgTable("category", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  budgetAccount: one(budgetAccounts, {
+    fields: [categories.budgetAccountId],
+    references: [budgetAccounts.id],
+  }),
+  budgetCategories: many(budgetCategories),
+}));
+
 // Budget Category Allocation
 export const budgetCategories = pgTable("budget_category", {
   id: text("id").primaryKey(),
@@ -222,6 +240,20 @@ export const budgetCategories = pgTable("budget_category", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+export const budgetCategoriesRelations = relations(
+  budgetCategories,
+  ({ one }) => ({
+    budget: one(budgets, {
+      fields: [budgetCategories.budgetId],
+      references: [budgets.id],
+    }),
+    category: one(categories, {
+      fields: [budgetCategories.categoryId],
+      references: [categories.id],
+    }),
+  }),
+);
 
 // Transaction Management
 export const transactions = pgTable("transaction", {

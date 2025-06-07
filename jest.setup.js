@@ -38,3 +38,12 @@ if (typeof global.Response === "undefined") {
 if (typeof global.Headers === "undefined") {
   global.Headers = function () {};
 }
+
+// Mock crypto.randomUUID
+if (typeof global.crypto === "undefined") {
+  global.crypto = {
+    randomUUID: () => "00000000-0000-0000-0000-000000000000",
+  };
+} else if (!global.crypto.randomUUID) {
+  global.crypto.randomUUID = () => "00000000-0000-0000-0000-000000000000";
+}

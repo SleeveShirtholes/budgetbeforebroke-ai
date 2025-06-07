@@ -1,28 +1,53 @@
+import * as budgetActions from "@/app/actions/budget";
+
 import { fireEvent, render, screen } from "@testing-library/react";
 
+import { TestWrapper } from "@/test-utils";
+import { act } from "react";
 import { BudgetCategoryName } from "../../types/budget.types";
 import { CategoryForm } from "../CategoryForm";
 
+// Mock the budget actions
+jest.mock("@/app/actions/budget", () => ({
+  createBudgetCategory: jest.fn(),
+  updateBudgetCategory: jest.fn(),
+}));
+
+const mockSetNewCategory = jest.fn();
+const mockSetFormErrors = jest.fn();
+const mockOnSave = jest.fn();
+const mockOnCancel = jest.fn();
 const mockAvailableCategories: BudgetCategoryName[] = [
   "Housing",
   "Food & Groceries",
   "Transportation",
 ];
 
-describe("CategoryForm", () => {
-  const mockSetNewCategory = jest.fn();
-  const mockSetFormErrors = jest.fn();
-  const mockOnSave = jest.fn();
-  const mockOnCancel = jest.fn();
-  const mockCustomSelectRef = { current: null };
+const baseProps = {
+  budgetId: "test-budget-id",
+  newCategory: { name: "Housing" as BudgetCategoryName, amount: "1000" },
+  setNewCategory: mockSetNewCategory,
+  formErrors: {},
+  setFormErrors: mockSetFormErrors,
+  availableCategories: mockAvailableCategories,
+  isEditing: false,
+  onSave: mockOnSave,
+  onCancel: mockOnCancel,
+};
 
+describe("CategoryForm", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
+  const renderWithWrapper = (ui: React.ReactElement) => {
+    return render(<TestWrapper>{ui}</TestWrapper>);
+  };
+
   it("renders form with empty state", () => {
-    render(
+    renderWithWrapper(
       <CategoryForm
+        budgetId="test-budget-id"
         newCategory={{ name: "", amount: "" }}
         setNewCategory={mockSetNewCategory}
         formErrors={{}}
@@ -31,7 +56,6 @@ describe("CategoryForm", () => {
         isEditing={false}
         onSave={mockOnSave}
         onCancel={mockOnCancel}
-        customSelectRef={mockCustomSelectRef}
       />,
     );
 
@@ -45,8 +69,9 @@ describe("CategoryForm", () => {
   });
 
   it("renders form in edit mode", () => {
-    render(
+    renderWithWrapper(
       <CategoryForm
+        budgetId="test-budget-id"
         newCategory={{ name: "Housing", amount: "1000" }}
         setNewCategory={mockSetNewCategory}
         formErrors={{}}
@@ -55,7 +80,7 @@ describe("CategoryForm", () => {
         isEditing={true}
         onSave={mockOnSave}
         onCancel={mockOnCancel}
-        customSelectRef={mockCustomSelectRef}
+        editCategoryId="test-category-id"
       />,
     );
 
@@ -65,8 +90,9 @@ describe("CategoryForm", () => {
   });
 
   it("shows error messages when form has errors", () => {
-    render(
+    renderWithWrapper(
       <CategoryForm
+        budgetId="test-budget-id"
         newCategory={{ name: "", amount: "" }}
         setNewCategory={mockSetNewCategory}
         formErrors={{
@@ -78,7 +104,6 @@ describe("CategoryForm", () => {
         isEditing={false}
         onSave={mockOnSave}
         onCancel={mockOnCancel}
-        customSelectRef={mockCustomSelectRef}
       />,
     );
 
@@ -86,60 +111,69 @@ describe("CategoryForm", () => {
     expect(screen.getByText("Please enter an amount")).toBeInTheDocument();
   });
 
-  it("calls onSave with false when Add button is clicked", () => {
+  it("calls onSave with false when Add button is clicked", async () => {
     render(
-      <CategoryForm
-        newCategory={{ name: "Housing", amount: "1000" }}
-        setNewCategory={mockSetNewCategory}
-        formErrors={{}}
-        setFormErrors={mockSetFormErrors}
-        availableCategories={mockAvailableCategories}
-        isEditing={false}
-        onSave={mockOnSave}
-        onCancel={mockOnCancel}
-        customSelectRef={mockCustomSelectRef}
-      />,
+      <TestWrapper>
+        <CategoryForm {...baseProps} newCategory={{ name: "", amount: "" }} />
+      </TestWrapper>,
     );
+    // Open the dropdown and select the option
+    const nameInput = screen.getByPlaceholderText("Select a category");
+    fireEvent.click(nameInput);
+    const option = await screen.findByText("Food & Groceries");
+    fireEvent.click(option);
+    // Fill in required form fields
+    const amountInput = screen.getByPlaceholderText("0.00");
+    fireEvent.change(amountInput, { target: { value: "100" } });
 
-    fireEvent.click(screen.getByText("Add"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Add"));
+    });
+
+    expect(budgetActions.createBudgetCategory).toHaveBeenCalledWith(
+      "test-budget-id",
+      "Food & Groceries",
+      100,
+    );
     expect(mockOnSave).toHaveBeenCalledWith(false);
   });
 
-  it("calls onSave with true when Add & Add Another button is clicked", () => {
+  it("calls onSave with true when Add & Add Another button is clicked", async () => {
     render(
-      <CategoryForm
-        newCategory={{ name: "Housing", amount: "1000" }}
-        setNewCategory={mockSetNewCategory}
-        formErrors={{}}
-        setFormErrors={mockSetFormErrors}
-        availableCategories={mockAvailableCategories}
-        isEditing={false}
-        onSave={mockOnSave}
-        onCancel={mockOnCancel}
-        customSelectRef={mockCustomSelectRef}
-      />,
+      <TestWrapper>
+        <CategoryForm {...baseProps} newCategory={{ name: "", amount: "" }} />
+      </TestWrapper>,
     );
+    // Open the dropdown and select the option
+    const nameInput = screen.getByPlaceholderText("Select a category");
+    fireEvent.click(nameInput);
+    const option = await screen.findByText("Food & Groceries");
+    fireEvent.click(option);
+    // Fill in required form fields
+    const amountInput = screen.getByPlaceholderText("0.00");
+    fireEvent.change(amountInput, { target: { value: "100" } });
 
-    fireEvent.click(screen.getByText("Add & Add Another"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Add & Add Another"));
+    });
+
+    expect(budgetActions.createBudgetCategory).toHaveBeenCalledWith(
+      "test-budget-id",
+      "Food & Groceries",
+      100,
+    );
     expect(mockOnSave).toHaveBeenCalledWith(true);
   });
 
-  it("calls onCancel when Cancel button is clicked", () => {
+  it("calls onCancel when Cancel button is clicked", async () => {
     render(
-      <CategoryForm
-        newCategory={{ name: "Housing", amount: "1000" }}
-        setNewCategory={mockSetNewCategory}
-        formErrors={{}}
-        setFormErrors={mockSetFormErrors}
-        availableCategories={mockAvailableCategories}
-        isEditing={false}
-        onSave={mockOnSave}
-        onCancel={mockOnCancel}
-        customSelectRef={mockCustomSelectRef}
-      />,
+      <TestWrapper>
+        <CategoryForm {...baseProps} />
+      </TestWrapper>,
     );
-
-    fireEvent.click(screen.getByText("Cancel"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Cancel"));
+    });
     expect(mockOnCancel).toHaveBeenCalled();
   });
 });

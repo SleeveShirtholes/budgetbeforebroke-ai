@@ -41,10 +41,6 @@ account:
       href: /dashboard/categories
       icon: FolderIcon
       description: Manage your categories
-    - label: Manage Merchants
-      href: /dashboard/merchants
-      icon: ShoppingBagIcon
-      description: Manage your merchants
 
 support:
   label: Support
