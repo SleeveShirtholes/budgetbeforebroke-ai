@@ -122,6 +122,7 @@ export default function Budget() {
         {/* Add Category Form */}
         {isAddingCategory && (
           <CategoryForm
+            budgetId="test-budget-id"
             newCategory={newCategory}
             setNewCategory={setNewCategory}
             formErrors={formErrors}
@@ -137,7 +138,6 @@ export default function Budget() {
                 editCategoryId: null,
               });
             }}
-            customSelectRef={customSelectRef}
           />
         )}
 

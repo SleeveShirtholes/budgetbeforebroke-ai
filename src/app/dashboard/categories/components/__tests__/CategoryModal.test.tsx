@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
+import { act } from "react-dom/test-utils";
 import CategoryModal from "../CategoryModal";
 
 describe("CategoryModal", () => {
@@ -7,8 +8,7 @@ describe("CategoryModal", () => {
     isOpen: true,
     onClose: jest.fn(),
     onSave: jest.fn(),
-    form: { name: "", description: "" },
-    setForm: jest.fn(),
+    defaultValues: { name: "", description: "" },
   };
 
   it("renders add mode", () => {
@@ -24,7 +24,7 @@ describe("CategoryModal", () => {
       <CategoryModal
         {...baseProps}
         mode="edit"
-        form={{ name: "Test", description: "Desc" }}
+        defaultValues={{ name: "Test", description: "Desc" }}
       />,
     );
     expect(screen.getByText("Edit Category")).toBeInTheDocument();
@@ -39,11 +39,20 @@ describe("CategoryModal", () => {
     expect(baseProps.onClose).toHaveBeenCalled();
   });
 
-  it("calls onSave when Save/Add is clicked", () => {
+  it("calls onSave when Save/Add is clicked", async () => {
     render(
-      <CategoryModal {...baseProps} form={{ name: "Test", description: "" }} />,
+      <CategoryModal
+        {...baseProps}
+        defaultValues={{ name: "Test", description: "" }}
+      />,
     );
-    fireEvent.click(screen.getByText("Add"));
-    expect(baseProps.onSave).toHaveBeenCalled();
+    const form = screen.getByTestId("category-form");
+    await act(async () => {
+      fireEvent.submit(form);
+    });
+    expect(baseProps.onSave).toHaveBeenCalledWith({
+      name: "Test",
+      description: "",
+    });
   });
 });

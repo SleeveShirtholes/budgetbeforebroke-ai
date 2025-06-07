@@ -8,6 +8,7 @@ import {
   removeUser,
   resendInvite,
   updateAccountName,
+  updateDefaultAccount,
   updateUserRole,
 } from "../actions/account";
 import { useEffect, useRef, useState } from "react";
@@ -22,7 +23,7 @@ import EditNicknameModal from "./components/EditNicknameModal";
 import InviteUserModal from "./components/InviteUserModal";
 import { authClient } from "@/lib/auth-client";
 import { createAccount } from "../actions/account";
-import { useDefaultAccount } from "@/hooks/useDefaultAccount";
+import { useBudgetAccount } from "@/stores/budgetAccountStore";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/Toast";
@@ -102,11 +103,8 @@ function AccountPageContent() {
     userEmail: string;
   } | null>(null);
 
-  const {
-    defaultAccountId,
-    updateDefault,
-    isLoading: isLoadingDefault,
-  } = useDefaultAccount();
+  const { selectedAccount: defaultAccount, setSelectedAccount } =
+    useBudgetAccount();
 
   // Find the selected account object
   const selectedAccount: Account | null =
@@ -302,8 +300,15 @@ function AccountPageContent() {
   // Add handler to set default account
   const handleSetDefaultAccount = async (accountId: string) => {
     try {
-      await updateDefault(accountId);
-      showToast("Default account set!", { type: "success" });
+      // First update the database
+      await updateDefaultAccount(accountId);
+
+      // Then update the Zustand store
+      const account = accounts.find((a) => a.id === accountId);
+      if (account) {
+        setSelectedAccount(account);
+        showToast("Default account set!", { type: "success" });
+      }
     } catch {
       showToast("Failed to set default account.", { type: "error" });
     }
@@ -355,8 +360,8 @@ function AccountPageContent() {
                 handleResendInvite(invitationId)
               }
               isOwner={isOwner}
-              isDefault={defaultAccountId === selectedAccount.id}
-              isLoadingDefault={isLoadingDefault}
+              isDefault={defaultAccount?.id === selectedAccount.id}
+              isLoadingDefault={false}
               onSetDefault={() => handleSetDefaultAccount(selectedAccount.id)}
             />
           ) : (

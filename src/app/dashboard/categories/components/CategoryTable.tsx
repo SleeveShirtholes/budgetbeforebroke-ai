@@ -40,21 +40,25 @@ interface CategoryTableProps {
 /**
  * CategoryTable renders the main categories table with actions and expandable detail panels.
  */
-const CategoryTable: React.FC<CategoryTableProps> = React.memo(
-  ({ categories, columns, getRowActions, detailPanel }) => {
-    return (
-      <Table
-        data={categories as Record<string, unknown>[]}
-        columns={columns as ColumnDef<Record<string, unknown>>[]}
-        actions={getRowActions as (row: Record<string, unknown>) => RowAction[]}
-        pageSize={10}
-        detailPanel={
-          detailPanel as (row: Record<string, unknown>) => React.ReactNode
-        }
-      />
-    );
-  },
-);
+const CategoryTable: React.FC<CategoryTableProps> = ({
+  categories,
+  columns,
+  getRowActions,
+  detailPanel,
+}) => {
+  return (
+    <Table
+      data={categories as Record<string, unknown>[]}
+      columns={columns as ColumnDef<Record<string, unknown>>[]}
+      actions={getRowActions as (row: Record<string, unknown>) => RowAction[]}
+      pageSize={10}
+      detailPanel={
+        detailPanel as (row: Record<string, unknown>) => React.ReactNode
+      }
+    />
+  );
+};
+
 CategoryTable.displayName = "CategoryTable";
 
 export default CategoryTable;
