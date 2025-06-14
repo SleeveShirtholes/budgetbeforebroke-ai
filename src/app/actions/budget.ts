@@ -271,6 +271,7 @@ export async function deleteBudgetCategory(budgetCategoryId: string) {
  * @param budgetAccountId - The ID of the budget account
  * @param year - The year for the budget
  * @param month - The month for the budget (1-12)
+ * @param totalBudget - The total budget amount for the budget
  * @returns Promise resolving to the created budget
  * @throws {Error} If user is not authenticated
  */
@@ -278,6 +279,7 @@ export async function createBudget(
   budgetAccountId: string,
   year: number,
   month: number,
+  totalBudget?: number,
 ) {
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
@@ -308,6 +310,7 @@ export async function createBudget(
     name: `${new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" })} Budget`,
     year,
     month,
+    totalBudget: totalBudget?.toString(),
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -318,7 +321,62 @@ export async function createBudget(
     name: `${new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" })} Budget`,
     year,
     month,
+    totalBudget: totalBudget ? Number(totalBudget) : null,
     createdAt: new Date(),
     updatedAt: new Date(),
+  };
+}
+
+/**
+ * Updates an existing budget's total budget amount
+ * @param budgetId - The ID of the budget to update
+ * @param totalBudget - The new total budget amount
+ * @returns Promise resolving to the updated budget
+ * @throws {Error} If user is not authenticated or not authorized
+ */
+export async function updateBudget(budgetId: string, totalBudget: number) {
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult || "error" in sessionResult || !sessionResult.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  // Get the budget to verify ownership
+  const budget = (await db.query.budgets.findFirst({
+    where: eq(budgets.id, budgetId),
+    with: {
+      budgetAccount: {
+        with: {
+          members: true,
+        },
+      },
+    },
+  })) as Budget | null;
+
+  if (!budget) {
+    throw new Error("Budget not found");
+  }
+
+  // Verify user has permission
+  const members = budget.budgetAccount?.members;
+  const member = members?.find((m) => m.userId === sessionResult.user.id);
+  if (!member) {
+    throw new Error("Not authorized");
+  }
+
+  // Update the budget
+  await db
+    .update(budgets)
+    .set({
+      totalBudget: totalBudget.toString(),
+      updatedAt: new Date(),
+    })
+    .where(eq(budgets.id, budgetId));
+
+  return {
+    ...budget,
+    totalBudget: Number(totalBudget),
   };
 }

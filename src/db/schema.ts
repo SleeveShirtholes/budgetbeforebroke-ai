@@ -185,6 +185,7 @@ export const budgets = pgTable(
     description: text("description"),
     year: integer("year").notNull(),
     month: integer("month").notNull(),
+    totalBudget: decimal("total_budget", { precision: 10, scale: 2 }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

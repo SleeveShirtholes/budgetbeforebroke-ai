@@ -5,6 +5,7 @@ import {
   createBudgetCategory,
   deleteBudgetCategory,
   getBudgetCategories,
+  updateBudget,
   updateBudgetCategory,
 } from "@/app/actions/budget";
 import { CalendarIcon, PlusIcon } from "@heroicons/react/24/outline";
@@ -67,30 +68,28 @@ export default function Budget() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFormSubmitting, setIsFormSubmitting] = useState(false);
   const { showToast } = useToast();
+  const [isEditingTotalBudget, setIsEditingTotalBudget] = useState(false);
+  const [totalBudgetInput, setTotalBudgetInput] = useState("");
+  const [isUpdatingTotalBudget, setIsUpdatingTotalBudget] = useState(false);
 
   const customSelectRef = useRef<HTMLInputElement>(null);
   const { selectedAccount } = useBudgetAccount();
 
-  console.log("Selected Account: ", selectedAccount);
-
-  // For calculations, use a static value for totalBudget
-  const totalBudget = 2000;
-
   // Fetch budgets for the selected month
-  const { data: budgetId, isLoading: isLoadingBudget } = useSWR(
+  const { data: budget, isLoading: isLoadingBudget } = useSWR(
     selectedAccount ? ["budgetId", selectedAccount.id, selectedMonth] : null,
     async () => {
       if (!selectedAccount) return null;
       const [year, month] = selectedMonth.split("-").map(Number);
       const budget = await createBudget(selectedAccount.id, year, month);
-      return budget.id;
+      return budget;
     },
   );
 
   // Fetch budget categories for the selected budget
   const { data: budgetCategories, isLoading: isLoadingCategories } = useSWR(
-    budgetId ? ["budgets", budgetId] : null,
-    () => (budgetId ? getBudgetCategories(budgetId) : []),
+    budget ? ["budgets", budget.id] : null,
+    () => (budget ? getBudgetCategories(budget.id) : []),
   );
 
   // Fetch available categories for the selected account
@@ -118,12 +117,6 @@ export default function Budget() {
 
   // Calculate total budgeted amount
   const totalBudgeted = calculateTotalBudgeted(budgetCategories || []);
-  const remainingBudget = calculateRemainingBudget(totalBudget, totalBudgeted);
-
-  // Filter categories based on search query
-  const filteredCategories = (budgetCategories || []).filter((category) =>
-    category.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
 
   const isLoading =
     isLoadingBudget || isLoadingCategories || isLoadingAvailableCategories;
@@ -187,7 +180,7 @@ export default function Budget() {
           parseFloat(newCategory.amount),
         );
       }
-      mutate(["budgets", budgetId]);
+      mutate(["budgetId", selectedAccount.id, selectedMonth]);
       if (!keepOpen) {
         setIsAddingCategory(false);
         setNewCategory({ name: "", amount: "" });
@@ -215,7 +208,7 @@ export default function Budget() {
       }
       setIsDeleting(true);
       await deleteBudgetCategory(id);
-      mutate(["budgets", budgetId]);
+      mutate(["budgetId", selectedAccount.id, selectedMonth]);
       setDeleteConfirmId(null);
     } catch (error) {
       console.error("Error deleting category:", error);
@@ -231,6 +224,29 @@ export default function Budget() {
       amount: category.amount.toString(),
     });
     setIsAddingCategory(true);
+  };
+
+  const handleTotalBudgetSave = async () => {
+    try {
+      if (!budget) return;
+
+      const amount = parseFloat(totalBudgetInput);
+      if (isNaN(amount) || amount < 0) {
+        showToast("Please enter a valid amount", { type: "error" });
+        return;
+      }
+
+      setIsUpdatingTotalBudget(true);
+      await updateBudget(budget.id, amount);
+      mutate(["budgetId", selectedAccount?.id, selectedMonth]);
+      setIsEditingTotalBudget(false);
+      setTotalBudgetInput("");
+    } catch (error) {
+      console.error("Error updating total budget:", error);
+      showToast("Failed to update total budget", { type: "error" });
+    } finally {
+      setIsUpdatingTotalBudget(false);
+    }
   };
 
   return (
@@ -253,9 +269,25 @@ export default function Budget() {
 
       {/* Budget Overview */}
       <BudgetOverview
-        totalBudget={totalBudget}
+        totalBudget={Number(budget?.totalBudget || 0)}
         totalBudgeted={totalBudgeted}
-        remainingBudget={remainingBudget}
+        remainingBudget={calculateRemainingBudget(
+          Number(budget?.totalBudget || 0),
+          totalBudgeted,
+        )}
+        isEditing={isEditingTotalBudget}
+        totalBudgetInput={totalBudgetInput}
+        isUpdating={isUpdatingTotalBudget}
+        onEditClick={() => {
+          setIsEditingTotalBudget(true);
+          setTotalBudgetInput(budget?.totalBudget?.toString() || "");
+        }}
+        onTotalBudgetChange={setTotalBudgetInput}
+        onSave={handleTotalBudgetSave}
+        onCancel={() => {
+          setIsEditingTotalBudget(false);
+          setTotalBudgetInput("");
+        }}
       />
 
       {/* Budget Categories Section */}
@@ -332,7 +364,7 @@ export default function Budget() {
 
         {/* Categories List */}
         <CategoryList
-          categories={filteredCategories}
+          categories={budgetCategories || []}
           searchQuery={searchQuery}
           onEdit={handleEditCategory}
           onDelete={handleDeleteCategory}
