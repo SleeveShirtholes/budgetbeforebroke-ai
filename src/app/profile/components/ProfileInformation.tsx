@@ -1,14 +1,13 @@
 "use client";
 
+import { EnvelopeIcon, PhoneIcon, UserIcon } from "@heroicons/react/24/outline";
 import { AsYouType, isValidPhoneNumber } from "libphonenumber-js";
 import { Controller, useForm } from "react-hook-form";
-import { EnvelopeIcon, PhoneIcon, UserIcon } from "@heroicons/react/24/outline";
 
 import Button from "@/components/Button";
-import React from "react";
 import TextField from "@/components/Forms/TextField";
+import React from "react";
 import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 const profileSchema = z.object({
   name: z
@@ -57,7 +56,6 @@ export default function ProfileInformation({
     formState: { errors, isDirty, isValid },
     reset,
   } = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
     mode: "onChange",
     defaultValues: { name, phoneNumber },
   });
@@ -68,7 +66,16 @@ export default function ProfileInformation({
   }, [name, phoneNumber, isEditing, reset]);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form
+      onSubmit={handleSubmit((data) => {
+        const result = profileSchema.safeParse(data);
+        if (!result.success) {
+          // You may want to handle errors here, but react-hook-form will already populate errors
+          return;
+        }
+        onSubmit(result.data);
+      })}
+    >
       <div className="space-y-4">
         <div className="flex items-center space-x-3">
           <UserIcon className="h-5 w-5 text-secondary-500" />

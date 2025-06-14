@@ -1,33 +1,21 @@
-import {
-  createBudgetCategory,
-  updateBudgetCategory,
-} from "@/app/actions/budget";
-import { SubmitHandler, useForm } from "react-hook-form";
+import { useEffect, useState } from "react";
 
-import Button from "@/components/Button";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import NumberInput from "@/components/Forms/NumberInput";
-import { useToast } from "@/components/Toast";
 import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useSWRConfig } from "swr";
 import { z } from "zod";
 import { BudgetCategoryName } from "../types/budget.types";
 
 const categoryFormSchema = z.object({
-  name: z.custom<BudgetCategoryName>((val) => {
-    return typeof val === "string" && val.length > 0;
-  }, "Category name is required"),
+  name: z.string().min(1, "Category is required"),
   amount: z.string().refine((val) => {
-    const num = parseFloat(val);
-    return !isNaN(num) && num > 0;
-  }, "Amount must be greater than 0"),
+    const amount = parseFloat(val);
+    return !isNaN(amount) && amount > 0;
+  }, "Please enter a valid amount greater than 0"),
+  addAnother: z.boolean(),
 });
 
-type CategoryFormData = z.infer<typeof categoryFormSchema>;
-
 interface CategoryFormProps {
-  budgetId: string;
   newCategory: { name: BudgetCategoryName | ""; amount: string };
   setNewCategory: (category: {
     name: BudgetCategoryName | "";
@@ -37,9 +25,9 @@ interface CategoryFormProps {
   setFormErrors: (errors: { name?: string; amount?: string }) => void;
   availableCategories: BudgetCategoryName[];
   isEditing: boolean;
-  onSave: (keepOpen: boolean) => void;
-  onCancel: () => void;
+  onSave: (keepOpen: boolean) => Promise<boolean>;
   editCategoryId?: string;
+  onLoadingChange?: (isLoading: boolean) => void;
 }
 
 /**
@@ -51,7 +39,6 @@ interface CategoryFormProps {
  *
  * @component
  * @param {Object} props - Component props
- * @param {string} props.budgetId - The ID of the budget
  * @param {Object} props.newCategory - The current category being edited or created
  * @param {string} props.newCategory.name - The name of the category
  * @param {string} props.newCategory.amount - The budget amount for the category
@@ -61,12 +48,11 @@ interface CategoryFormProps {
  * @param {string[]} props.availableCategories - List of available category names
  * @param {boolean} props.isEditing - Flag indicating if the form is in edit mode
  * @param {Function} props.onSave - Callback function when the form is saved
- * @param {Function} props.onCancel - Callback function when the form is cancelled
  * @param {string} props.editCategoryId - The ID of the category being edited
+ * @param {Function} props.onLoadingChange - Callback function to notify parent of loading state changes
  * @returns {JSX.Element} The rendered category form component
  */
-export const CategoryForm = ({
-  budgetId,
+export function CategoryForm({
   newCategory,
   setNewCategory,
   formErrors,
@@ -74,194 +60,127 @@ export const CategoryForm = ({
   availableCategories,
   isEditing,
   onSave,
-  onCancel,
-  editCategoryId,
-}: CategoryFormProps) => {
-  const { showToast } = useToast();
-  const { mutate } = useSWRConfig();
+  onLoadingChange,
+}: CategoryFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [addAnother, setAddAnother] = useState(false);
 
-  const {
-    handleSubmit,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<CategoryFormData>({
-    resolver: zodResolver(categoryFormSchema),
-    defaultValues: {
-      name: newCategory.name || undefined,
-      amount: newCategory.amount,
-    },
-  });
+  // Notify parent of loading state changes
+  useEffect(() => {
+    onLoadingChange?.(isSubmitting);
+  }, [isSubmitting, onLoadingChange]);
 
-  const customSelectOptions = isEditing
-    ? [
-        { value: newCategory.name, label: newCategory.name },
-        ...availableCategories
-          .filter((cat) => cat !== newCategory.name)
-          .map((cat) => ({ value: cat, label: cat })),
-      ]
-    : availableCategories.map((cat) => ({ value: cat, label: cat }));
+  const clearForm = () => {
+    setNewCategory({ name: "", amount: "" });
+    setFormErrors({});
+    setAddAnother(false);
+  };
 
-  const onSubmit: SubmitHandler<CategoryFormData> = async (data) => {
+  const validateForm = (): boolean => {
     try {
-      if (isEditing && editCategoryId) {
-        await updateBudgetCategory(editCategoryId, parseFloat(data.amount));
-        showToast("Category updated successfully!", { type: "success" });
-      } else {
-        await createBudgetCategory(
-          budgetId,
-          data.name as BudgetCategoryName,
-          parseFloat(data.amount),
-        );
-        showToast("Category added successfully!", { type: "success" });
-      }
-      await mutate(`/api/budgets/${budgetId}/categories`);
-      onSave(false);
-    } catch (error) {
-      console.error("Failed to save category:", error);
-      showToast("Failed to save category. Please try again.", {
-        type: "error",
+      categoryFormSchema.parse({
+        name: newCategory.name,
+        amount: newCategory.amount,
+        addAnother,
       });
+      setFormErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors: { name?: string; amount?: string } = {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            errors[err.path[0] as keyof typeof errors] = err.message;
+          }
+        });
+        setFormErrors(errors);
+      }
+      return false;
     }
   };
 
-  const onSubmitAndAddAnother: SubmitHandler<CategoryFormData> = async (
-    data,
-  ) => {
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
     try {
-      if (isEditing && editCategoryId) {
-        await updateBudgetCategory(editCategoryId, parseFloat(data.amount));
-        showToast("Category updated successfully!", { type: "success" });
-      } else {
-        await createBudgetCategory(
-          budgetId,
-          data.name as BudgetCategoryName,
-          parseFloat(data.amount),
-        );
-        showToast("Category added successfully!", { type: "success" });
+      const success = await onSave(addAnother);
+      // Only clear the form if the save was successful
+      if (success && !addAnother) {
+        clearForm();
+      } else if (success && addAnother) {
+        // If "Add another" is checked, only clear the amount and name
+        setNewCategory({ name: "", amount: "" });
+        setFormErrors({});
+        // Don't clear the checkbox here since we want to keep adding
       }
-      await mutate(`/api/budgets/${budgetId}/categories`);
-      onSave(true);
     } catch (error) {
-      console.error("Failed to save category:", error);
-      showToast("Failed to save category. Please try again.", {
-        type: "error",
-      });
+      console.error("Error saving category:", error);
+      // Don't clear the form on error
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  const categoryOptions = availableCategories.map((category) => ({
+    value: category,
+    label: category,
+  }));
 
   return (
-    <div className="mb-6 p-4 bg-secondary-50 rounded-lg">
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="flex flex-col gap-4 max-w-md mx-auto"
-      >
-        <div className="w-full">
-          <div className="min-h-[60px]">
-            <CustomSelect
-              value={newCategory.name}
-              onChange={(value) => {
-                setValue("name", value as BudgetCategoryName);
-                setNewCategory({
-                  ...newCategory,
-                  name: value as BudgetCategoryName,
-                });
-                setFormErrors({ ...formErrors, name: undefined });
-              }}
-              options={customSelectOptions}
-              label="Category"
-              placeholder="Select a category"
-              clearable={true}
-              error={errors.name?.message || formErrors.name}
-              disabled={isEditing}
-            />
-          </div>
-        </div>
-        <div className="w-full">
-          <div className="min-h-[60px]">
-            <NumberInput
-              value={newCategory.amount}
-              onChange={(value) => {
-                setValue("amount", value);
-                setNewCategory({ ...newCategory, amount: value });
-                setFormErrors({ ...formErrors, amount: undefined });
-              }}
-              onBlur={(value) => {
-                const rawValue = value.replace(/[^0-9.]/g, "");
-                setValue("amount", rawValue);
-                setNewCategory({
-                  ...newCategory,
-                  amount: rawValue,
-                });
-              }}
-              label=""
-              placeholder="0.00"
-              error={errors.amount?.message || formErrors.amount}
-              leftIcon={<CurrencyDollarIcon className="h-5 w-5" />}
-            />
-          </div>
-        </div>
-        <div className="flex gap-2 justify-center">
-          {isEditing ? (
-            <>
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                disabled={isSubmitting}
-              >
-                Save
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="md"
-                onClick={handleSubmit(onSubmitAndAddAnother)}
-                disabled={isSubmitting}
-              >
-                Save & Add Another
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                onClick={onCancel}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                disabled={isSubmitting}
-              >
-                Add
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="md"
-                onClick={handleSubmit(onSubmitAndAddAnother)}
-                disabled={isSubmitting}
-              >
-                Add & Add Another
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                onClick={onCancel}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-            </>
-          )}
-        </div>
-      </form>
-    </div>
+    <form
+      id="category-form"
+      data-testid="category-form"
+      onSubmit={onSubmit}
+      className="space-y-4"
+    >
+      <CustomSelect
+        id="category"
+        label="Category"
+        value={newCategory.name}
+        onChange={(value) => {
+          setNewCategory({ ...newCategory, name: value as BudgetCategoryName });
+          setFormErrors({ ...formErrors, name: undefined });
+        }}
+        options={categoryOptions}
+        required
+        disabled={isEditing || isSubmitting}
+        error={formErrors.name}
+        placeholder="Select a category"
+      />
+
+      <NumberInput
+        id="amount"
+        label="Amount"
+        value={newCategory.amount}
+        onChange={(value) => {
+          setNewCategory({ ...newCategory, amount: value });
+          setFormErrors({ ...formErrors, amount: undefined });
+        }}
+        required
+        error={formErrors.amount}
+        leftIcon={<CurrencyDollarIcon className="h-5 w-5 text-secondary-400" />}
+        placeholder="0.00"
+        disabled={isSubmitting}
+      />
+
+      <div className="flex items-center">
+        <input
+          type="checkbox"
+          id="addAnother"
+          className="h-4 w-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
+          checked={addAnother}
+          onChange={(e) => setAddAnother(e.target.checked)}
+          disabled={isSubmitting}
+        />
+        <label
+          htmlFor="addAnother"
+          className="ml-2 block text-sm text-secondary-700"
+        >
+          Add another category
+        </label>
+      </div>
+    </form>
   );
-};
+}

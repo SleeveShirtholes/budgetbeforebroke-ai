@@ -1,16 +1,16 @@
 import {
-  CheckIcon,
-  ChevronUpDownIcon,
-  XMarkIcon,
-} from "@heroicons/react/20/solid";
-import { Ref, forwardRef, useEffect, useRef, useState } from "react";
-import {
   autoUpdate,
   flip,
   offset,
   shift,
   useFloating,
 } from "@floating-ui/react-dom";
+import {
+  CheckIcon,
+  ChevronUpDownIcon,
+  XMarkIcon,
+} from "@heroicons/react/20/solid";
+import { Ref, forwardRef, useEffect, useRef, useState } from "react";
 
 import ReactDOM from "react-dom";
 
@@ -161,7 +161,7 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
     };
 
     return (
-      <div className={`${fullWidth ? "w-full" : ""}`}>
+      <div className={`${fullWidth ? "w-full" : ""}`} ref={containerRef}>
         <div className="relative" ref={refs.reference as Ref<HTMLDivElement>}>
           {/* Label (optional) */}
           {label && (
@@ -251,7 +251,7 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
                     position: strategy,
                     top: y ?? 0,
                     left: x ?? 0,
-                    width: containerRef.current?.offsetWidth,
+                    width: containerRef.current?.offsetWidth || "100%",
                     zIndex: 9999,
                     opacity: isVisible ? 1 : 0,
                     transform: `translateY(${isVisible ? "0" : "-10px"})`,

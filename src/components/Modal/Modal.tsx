@@ -57,22 +57,6 @@ export default function Modal({
     if (isOpen) {
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
-
-      // Auto-select first input field only once when modal first opens
-      if (!hasAutoSelected.current) {
-        const modalContent = document.querySelector(
-          '[data-testid="modal-content"]',
-        );
-        if (modalContent) {
-          const firstInput = modalContent.querySelector(
-            'input:not([type="hidden"]), textarea, select',
-          );
-          if (firstInput instanceof HTMLElement) {
-            firstInput.focus();
-            hasAutoSelected.current = true;
-          }
-        }
-      }
     } else {
       // Reset the auto-select flag when modal closes
       hasAutoSelected.current = false;

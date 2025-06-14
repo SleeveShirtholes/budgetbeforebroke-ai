@@ -5,8 +5,7 @@ import CustomSelect from "@/components/Forms/CustomSelect";
 import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
 import { TRANSACTION_CATEGORIES } from "@/types/transaction";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
 import { mutate } from "swr";
 import { z } from "zod";
 
@@ -80,41 +79,78 @@ export default function DeleteCategoryModal({
   categoryToDelete,
   selectedAccountId,
 }: DeleteCategoryModalProps) {
-  // Initialize form with react-hook-form and zod validation
-  const {
-    handleSubmit,
-    watch,
-    formState: { errors, isSubmitting },
-    setValue,
-  } = useForm<DeleteCategoryFormData>({
-    resolver: zodResolver(deleteCategorySchema),
-    defaultValues: {
-      transactionHandling: "unassign",
-    },
+  const [formData, setFormData] = useState<DeleteCategoryFormData>({
+    transactionHandling: "unassign",
   });
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof DeleteCategoryFormData, string>>
+  >({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Watch the transactionHandling field to conditionally render the replacement category select
-  const transactionHandling = watch("transactionHandling");
+  const handleTransactionHandlingChange = (value: string) => {
+    const newFormData = {
+      ...formData,
+      transactionHandling: value as "unassign" | "reassign",
+    };
+    if (value === "unassign") {
+      newFormData.replacementCategory = undefined;
+    }
+    setFormData(newFormData);
+    validateForm(newFormData);
+  };
 
-  /**
-   * Handles the category deletion process
-   * @param {DeleteCategoryFormData} data - The validated form data
-   */
-  const handleDeleteCategory = async (data: DeleteCategoryFormData) => {
+  const handleReplacementCategoryChange = (value: string) => {
+    const newFormData = {
+      ...formData,
+      replacementCategory: value,
+    };
+    setFormData(newFormData);
+    validateForm(newFormData);
+  };
+
+  const validateForm = (data: DeleteCategoryFormData) => {
+    try {
+      deleteCategorySchema.parse(data);
+      setErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Partial<Record<keyof DeleteCategoryFormData, string>> =
+          {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            newErrors[err.path[0] as keyof DeleteCategoryFormData] =
+              err.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+      return false;
+    }
+  };
+
+  const handleDeleteCategory = async () => {
     if (!categoryToDelete) return;
+
+    if (!validateForm(formData)) {
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       await deleteCategory({
         id: categoryToDelete.id,
         reassignToCategoryId:
-          data.transactionHandling === "reassign"
-            ? data.replacementCategory
+          formData.transactionHandling === "reassign"
+            ? formData.replacementCategory
             : undefined,
       });
-      // Refresh the categories list after successful deletion
       await mutate(["categories", selectedAccountId]);
       onClose();
     } catch (error) {
       console.error("Failed to delete category:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -137,7 +173,7 @@ export default function DeleteCategoryModal({
           <Button
             variant="danger"
             type="button"
-            onClick={handleSubmit(handleDeleteCategory)}
+            onClick={handleDeleteCategory}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
@@ -172,34 +208,25 @@ export default function DeleteCategoryModal({
                   { value: "unassign", label: "Leave transactions unassigned" },
                   { value: "reassign", label: "Assign to another category" },
                 ]}
-                value={transactionHandling}
-                onChange={(value) => {
-                  setValue(
-                    "transactionHandling",
-                    value as "unassign" | "reassign",
-                  );
-                  // Clear replacement category when switching to unassign
-                  if (value === "unassign") {
-                    setValue("replacementCategory", undefined);
-                  }
-                }}
-                error={errors.transactionHandling?.message}
+                value={formData.transactionHandling}
+                onChange={handleTransactionHandlingChange}
+                error={errors.transactionHandling}
                 name="transactionHandling"
               />
 
               {/* Conditional rendering of replacement category select */}
-              {transactionHandling === "reassign" && (
+              {formData.transactionHandling === "reassign" && (
                 <div className="ml-7 mt-2">
                   <CustomSelect
-                    value={watch("replacementCategory") || ""}
-                    onChange={(value) => setValue("replacementCategory", value)}
+                    value={formData.replacementCategory || ""}
+                    onChange={handleReplacementCategoryChange}
                     options={TRANSACTION_CATEGORIES.map((cat) => ({
                       value: cat,
                       label: cat,
                     }))}
                     label="Select category"
                     placeholder="Choose a category"
-                    error={errors.replacementCategory?.message}
+                    error={errors.replacementCategory}
                   />
                 </div>
               )}

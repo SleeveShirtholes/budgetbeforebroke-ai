@@ -4,7 +4,6 @@ import Button from "@/components/Button";
 import TextArea from "@/components/Forms/TextArea";
 import TextField from "@/components/Forms/TextField";
 import Modal from "@/components/Modal";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
 /**
@@ -44,19 +43,32 @@ export default function CreateAccountModal({
   onClose,
   onSave,
 }: CreateAccountModalProps) {
-  // Initialize form with zod validation
+  // Initialize form without zod validation
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
+    setError,
   } = useForm<CreateAccountFormData>({
-    resolver: zodResolver(createAccountSchema),
+    // No resolver, we'll validate manually
   });
 
   // Handle form submission
   const onSubmit = (data: CreateAccountFormData) => {
-    onSave(data.name, data.description || null);
+    const result = createAccountSchema.safeParse(data);
+    if (!result.success) {
+      // Set errors in react-hook-form so they display in the UI
+      result.error.errors.forEach((err) => {
+        if (err.path && err.path.length > 0) {
+          setError(err.path[0] as keyof CreateAccountFormData, {
+            message: err.message,
+          });
+        }
+      });
+      return;
+    }
+    onSave(result.data.name, result.data.description || null);
     reset();
   };
 

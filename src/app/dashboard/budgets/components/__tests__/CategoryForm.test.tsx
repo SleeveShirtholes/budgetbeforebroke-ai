@@ -1,8 +1,5 @@
-import * as budgetActions from "@/app/actions/budget";
-
 import { fireEvent, render, screen } from "@testing-library/react";
 
-import { TestWrapper } from "@/test-utils";
 import { act } from "react";
 import { BudgetCategoryName } from "../../types/budget.types";
 import { CategoryForm } from "../CategoryForm";
@@ -16,7 +13,7 @@ jest.mock("@/app/actions/budget", () => ({
 const mockSetNewCategory = jest.fn();
 const mockSetFormErrors = jest.fn();
 const mockOnSave = jest.fn();
-const mockOnCancel = jest.fn();
+const mockOnLoadingChange = jest.fn();
 const mockAvailableCategories: BudgetCategoryName[] = [
   "Housing",
   "Food & Groceries",
@@ -32,7 +29,7 @@ const baseProps = {
   availableCategories: mockAvailableCategories,
   isEditing: false,
   onSave: mockOnSave,
-  onCancel: mockOnCancel,
+  onLoadingChange: mockOnLoadingChange,
 };
 
 describe("CategoryForm", () => {
@@ -40,70 +37,41 @@ describe("CategoryForm", () => {
     jest.clearAllMocks();
   });
 
-  const renderWithWrapper = (ui: React.ReactElement) => {
-    return render(<TestWrapper>{ui}</TestWrapper>);
-  };
-
   it("renders form with empty state", () => {
-    renderWithWrapper(
-      <CategoryForm
-        budgetId="test-budget-id"
-        newCategory={{ name: "", amount: "" }}
-        setNewCategory={mockSetNewCategory}
-        formErrors={{}}
-        setFormErrors={mockSetFormErrors}
-        availableCategories={mockAvailableCategories}
-        isEditing={false}
-        onSave={mockOnSave}
-        onCancel={mockOnCancel}
-      />,
+    render(
+      <CategoryForm {...baseProps} newCategory={{ name: "", amount: "" }} />,
     );
 
     expect(
       screen.getByPlaceholderText("Select a category"),
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText("0.00")).toBeInTheDocument();
-    expect(screen.getByText("Add")).toBeInTheDocument();
-    expect(screen.getByText("Add & Add Another")).toBeInTheDocument();
-    expect(screen.getByText("Cancel")).toBeInTheDocument();
+    expect(screen.getByText("Add another category")).toBeInTheDocument();
   });
 
   it("renders form in edit mode", () => {
-    renderWithWrapper(
+    render(
       <CategoryForm
-        budgetId="test-budget-id"
-        newCategory={{ name: "Housing", amount: "1000" }}
-        setNewCategory={mockSetNewCategory}
-        formErrors={{}}
-        setFormErrors={mockSetFormErrors}
-        availableCategories={mockAvailableCategories}
+        {...baseProps}
         isEditing={true}
-        onSave={mockOnSave}
-        onCancel={mockOnCancel}
         editCategoryId="test-category-id"
       />,
     );
 
-    expect(screen.getByText("Save")).toBeInTheDocument();
-    expect(screen.getByText("Save & Add Another")).toBeInTheDocument();
-    expect(screen.getByText("Cancel")).toBeInTheDocument();
+    // Category select should be disabled in edit mode
+    const categoryInput = screen.getByLabelText("Category (required)");
+    expect(categoryInput).toBeDisabled();
   });
 
   it("shows error messages when form has errors", () => {
-    renderWithWrapper(
+    render(
       <CategoryForm
-        budgetId="test-budget-id"
+        {...baseProps}
         newCategory={{ name: "", amount: "" }}
-        setNewCategory={mockSetNewCategory}
         formErrors={{
           name: "Please select a category",
           amount: "Please enter an amount",
         }}
-        setFormErrors={mockSetFormErrors}
-        availableCategories={mockAvailableCategories}
-        isEditing={false}
-        onSave={mockOnSave}
-        onCancel={mockOnCancel}
       />,
     );
 
@@ -111,69 +79,81 @@ describe("CategoryForm", () => {
     expect(screen.getByText("Please enter an amount")).toBeInTheDocument();
   });
 
-  it("calls onSave with false when Add button is clicked", async () => {
+  it("handles form submission with add another checked", async () => {
+    mockOnSave.mockResolvedValueOnce(true);
     render(
-      <TestWrapper>
-        <CategoryForm {...baseProps} newCategory={{ name: "", amount: "" }} />
-      </TestWrapper>,
+      <CategoryForm
+        {...baseProps}
+        newCategory={{ name: "Food & Groceries", amount: "100" }}
+      />,
     );
-    // Open the dropdown and select the option
-    const nameInput = screen.getByPlaceholderText("Select a category");
-    fireEvent.click(nameInput);
-    const option = await screen.findByText("Food & Groceries");
-    fireEvent.click(option);
-    // Fill in required form fields
-    const amountInput = screen.getByPlaceholderText("0.00");
-    fireEvent.change(amountInput, { target: { value: "100" } });
 
+    // Check "Add another" checkbox
+    const addAnotherCheckbox = screen.getByLabelText("Add another category");
+    fireEvent.click(addAnotherCheckbox);
+
+    // Submit the form
+    const form = screen.getByTestId("category-form");
     await act(async () => {
-      fireEvent.click(screen.getByText("Add"));
+      fireEvent.submit(form);
     });
 
-    expect(budgetActions.createBudgetCategory).toHaveBeenCalledWith(
-      "test-budget-id",
-      "Food & Groceries",
-      100,
-    );
-    expect(mockOnSave).toHaveBeenCalledWith(false);
-  });
-
-  it("calls onSave with true when Add & Add Another button is clicked", async () => {
-    render(
-      <TestWrapper>
-        <CategoryForm {...baseProps} newCategory={{ name: "", amount: "" }} />
-      </TestWrapper>,
-    );
-    // Open the dropdown and select the option
-    const nameInput = screen.getByPlaceholderText("Select a category");
-    fireEvent.click(nameInput);
-    const option = await screen.findByText("Food & Groceries");
-    fireEvent.click(option);
-    // Fill in required form fields
-    const amountInput = screen.getByPlaceholderText("0.00");
-    fireEvent.change(amountInput, { target: { value: "100" } });
-
-    await act(async () => {
-      fireEvent.click(screen.getByText("Add & Add Another"));
-    });
-
-    expect(budgetActions.createBudgetCategory).toHaveBeenCalledWith(
-      "test-budget-id",
-      "Food & Groceries",
-      100,
-    );
     expect(mockOnSave).toHaveBeenCalledWith(true);
+    expect(mockOnLoadingChange).toHaveBeenCalledWith(true);
   });
 
-  it("calls onCancel when Cancel button is clicked", async () => {
+  it("handles form submission without add another checked", async () => {
+    mockOnSave.mockResolvedValueOnce(true);
     render(
-      <TestWrapper>
-        <CategoryForm {...baseProps} />
-      </TestWrapper>,
+      <CategoryForm
+        {...baseProps}
+        newCategory={{ name: "Food & Groceries", amount: "100" }}
+      />,
     );
+
+    // Submit the form
+    const form = screen.getByTestId("category-form");
     await act(async () => {
-      fireEvent.click(screen.getByText("Cancel"));
+      fireEvent.submit(form);
     });
-    expect(mockOnCancel).toHaveBeenCalled();
+
+    expect(mockOnSave).toHaveBeenCalledWith(false);
+    expect(mockOnLoadingChange).toHaveBeenCalledWith(true);
+  });
+
+  it("keeps form populated when save fails", async () => {
+    mockOnSave.mockResolvedValueOnce(false);
+    const initialCategory = {
+      name: "Food & Groceries" as BudgetCategoryName,
+      amount: "100",
+    };
+    render(<CategoryForm {...baseProps} newCategory={initialCategory} />);
+
+    // Submit the form
+    const form = screen.getByTestId("category-form");
+    await act(async () => {
+      fireEvent.submit(form);
+    });
+
+    expect(mockOnSave).toHaveBeenCalledWith(false);
+    expect(mockOnLoadingChange).toHaveBeenCalledWith(true);
+    // Form should still have the initial values
+    expect(screen.getByPlaceholderText("Food & Groceries")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("100")).toBeInTheDocument();
+  });
+
+  it("validates form before submission", async () => {
+    render(
+      <CategoryForm {...baseProps} newCategory={{ name: "", amount: "" }} />,
+    );
+
+    // Submit the form without filling required fields
+    const form = screen.getByTestId("category-form");
+    await act(async () => {
+      fireEvent.submit(form);
+    });
+
+    expect(mockOnSave).not.toHaveBeenCalled();
+    expect(mockSetFormErrors).toHaveBeenCalled();
   });
 });

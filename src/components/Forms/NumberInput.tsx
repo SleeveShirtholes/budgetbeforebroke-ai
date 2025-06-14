@@ -107,7 +107,8 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      onChange(formatValue(e.target.value));
+      const rawValue = e.target.value.replace(/[^0-9.]/g, "");
+      onChange(rawValue); // Pass the raw value to parent
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -156,7 +157,7 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
             <input
               ref={ref}
               type="text"
-              value={value}
+              value={formatValue(value)}
               onChange={handleChange}
               onBlur={handleBlur}
               disabled={disabled}

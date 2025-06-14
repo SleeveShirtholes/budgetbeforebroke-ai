@@ -42,7 +42,8 @@ export const BudgetOverview = ({
             </h3>
             <div className="mt-2 flex items-center">
               <span className="w-full text-2xl font-semibold text-secondary-900 block text-left">
-                ${formatCurrency(totalBudget)}
+                {totalBudget < 0 ? "-" : ""}$
+                {formatCurrency(Math.abs(totalBudget))}
               </span>
             </div>
           </div>
@@ -62,7 +63,8 @@ export const BudgetOverview = ({
               Budgeted Amount
             </h3>
             <p className="mt-2 text-2xl font-semibold text-primary-600">
-              ${formatCurrency(totalBudgeted)}
+              {totalBudgeted < 0 ? "-" : ""}$
+              {formatCurrency(Math.abs(totalBudgeted))}
             </p>
           </div>
           <div className="p-3 bg-primary-50 rounded-lg">
@@ -83,7 +85,8 @@ export const BudgetOverview = ({
             <p
               className={`mt-2 text-2xl font-semibold ${remainingBudget >= 0 ? "text-green-600" : "text-red-600"}`}
             >
-              ${formatCurrency(Math.abs(remainingBudget))}
+              {remainingBudget < 0 ? "-" : ""}$
+              {formatCurrency(Math.abs(remainingBudget))}
             </p>
           </div>
           <div

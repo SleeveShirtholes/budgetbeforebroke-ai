@@ -265,3 +265,60 @@ export async function deleteBudgetCategory(budgetCategoryId: string) {
     .delete(budgetCategories)
     .where(eq(budgetCategories.id, budgetCategoryId));
 }
+
+/**
+ * Creates a new budget for a specific month
+ * @param budgetAccountId - The ID of the budget account
+ * @param year - The year for the budget
+ * @param month - The month for the budget (1-12)
+ * @returns Promise resolving to the created budget
+ * @throws {Error} If user is not authenticated
+ */
+export async function createBudget(
+  budgetAccountId: string,
+  year: number,
+  month: number,
+) {
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult || "error" in sessionResult || !sessionResult.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  // Check if budget already exists
+  const existingBudget = await db.query.budgets.findFirst({
+    where: and(
+      eq(budgets.budgetAccountId, budgetAccountId),
+      eq(budgets.year, year),
+      eq(budgets.month, month),
+    ),
+  });
+
+  if (existingBudget) {
+    return existingBudget;
+  }
+
+  // Create new budget
+  const budgetId = randomUUID();
+  await db.insert(budgets).values({
+    id: budgetId,
+    budgetAccountId,
+    name: `${new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" })} Budget`,
+    year,
+    month,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  return {
+    id: budgetId,
+    budgetAccountId,
+    name: `${new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" })} Budget`,
+    year,
+    month,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}

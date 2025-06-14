@@ -12,6 +12,7 @@ interface CategoryListProps {
   onDelete: (id: string) => void;
   deleteConfirmId: string | null;
   setDeleteConfirmId: (id: string | null) => void;
+  isDeleting?: boolean;
 }
 
 /**
@@ -27,6 +28,7 @@ interface CategoryListProps {
  * @param {(id: string) => void} onDelete - Callback function when delete is confirmed
  * @param {string | null} deleteConfirmId - ID of the category pending deletion confirmation
  * @param {(id: string | null) => void} setDeleteConfirmId - Function to set the category ID pending deletion
+ * @param {boolean} isDeleting - Indicates if the delete operation is in progress
  * @returns {JSX.Element} Rendered list of budget categories or empty state message
  */
 export const CategoryList = ({
@@ -36,6 +38,7 @@ export const CategoryList = ({
   onDelete,
   deleteConfirmId,
   setDeleteConfirmId,
+  isDeleting = false,
 }: CategoryListProps) => {
   if (categories.length === 0) {
     return (
@@ -79,6 +82,7 @@ export const CategoryList = ({
                 variant="danger"
                 size="sm"
                 onClick={() => onDelete(category.id)}
+                isLoading={isDeleting}
               >
                 Confirm?
               </Button>
@@ -88,6 +92,7 @@ export const CategoryList = ({
                 size="sm"
                 onClick={() => setDeleteConfirmId(category.id)}
                 aria-label="Delete category"
+                disabled={isDeleting}
               >
                 <TrashIcon className="w-5 h-5" />
               </Button>
