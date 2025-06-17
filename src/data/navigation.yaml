@@ -5,6 +5,10 @@ budgets:
       href: /dashboard/budgets
       icon: BanknotesIcon
       description: View all your budgets
+    - label: Income Sources
+      href: /dashboard/income
+      icon: CurrencyDollarIcon
+      description: Manage your income sources
 
 transactions:
   label: Transactions

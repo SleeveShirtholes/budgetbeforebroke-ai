@@ -1,9 +1,9 @@
 import { InboxIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 
-import Button from "@/components/Button";
 import { BudgetCategory } from "../types/budget.types";
-import { formatCurrency } from "../utils/budget.utils";
+import Button from "@/components/Button";
 import { HighlightedText } from "./HighlightedText";
+import { formatCurrency } from "../utils/budget.utils";
 
 interface CategoryListProps {
   categories: BudgetCategory[];

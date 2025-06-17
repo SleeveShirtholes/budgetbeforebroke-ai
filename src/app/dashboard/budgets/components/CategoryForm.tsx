@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-
 import CustomSelect from "@/components/Forms/CustomSelect";
 import NumberInput from "@/components/Forms/NumberInput";
 import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { BudgetCategoryName } from "../types/budget.types";
 
@@ -14,6 +14,8 @@ const categoryFormSchema = z.object({
   }, "Please enter a valid amount greater than 0"),
   addAnother: z.boolean(),
 });
+
+type CategoryFormData = z.infer<typeof categoryFormSchema>;
 
 interface CategoryFormProps {
   newCategory: { name: BudgetCategoryName | ""; amount: string };
@@ -62,8 +64,54 @@ export function CategoryForm({
   onSave,
   onLoadingChange,
 }: CategoryFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [addAnother, setAddAnother] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setValue,
+    reset,
+  } = useForm<CategoryFormData>({
+    defaultValues: {
+      name: newCategory.name,
+      amount: newCategory.amount,
+      addAnother: false,
+    },
+  });
+
+  // Add validation function
+  const validateForm = async (data: CategoryFormData) => {
+    try {
+      categoryFormSchema.parse(data);
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const formattedErrors = error.errors.reduce(
+          (acc, curr) => {
+            const field = curr.path[0] as keyof CategoryFormData;
+            acc[field] = curr.message;
+            return acc;
+          },
+          {} as Record<string, string>,
+        );
+
+        setFormErrors({
+          name: formattedErrors.name,
+          amount: formattedErrors.amount,
+        });
+      }
+      return false;
+    }
+  };
+
+  // Update form errors when validation errors change
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      setFormErrors({
+        name: errors.name?.message,
+        amount: errors.amount?.message,
+      });
+    }
+  }, [errors, setFormErrors]);
 
   // Notify parent of loading state changes
   useEffect(() => {
@@ -73,55 +121,35 @@ export function CategoryForm({
   const clearForm = () => {
     setNewCategory({ name: "", amount: "" });
     setFormErrors({});
-    setAddAnother(false);
+    reset({ name: "", amount: "", addAnother: false });
   };
 
-  const validateForm = (): boolean => {
-    try {
-      categoryFormSchema.parse({
-        name: newCategory.name,
-        amount: newCategory.amount,
-        addAnother,
-      });
-      setFormErrors({});
-      return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errors: { name?: string; amount?: string } = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            errors[err.path[0] as keyof typeof errors] = err.message;
-          }
-        });
-        setFormErrors(errors);
-      }
-      return false;
-    }
-  };
+  const onSubmit = async (data: CategoryFormData) => {
+    const isValid = await validateForm(data);
+    if (!isValid) return;
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    setIsSubmitting(true);
     try {
-      const success = await onSave(addAnother);
-      // Only clear the form if the save was successful
-      if (success && !addAnother) {
-        clearForm();
-      } else if (success && addAnother) {
-        // If "Add another" is checked, only clear the amount and name
-        setNewCategory({ name: "", amount: "" });
-        setFormErrors({});
-        // Don't clear the checkbox here since we want to keep adding
+      const success = await onSave(data.addAnother);
+      if (success) {
+        if (!data.addAnother) {
+          clearForm();
+        } else {
+          // If "Add another" is checked, only clear the amount and name
+          setNewCategory({ name: "", amount: "" });
+          setFormErrors({});
+          reset({ name: "", amount: "", addAnother: true });
+        }
       }
     } catch (error) {
       console.error("Error saving category:", error);
-      // Don't clear the form on error
-    } finally {
-      setIsSubmitting(false);
     }
   };
+
+  // Update form values when newCategory changes
+  useEffect(() => {
+    setValue("name", newCategory.name);
+    setValue("amount", newCategory.amount);
+  }, [newCategory, setValue]);
 
   const categoryOptions = availableCategories.map((category) => ({
     value: category,
@@ -132,7 +160,7 @@ export function CategoryForm({
     <form
       id="category-form"
       data-testid="category-form"
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit(onSubmit)}
       className="space-y-4"
     >
       <CustomSelect
@@ -141,12 +169,13 @@ export function CategoryForm({
         value={newCategory.name}
         onChange={(value) => {
           setNewCategory({ ...newCategory, name: value as BudgetCategoryName });
+          setValue("name", value as BudgetCategoryName);
           setFormErrors({ ...formErrors, name: undefined });
         }}
         options={categoryOptions}
         required
         disabled={isEditing || isSubmitting}
-        error={formErrors.name}
+        error={errors.name?.message || formErrors.name}
         placeholder="Select a category"
       />
 
@@ -156,10 +185,11 @@ export function CategoryForm({
         value={newCategory.amount}
         onChange={(value) => {
           setNewCategory({ ...newCategory, amount: value });
+          setValue("amount", value);
           setFormErrors({ ...formErrors, amount: undefined });
         }}
         required
-        error={formErrors.amount}
+        error={errors.amount?.message || formErrors.amount}
         leftIcon={<CurrencyDollarIcon className="h-5 w-5 text-secondary-400" />}
         placeholder="0.00"
         disabled={isSubmitting}
@@ -170,8 +200,7 @@ export function CategoryForm({
           type="checkbox"
           id="addAnother"
           className="h-4 w-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
-          checked={addAnother}
-          onChange={(e) => setAddAnother(e.target.checked)}
+          {...register("addAnother")}
           disabled={isSubmitting}
         />
         <label

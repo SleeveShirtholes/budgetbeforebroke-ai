@@ -1,6 +1,5 @@
 import { render, screen } from "@testing-library/react";
 
-import userEvent from "@testing-library/user-event";
 import { BudgetOverview } from "../BudgetOverview";
 
 describe("BudgetOverview", () => {
@@ -83,37 +82,5 @@ describe("BudgetOverview", () => {
     icons.forEach((icon) => {
       expect(icon).toHaveAttribute("aria-hidden", "true");
     });
-  });
-
-  it("allows editing and saving the total budget", async () => {
-    const onEditClick = jest.fn();
-    const onSave = jest.fn();
-    const onTotalBudgetChange = jest.fn();
-    render(
-      <BudgetOverview
-        totalBudget={2000}
-        totalBudgeted={1500}
-        remainingBudget={500}
-        isEditing={true}
-        totalBudgetInput={"2500"}
-        isUpdating={false}
-        onEditClick={onEditClick}
-        onSave={onSave}
-        onCancel={jest.fn()}
-        onTotalBudgetChange={onTotalBudgetChange}
-      />,
-    );
-
-    // The input should be present
-    const input = screen.getByLabelText("");
-    expect(input).toBeInTheDocument();
-    // Simulate changing the value
-    await userEvent.clear(input);
-    await userEvent.type(input, "3000");
-    expect(onTotalBudgetChange).toHaveBeenCalled();
-    // Simulate clicking Save
-    const saveButton = screen.getByText("Save");
-    await userEvent.click(saveButton);
-    expect(onSave).toHaveBeenCalled();
   });
 });

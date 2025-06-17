@@ -1,4 +1,3 @@
-import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   decimal,
@@ -7,6 +6,7 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
 
 import { pgTable } from "drizzle-orm/pg-core";
 
@@ -396,3 +396,22 @@ export const budgetTransactionView = sql<{
     EXTRACT(MONTH FROM t.date) = b.month
   WHERE t.budget_account_id = b.budget_account_id
 `;
+
+// Income Management
+export const incomeSources = pgTable("income_source", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  frequency: text("frequency", {
+    enum: ["weekly", "bi-weekly", "monthly"],
+  }).notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

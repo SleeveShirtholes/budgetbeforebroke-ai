@@ -4,8 +4,8 @@ import {
   createBudget,
   createBudgetCategory,
   deleteBudgetCategory,
+  getBudget,
   getBudgetCategories,
-  updateBudget,
   updateBudgetCategory,
 } from "@/app/actions/budget";
 import { CalendarIcon, PlusIcon } from "@heroicons/react/24/outline";
@@ -19,6 +19,7 @@ import {
 } from "./utils/budget.utils";
 
 import { getCategories } from "@/app/actions/category";
+import { calculateMonthlyIncome } from "@/app/actions/income";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import CustomSelect from "@/components/Forms/CustomSelect";
@@ -68,12 +69,21 @@ export default function Budget() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFormSubmitting, setIsFormSubmitting] = useState(false);
   const { showToast } = useToast();
-  const [isEditingTotalBudget, setIsEditingTotalBudget] = useState(false);
-  const [totalBudgetInput, setTotalBudgetInput] = useState("");
-  const [isUpdatingTotalBudget, setIsUpdatingTotalBudget] = useState(false);
 
   const customSelectRef = useRef<HTMLInputElement>(null);
   const { selectedAccount } = useBudgetAccount();
+
+  // Fetch calculated monthly income
+  const [year, month] = selectedMonth.split("-").map(Number);
+  const { data: monthlyIncome, isLoading: isLoadingIncome } = useSWR(
+    selectedAccount
+      ? ["monthly-income", selectedAccount.id, year, month]
+      : null,
+    () =>
+      selectedAccount
+        ? calculateMonthlyIncome(selectedAccount.id, year, month)
+        : 0,
+  );
 
   // Fetch budgets for the selected month
   const { data: budget, isLoading: isLoadingBudget } = useSWR(
@@ -81,7 +91,16 @@ export default function Budget() {
     async () => {
       if (!selectedAccount) return null;
       const [year, month] = selectedMonth.split("-").map(Number);
-      const budget = await createBudget(selectedAccount.id, year, month);
+      // Try to fetch the budget first
+      let budget = await getBudget(selectedAccount.id, year, month);
+      if (!budget) {
+        budget = await createBudget(
+          selectedAccount.id,
+          year,
+          month,
+          monthlyIncome || undefined,
+        );
+      }
       return budget;
     },
   );
@@ -119,7 +138,13 @@ export default function Budget() {
   const totalBudgeted = calculateTotalBudgeted(budgetCategories || []);
 
   const isLoading =
-    isLoadingBudget || isLoadingCategories || isLoadingAvailableCategories;
+    !selectedAccount ||
+    isLoadingBudget ||
+    isLoadingCategories ||
+    isLoadingAvailableCategories ||
+    isLoadingIncome ||
+    isFormSubmitting ||
+    isDeleting;
 
   if (isLoading) {
     return (
@@ -134,6 +159,7 @@ export default function Budget() {
    * Opens the form and focuses the category select input.
    */
   const handleAddCategoryClick = () => {
+    setIsFormSubmitting(false);
     setIsAddingCategory(true);
     setTimeout(() => {
       customSelectRef.current?.focus();
@@ -158,7 +184,7 @@ export default function Budget() {
             duration: 5000,
           },
         );
-        return false; // Return false to indicate the save was not successful
+        return false;
       }
 
       if (editCategoryId) {
@@ -172,6 +198,7 @@ export default function Budget() {
           selectedAccount.id,
           parseInt(selectedMonth.split("-")[0]),
           parseInt(selectedMonth.split("-")[1]),
+          monthlyIncome || undefined,
         );
 
         await createBudgetCategory(
@@ -180,14 +207,21 @@ export default function Budget() {
           parseFloat(newCategory.amount),
         );
       }
-      mutate(["budgetId", selectedAccount.id, selectedMonth]);
+
+      // Mutate all relevant queries
+      await Promise.all([
+        mutate(["budgetId", selectedAccount.id, selectedMonth]),
+        mutate(["monthly-income", selectedAccount.id, year, month]),
+        mutate(budget ? ["budgets", budget.id] : null),
+      ]);
+
       if (!keepOpen) {
         setIsAddingCategory(false);
         setNewCategory({ name: "", amount: "" });
         setEditCategoryId(null);
         setFormErrors({});
       }
-      return true; // Return true to indicate the save was successful
+      return true;
     } catch (error) {
       console.error("Error saving category:", error);
       showToast(
@@ -197,7 +231,9 @@ export default function Budget() {
           duration: 5000,
         },
       );
-      return false; // Return false to indicate the save was not successful
+      return false;
+    } finally {
+      setIsFormSubmitting(false);
     }
   };
 
@@ -226,29 +262,6 @@ export default function Budget() {
     setIsAddingCategory(true);
   };
 
-  const handleTotalBudgetSave = async () => {
-    try {
-      if (!budget) return;
-
-      const amount = parseFloat(totalBudgetInput);
-      if (isNaN(amount) || amount < 0) {
-        showToast("Please enter a valid amount", { type: "error" });
-        return;
-      }
-
-      setIsUpdatingTotalBudget(true);
-      await updateBudget(budget.id, amount);
-      mutate(["budgetId", selectedAccount?.id, selectedMonth]);
-      setIsEditingTotalBudget(false);
-      setTotalBudgetInput("");
-    } catch (error) {
-      console.error("Error updating total budget:", error);
-      showToast("Failed to update total budget", { type: "error" });
-    } finally {
-      setIsUpdatingTotalBudget(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -269,25 +282,13 @@ export default function Budget() {
 
       {/* Budget Overview */}
       <BudgetOverview
-        totalBudget={Number(budget?.totalBudget || 0)}
+        totalBudget={Number(monthlyIncome || 0)}
         totalBudgeted={totalBudgeted}
         remainingBudget={calculateRemainingBudget(
-          Number(budget?.totalBudget || 0),
+          Number(monthlyIncome || 0),
           totalBudgeted,
         )}
-        isEditing={isEditingTotalBudget}
-        totalBudgetInput={totalBudgetInput}
-        isUpdating={isUpdatingTotalBudget}
-        onEditClick={() => {
-          setIsEditingTotalBudget(true);
-          setTotalBudgetInput(budget?.totalBudget?.toString() || "");
-        }}
-        onTotalBudgetChange={setTotalBudgetInput}
-        onSave={handleTotalBudgetSave}
-        onCancel={() => {
-          setIsEditingTotalBudget(false);
-          setTotalBudgetInput("");
-        }}
+        monthlyIncome={monthlyIncome}
       />
 
       {/* Budget Categories Section */}
@@ -310,6 +311,7 @@ export default function Budget() {
             setNewCategory({ name: "", amount: "" });
             setFormErrors({});
             setEditCategoryId(null);
+            setIsFormSubmitting(false);
           }}
           title={editCategoryId ? "Edit Category" : "Add Category"}
           maxWidth="md"
@@ -324,6 +326,7 @@ export default function Budget() {
                   setNewCategory({ name: "", amount: "" });
                   setFormErrors({});
                   setEditCategoryId(null);
+                  setIsFormSubmitting(false);
                 }}
               >
                 Cancel

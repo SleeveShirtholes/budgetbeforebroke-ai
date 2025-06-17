@@ -308,6 +308,7 @@ export async function createBudget(
     id: budgetId,
     budgetAccountId,
     name: `${new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" })} Budget`,
+    description: null,
     year,
     month,
     totalBudget: totalBudget?.toString(),
@@ -319,9 +320,10 @@ export async function createBudget(
     id: budgetId,
     budgetAccountId,
     name: `${new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" })} Budget`,
+    description: null,
     year,
     month,
-    totalBudget: totalBudget ? Number(totalBudget) : null,
+    totalBudget: totalBudget ? totalBudget.toString() : null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -379,4 +381,36 @@ export async function updateBudget(budgetId: string, totalBudget: number) {
     ...budget,
     totalBudget: Number(totalBudget),
   };
+}
+
+/**
+ * Gets a budget for a specific account, year, and month (does not create if missing)
+ * @param budgetAccountId - The ID of the budget account
+ * @param year - The year for the budget
+ * @param month - The month for the budget (1-12)
+ * @returns Promise resolving to the budget or null if not found
+ */
+export async function getBudget(
+  budgetAccountId: string,
+  year: number,
+  month: number,
+) {
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult || "error" in sessionResult || !sessionResult.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  // Fetch the budget if it exists
+  const existingBudget = await db.query.budgets.findFirst({
+    where: and(
+      eq(budgets.budgetAccountId, budgetAccountId),
+      eq(budgets.year, year),
+      eq(budgets.month, month),
+    ),
+  });
+
+  return existingBudget || null;
 }

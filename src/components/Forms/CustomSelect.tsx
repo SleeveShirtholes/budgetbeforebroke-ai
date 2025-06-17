@@ -118,10 +118,7 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
       searchQuery === ""
         ? options
         : options.filter((option) =>
-            option.label
-              .toLowerCase()
-              .replace(/\s+/g, "")
-              .includes(searchQuery.toLowerCase().replace(/\s+/g, "")),
+            option.label.toLowerCase().includes(searchQuery.toLowerCase()),
           );
 
     // Handle clicks outside the component to close the dropdown
@@ -205,10 +202,12 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
                 onFocus={() => setIsOpen(true)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && filteredOptions.length > 0) {
+                    e.preventDefault();
                     handleOptionSelect(filteredOptions[0]);
                   }
                   if (e.key === "Escape") {
                     setIsOpen(false);
+                    setSearchQuery("");
                   }
                 }}
                 disabled={disabled}
@@ -228,6 +227,7 @@ const CustomSelect = forwardRef<HTMLInputElement, CustomSelectProps>(
                       e.stopPropagation();
                       onChange("");
                       setSearchQuery("");
+                      setIsOpen(false);
                     }}
                     className="text-gray-400 hover:text-gray-500 focus:outline-none"
                   >
