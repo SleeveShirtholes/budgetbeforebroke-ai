@@ -1,13 +1,14 @@
 "use client";
 
-import { EnvelopeIcon, PhoneIcon, UserIcon } from "@heroicons/react/24/outline";
 import { AsYouType, isValidPhoneNumber } from "libphonenumber-js";
 import { Controller, useForm } from "react-hook-form";
+import { EnvelopeIcon, PhoneIcon, UserIcon } from "@heroicons/react/24/outline";
 
 import Button from "@/components/Button";
-import TextField from "@/components/Forms/TextField";
 import React from "react";
+import TextField from "@/components/Forms/TextField";
 import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 const profileSchema = z.object({
   name: z
@@ -58,6 +59,7 @@ export default function ProfileInformation({
   } = useForm<ProfileFormValues>({
     mode: "onChange",
     defaultValues: { name, phoneNumber },
+    resolver: zodResolver(profileSchema),
   });
 
   // Reset form when switching between edit/view or when data changes
@@ -68,12 +70,7 @@ export default function ProfileInformation({
   return (
     <form
       onSubmit={handleSubmit((data) => {
-        const result = profileSchema.safeParse(data);
-        if (!result.success) {
-          // You may want to handle errors here, but react-hook-form will already populate errors
-          return;
-        }
-        onSubmit(result.data);
+        onSubmit(data);
       })}
     >
       <div className="space-y-4">

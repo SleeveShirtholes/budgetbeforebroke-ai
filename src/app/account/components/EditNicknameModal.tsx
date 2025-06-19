@@ -1,10 +1,11 @@
 import Button from "@/components/Button";
-import TextField from "@/components/Forms/TextField";
 import Modal from "@/components/Modal";
-import { useToast } from "@/components/Toast";
 import React from "react";
+import TextField from "@/components/Forms/TextField";
 import { useForm } from "react-hook-form";
+import { useToast } from "@/components/Toast";
 import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 const nicknameSchema = z.object({
   nickname: z
@@ -52,6 +53,7 @@ export default function EditNicknameModal({
   } = useForm<NicknameFormValues>({
     mode: "onChange",
     defaultValues: { nickname },
+    resolver: zodResolver(nicknameSchema),
   });
 
   // Update form value when nickname prop changes
@@ -60,13 +62,8 @@ export default function EditNicknameModal({
   }, [nickname, setValue]);
 
   const onSubmit = async (data: NicknameFormValues) => {
-    const result = nicknameSchema.safeParse(data);
-    if (!result.success) {
-      // Optionally handle errors here
-      return;
-    }
     try {
-      await onSave(result.data.nickname);
+      await onSave(data.nickname);
       showToast("Nickname updated successfully!", { type: "success" });
       onClose();
     } catch (err) {

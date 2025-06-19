@@ -1,5 +1,11 @@
 "use client";
 
+import { CalendarIcon, PlusIcon } from "@heroicons/react/24/outline";
+import {
+  calculateRemainingBudget,
+  calculateTotalBudgeted,
+  generateMonthOptions,
+} from "./utils/budget.utils";
 import {
   createBudget,
   createBudgetCategory,
@@ -8,30 +14,24 @@ import {
   getBudgetCategories,
   updateBudgetCategory,
 } from "@/app/actions/budget";
-import { CalendarIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { format, parse } from "date-fns";
 import { useRef, useState } from "react";
 import useSWR, { mutate } from "swr";
-import {
-  calculateRemainingBudget,
-  calculateTotalBudgeted,
-  generateMonthOptions,
-} from "./utils/budget.utils";
 
-import { getCategories } from "@/app/actions/category";
-import { calculateMonthlyIncome } from "@/app/actions/income";
+import { BudgetCategoryName } from "./types/budget.types";
+import { BudgetOverview } from "./components/BudgetOverview";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
-import CustomSelect from "@/components/Forms/CustomSelect";
-import SearchInput from "@/components/Forms/SearchInput";
-import Modal from "@/components/Modal/Modal";
-import Spinner from "@/components/Spinner";
-import { useToast } from "@/components/Toast";
-import { useBudgetAccount } from "@/stores/budgetAccountStore";
-import { BudgetOverview } from "./components/BudgetOverview";
 import { CategoryForm } from "./components/CategoryForm";
 import { CategoryList } from "./components/CategoryList";
-import { BudgetCategoryName } from "./types/budget.types";
+import CustomSelect from "@/components/Forms/CustomSelect";
+import Modal from "@/components/Modal/Modal";
+import SearchInput from "@/components/Forms/SearchInput";
+import Spinner from "@/components/Spinner";
+import { calculateMonthlyIncome } from "@/app/actions/income";
+import { getCategories } from "@/app/actions/category";
+import { useBudgetAccount } from "@/stores/budgetAccountStore";
+import { useToast } from "@/components/Toast";
 
 interface BudgetCategory {
   id: string;
@@ -142,9 +142,7 @@ export default function Budget() {
     isLoadingBudget ||
     isLoadingCategories ||
     isLoadingAvailableCategories ||
-    isLoadingIncome ||
-    isFormSubmitting ||
-    isDeleting;
+    isLoadingIncome;
 
   if (isLoading) {
     return (
@@ -244,7 +242,12 @@ export default function Budget() {
       }
       setIsDeleting(true);
       await deleteBudgetCategory(id);
-      mutate(["budgetId", selectedAccount.id, selectedMonth]);
+      // Mutate all relevant queries
+      await Promise.all([
+        mutate(["budgetId", selectedAccount.id, selectedMonth]),
+        mutate(["monthly-income", selectedAccount.id, year, month]),
+        mutate(budget ? ["budgets", budget.id] : null),
+      ]);
       setDeleteConfirmId(null);
     } catch (error) {
       console.error("Error deleting category:", error);

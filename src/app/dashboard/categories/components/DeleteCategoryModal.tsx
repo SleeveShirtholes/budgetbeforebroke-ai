@@ -1,13 +1,16 @@
-import { deleteCategory } from "@/app/actions/category";
+import { Controller, useForm } from "react-hook-form";
+
 import Button from "@/components/Button";
 import CustomRadioGroup from "@/components/Forms/CustomRadioGroup";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
 import { TRANSACTION_CATEGORIES } from "@/types/transaction";
-import { useState } from "react";
+import { deleteCategory } from "@/app/actions/category";
 import { mutate } from "swr";
+import { useState } from "react";
 import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 /**
  * Schema for validating the delete category form data.
@@ -79,70 +82,32 @@ export default function DeleteCategoryModal({
   categoryToDelete,
   selectedAccountId,
 }: DeleteCategoryModalProps) {
-  const [formData, setFormData] = useState<DeleteCategoryFormData>({
-    transactionHandling: "unassign",
-  });
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof DeleteCategoryFormData, string>>
-  >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleTransactionHandlingChange = (value: string) => {
-    const newFormData = {
-      ...formData,
-      transactionHandling: value as "unassign" | "reassign",
-    };
-    if (value === "unassign") {
-      newFormData.replacementCategory = undefined;
-    }
-    setFormData(newFormData);
-    validateForm(newFormData);
-  };
+  const {
+    control,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm<DeleteCategoryFormData>({
+    defaultValues: {
+      transactionHandling: "unassign",
+    },
+    resolver: zodResolver(deleteCategorySchema),
+  });
 
-  const handleReplacementCategoryChange = (value: string) => {
-    const newFormData = {
-      ...formData,
-      replacementCategory: value,
-    };
-    setFormData(newFormData);
-    validateForm(newFormData);
-  };
+  const transactionHandling = watch("transactionHandling");
 
-  const validateForm = (data: DeleteCategoryFormData) => {
-    try {
-      deleteCategorySchema.parse(data);
-      setErrors({});
-      return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: Partial<Record<keyof DeleteCategoryFormData, string>> =
-          {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as keyof DeleteCategoryFormData] =
-              err.message;
-          }
-        });
-        setErrors(newErrors);
-      }
-      return false;
-    }
-  };
-
-  const handleDeleteCategory = async () => {
+  const handleDeleteCategory = async (data: DeleteCategoryFormData) => {
     if (!categoryToDelete) return;
-
-    if (!validateForm(formData)) {
-      return;
-    }
 
     setIsSubmitting(true);
     try {
       await deleteCategory({
         id: categoryToDelete.id,
         reassignToCategoryId:
-          formData.transactionHandling === "reassign"
-            ? formData.replacementCategory
+          data.transactionHandling === "reassign"
+            ? data.replacementCategory
             : undefined,
       });
       await mutate(["categories", selectedAccountId]);
@@ -173,7 +138,7 @@ export default function DeleteCategoryModal({
           <Button
             variant="danger"
             type="button"
-            onClick={handleDeleteCategory}
+            onClick={handleSubmit(handleDeleteCategory)}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
@@ -202,31 +167,49 @@ export default function DeleteCategoryModal({
               <p>What would you like to do with these transactions?</p>
 
               {/* Radio group for selecting transaction handling method */}
-              <CustomRadioGroup
-                label="Transaction Handling"
-                options={[
-                  { value: "unassign", label: "Leave transactions unassigned" },
-                  { value: "reassign", label: "Assign to another category" },
-                ]}
-                value={formData.transactionHandling}
-                onChange={handleTransactionHandlingChange}
-                error={errors.transactionHandling}
+              <Controller
                 name="transactionHandling"
+                control={control}
+                render={({ field }) => (
+                  <CustomRadioGroup
+                    label="Transaction Handling"
+                    options={[
+                      {
+                        value: "unassign",
+                        label: "Leave transactions unassigned",
+                      },
+                      {
+                        value: "reassign",
+                        label: "Assign to another category",
+                      },
+                    ]}
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errors.transactionHandling?.message}
+                    name="transactionHandling"
+                  />
+                )}
               />
 
               {/* Conditional rendering of replacement category select */}
-              {formData.transactionHandling === "reassign" && (
+              {transactionHandling === "reassign" && (
                 <div className="ml-7 mt-2">
-                  <CustomSelect
-                    value={formData.replacementCategory || ""}
-                    onChange={handleReplacementCategoryChange}
-                    options={TRANSACTION_CATEGORIES.map((cat) => ({
-                      value: cat,
-                      label: cat,
-                    }))}
-                    label="Select category"
-                    placeholder="Choose a category"
-                    error={errors.replacementCategory}
+                  <Controller
+                    name="replacementCategory"
+                    control={control}
+                    render={({ field }) => (
+                      <CustomSelect
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        options={TRANSACTION_CATEGORIES.map((cat) => ({
+                          value: cat,
+                          label: cat,
+                        }))}
+                        label="Select category"
+                        placeholder="Choose a category"
+                        error={errors.replacementCategory?.message}
+                      />
+                    )}
                   />
                 </div>
               )}

@@ -1,10 +1,11 @@
+import { BudgetCategoryName } from "../types/budget.types";
+import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import NumberInput from "@/components/Forms/NumberInput";
-import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { BudgetCategoryName } from "../types/budget.types";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 const categoryFormSchema = z.object({
   name: z.string().min(1, "Category is required"),
@@ -76,32 +77,8 @@ export function CategoryForm({
       amount: newCategory.amount,
       addAnother: false,
     },
+    resolver: zodResolver(categoryFormSchema),
   });
-
-  // Add validation function
-  const validateForm = async (data: CategoryFormData) => {
-    try {
-      categoryFormSchema.parse(data);
-      return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const formattedErrors = error.errors.reduce(
-          (acc, curr) => {
-            const field = curr.path[0] as keyof CategoryFormData;
-            acc[field] = curr.message;
-            return acc;
-          },
-          {} as Record<string, string>,
-        );
-
-        setFormErrors({
-          name: formattedErrors.name,
-          amount: formattedErrors.amount,
-        });
-      }
-      return false;
-    }
-  };
 
   // Update form errors when validation errors change
   useEffect(() => {
@@ -125,9 +102,6 @@ export function CategoryForm({
   };
 
   const onSubmit = async (data: CategoryFormData) => {
-    const isValid = await validateForm(data);
-    if (!isValid) return;
-
     try {
       const success = await onSave(data.addAnother);
       if (success) {
@@ -199,15 +173,14 @@ export function CategoryForm({
         <input
           type="checkbox"
           id="addAnother"
-          className="h-4 w-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
           {...register("addAnother")}
-          disabled={isSubmitting}
+          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-secondary-300 rounded"
         />
         <label
           htmlFor="addAnother"
           className="ml-2 block text-sm text-secondary-700"
         >
-          Add another category
+          Add another category after this one
         </label>
       </div>
     </form>

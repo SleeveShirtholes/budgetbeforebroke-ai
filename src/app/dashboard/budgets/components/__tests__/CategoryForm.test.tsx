@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
-import { act } from "react";
 import { BudgetCategoryName } from "../../types/budget.types";
 import { CategoryForm } from "../CategoryForm";
+import { act } from "react";
 
 // Mock the budget actions
 jest.mock("@/app/actions/budget", () => ({
@@ -46,7 +46,9 @@ describe("CategoryForm", () => {
       screen.getByPlaceholderText("Select a category"),
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText("0.00")).toBeInTheDocument();
-    expect(screen.getByText("Add another category")).toBeInTheDocument();
+    expect(
+      screen.getByText("Add another category after this one"),
+    ).toBeInTheDocument();
   });
 
   it("renders form in edit mode", () => {
@@ -89,7 +91,9 @@ describe("CategoryForm", () => {
     );
 
     // Check "Add another" checkbox
-    const addAnotherCheckbox = screen.getByLabelText("Add another category");
+    const addAnotherCheckbox = screen.getByLabelText(
+      "Add another category after this one",
+    );
     fireEvent.click(addAnotherCheckbox);
 
     // Submit the form

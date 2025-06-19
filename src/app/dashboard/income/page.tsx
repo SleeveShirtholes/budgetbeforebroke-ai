@@ -1,11 +1,8 @@
 "use client";
 
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { format } from "date-fns";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
 import useSWR, { mutate } from "swr";
-import { z } from "zod";
 
 import {
   createIncomeSource,
@@ -15,29 +12,14 @@ import {
   type IncomeSource,
 } from "@/app/actions/income";
 import Button from "@/components/Button";
-import Card from "@/components/Card";
-import CustomDatePicker from "@/components/Forms/CustomDatePicker";
-import CustomSelect from "@/components/Forms/CustomSelect";
-import NumberInput from "@/components/Forms/NumberInput";
-import TextArea from "@/components/Forms/TextArea";
-import TextField from "@/components/Forms/TextField";
-import Modal from "@/components/Modal/Modal";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
-
-const incomeSourceSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  amount: z.string().refine((val) => {
-    const amount = parseFloat(val);
-    return !isNaN(amount) && amount > 0;
-  }, "Amount must be a positive number"),
-  frequency: z.enum(["weekly", "bi-weekly", "monthly"]),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-type IncomeSourceForm = z.infer<typeof incomeSourceSchema>;
+import { DeleteIncomeSourceModal } from "./components/DeleteIncomeSourceModal";
+import {
+  IncomeSourceForm,
+  type IncomeSourceFormData,
+} from "./components/IncomeSourceForm";
+import { IncomeSourceList } from "./components/IncomeSourceList";
 
 export default function IncomePage() {
   const { data: incomeSources, isLoading } = useSWR<IncomeSource[]>(
@@ -58,46 +40,11 @@ export default function IncomePage() {
   const [isEditingSource, setIsEditingSource] = useState<string | null>(null);
   const [isDeletingSource, setIsDeletingSource] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { showToast } = useToast();
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<IncomeSourceForm>({
-    defaultValues: {
-      name: "",
-      amount: "",
-      frequency: "monthly",
-      startDate: format(new Date(), "yyyy-MM-dd"),
-    },
-  });
-
-  const onSubmit = async (data: IncomeSourceForm) => {
+  const handleSubmit = async (data: IncomeSourceFormData) => {
     try {
-      // Validate with zod
-      const result = incomeSourceSchema.safeParse(data);
-      if (!result.success) {
-        // Handle validation errors
-        const fieldErrors = result.error.flatten().fieldErrors;
-        Object.entries(fieldErrors).forEach(([field, errors]) => {
-          if (errors[0]) {
-            setValue(
-              field as keyof IncomeSourceForm,
-              data[field as keyof IncomeSourceForm],
-              {
-                shouldValidate: true,
-                shouldDirty: true,
-              },
-            );
-          }
-        });
-        return;
-      }
-
       setIsSubmitting(true);
       if (isEditingSource) {
         await updateIncomeSource(isEditingSource, {
@@ -131,38 +78,31 @@ export default function IncomePage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!isDeletingSource) return;
+
     try {
-      await deleteIncomeSource(id);
+      setIsDeleting(true);
+      await deleteIncomeSource(isDeletingSource);
       showToast("Income source deleted successfully", { type: "success" });
       mutate("income-sources");
     } catch (error) {
       console.error("Error deleting income source:", error);
       showToast("Failed to delete income source", { type: "error" });
     } finally {
+      setIsDeleting(false);
       setIsDeletingSource(null);
     }
   };
 
   const handleEdit = (source: IncomeSource) => {
     setIsEditingSource(source.id);
-    setValue("name", source.name);
-    setValue("amount", source.amount.toString());
-    setValue("frequency", source.frequency);
-    setValue("startDate", format(source.startDate, "yyyy-MM-dd"));
-    if (source.endDate) {
-      setValue("endDate", format(source.endDate, "yyyy-MM-dd"));
-    }
-    if (source.notes) {
-      setValue("notes", source.notes);
-    }
     setIsAddingSource(true);
   };
 
   const handleCloseModal = () => {
     setIsAddingSource(false);
     setIsEditingSource(null);
-    reset();
   };
 
   if (isLoading) {
@@ -172,6 +112,10 @@ export default function IncomePage() {
       </div>
     );
   }
+
+  const editingSource = isEditingSource
+    ? incomeSources?.find((source) => source.id === isEditingSource)
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -189,169 +133,27 @@ export default function IncomePage() {
         </Button>
       </div>
 
-      <Card>
-        <div className="divide-y divide-gray-200">
-          {incomeSources?.map((source) => (
-            <div
-              key={source.id}
-              className="py-4 flex items-center justify-between"
-            >
-              <div>
-                <h3 className="text-lg font-medium text-secondary-900">
-                  {source.name}
-                </h3>
-                <p className="text-sm text-secondary-500">
-                  {source.frequency.charAt(0).toUpperCase() +
-                    source.frequency.slice(1)}{" "}
-                  income of ${source.amount}
-                </p>
-                {source.notes && (
-                  <p className="text-sm text-secondary-500 mt-1">
-                    {source.notes}
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleEdit(source)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => setIsDeletingSource(source.id)}
-                >
-                  Delete
-                </Button>
-              </div>
-            </div>
-          ))}
-          {incomeSources?.length === 0 && (
-            <div className="py-8 text-center text-secondary-500">
-              No income sources added yet. Click the button above to add one.
-            </div>
-          )}
-        </div>
-      </Card>
+      <IncomeSourceList
+        incomeSources={incomeSources || []}
+        onEdit={handleEdit}
+        onDelete={setIsDeletingSource}
+        onAdd={() => setIsAddingSource(true)}
+      />
 
-      {/* Add/Edit Modal */}
-      <Modal
+      <IncomeSourceForm
         isOpen={isAddingSource}
         onClose={handleCloseModal}
-        title={isEditingSource ? "Edit Income Source" : "Add Income Source"}
-        maxWidth="md"
-        footerButtons={
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleCloseModal}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              form="income-source-form"
-              isLoading={isSubmitting}
-            >
-              {isEditingSource ? "Save Changes" : "Add Income Source"}
-            </Button>
-          </div>
-        }
-      >
-        <form
-          id="income-source-form"
-          onSubmit={handleSubmit(onSubmit)}
-          className="space-y-4"
-        >
-          <TextField
-            label="Name"
-            id="name"
-            {...register("name")}
-            error={errors.name?.message}
-            required
-          />
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        editingSource={editingSource}
+      />
 
-          <NumberInput
-            label="Amount"
-            value={watch("amount")}
-            onChange={(value) => setValue("amount", value)}
-            error={errors.amount?.message}
-            required
-            leftIcon={<span className="text-gray-500">$</span>}
-          />
-
-          <CustomSelect
-            label="Frequency"
-            value={watch("frequency")}
-            onChange={(value) =>
-              setValue("frequency", value as "weekly" | "bi-weekly" | "monthly")
-            }
-            options={[
-              { value: "weekly", label: "Weekly" },
-              { value: "bi-weekly", label: "Bi-weekly" },
-              { value: "monthly", label: "Monthly" },
-            ]}
-            error={errors.frequency?.message}
-          />
-
-          <CustomDatePicker
-            label="Start Date"
-            value={watch("startDate")}
-            onChange={(date) => setValue("startDate", date)}
-            error={errors.startDate?.message}
-            required
-          />
-
-          <CustomDatePicker
-            label="End Date (Optional)"
-            value={watch("endDate")}
-            onChange={(date) => setValue("endDate", date)}
-            error={errors.endDate?.message}
-          />
-
-          <TextArea
-            label="Notes (Optional)"
-            id="notes"
-            {...register("notes")}
-            rows={3}
-          />
-        </form>
-      </Modal>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
+      <DeleteIncomeSourceModal
         isOpen={!!isDeletingSource}
         onClose={() => setIsDeletingSource(null)}
-        title="Delete Income Source"
-        maxWidth="sm"
-        footerButtons={
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsDeletingSource(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="danger"
-              onClick={() => isDeletingSource && handleDelete(isDeletingSource)}
-            >
-              Delete
-            </Button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <p>Are you sure you want to delete this income source?</p>
-        </div>
-      </Modal>
+        onConfirm={handleDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
