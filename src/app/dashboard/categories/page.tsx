@@ -194,7 +194,11 @@ export default function CategoriesPage() {
 
   // Show spinner if either accounts or categories are loading
   if (!selectedAccount || isAccountsLoading || isCategoriesLoading) {
-    return <Spinner size="md" className="mt-12" />;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Spinner size="lg" />
+      </div>
+    );
   }
 
   if (error) return <div>Failed to load categories</div>;

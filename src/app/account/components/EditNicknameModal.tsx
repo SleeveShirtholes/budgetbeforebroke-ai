@@ -1,11 +1,11 @@
 import Button from "@/components/Button";
-import TextField from "@/components/Forms/TextField";
 import Modal from "@/components/Modal";
-import { useToast } from "@/components/Toast";
-import { zodResolver } from "@hookform/resolvers/zod";
 import React from "react";
+import TextField from "@/components/Forms/TextField";
 import { useForm } from "react-hook-form";
+import { useToast } from "@/components/Toast";
 import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 const nicknameSchema = z.object({
   nickname: z
@@ -51,9 +51,9 @@ export default function EditNicknameModal({
     formState: { errors, isSubmitting },
     setValue,
   } = useForm<NicknameFormValues>({
-    resolver: zodResolver(nicknameSchema),
     mode: "onChange",
     defaultValues: { nickname },
+    resolver: zodResolver(nicknameSchema),
   });
 
   // Update form value when nickname prop changes

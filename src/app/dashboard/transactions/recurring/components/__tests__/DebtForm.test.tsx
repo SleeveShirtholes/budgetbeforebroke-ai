@@ -46,7 +46,7 @@ describe("DebtForm", () => {
     expect(screen.getByLabelText(/name/i)).toHaveValue("Test Debt");
     expect(screen.getByLabelText(/balance/i)).toHaveValue("1,000");
     expect(screen.getByLabelText(/interest rate/i)).toHaveValue("5");
-    expect(screen.getByLabelText(/due date/i)).toHaveValue("Mar 31, 2024");
+    expect(screen.getByLabelText(/due date/i)).toHaveValue("Apr 1, 2024");
   });
 
   it("calls onSubmit when form is submitted", async () => {

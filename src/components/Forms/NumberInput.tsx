@@ -1,8 +1,12 @@
 "use client";
 
-import { forwardRef } from "react";
+import React, { forwardRef } from "react";
 
-export interface NumberInputProps {
+export interface NumberInputProps
+  extends Omit<
+    React.InputHTMLAttributes<HTMLInputElement>,
+    "value" | "onChange" | "onBlur" | "type"
+  > {
   /** The label text displayed above the input */
   label: string;
   /** The current value of the input */
@@ -67,6 +71,7 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
       placeholder,
       leftIcon,
       rightIcon,
+      ...props
     },
     ref,
   ) => {
@@ -107,7 +112,8 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      onChange(formatValue(e.target.value));
+      const rawValue = e.target.value.replace(/[^0-9.]/g, "");
+      onChange(rawValue); // Pass the raw value to parent
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -156,7 +162,7 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
             <input
               ref={ref}
               type="text"
-              value={value}
+              value={formatValue(value)}
               onChange={handleChange}
               onBlur={handleBlur}
               disabled={disabled}
@@ -175,6 +181,7 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
                                 disabled:cursor-not-allowed
                                 disabled:bg-gray-50
                             `}
+              {...props}
             />
             {rightIcon && (
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">

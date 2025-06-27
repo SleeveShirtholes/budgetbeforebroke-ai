@@ -57,9 +57,9 @@ export default function ProfileInformation({
     formState: { errors, isDirty, isValid },
     reset,
   } = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
     mode: "onChange",
     defaultValues: { name, phoneNumber },
+    resolver: zodResolver(profileSchema),
   });
 
   // Reset form when switching between edit/view or when data changes
@@ -68,7 +68,11 @@ export default function ProfileInformation({
   }, [name, phoneNumber, isEditing, reset]);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form
+      onSubmit={handleSubmit((data) => {
+        onSubmit(data);
+      })}
+    >
       <div className="space-y-4">
         <div className="flex items-center space-x-3">
           <UserIcon className="h-5 w-5 text-secondary-500" />

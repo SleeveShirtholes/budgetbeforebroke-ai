@@ -14,17 +14,13 @@ import Button from "@/components/Button";
 import TextArea from "@/components/Forms/TextArea";
 import TextField from "@/components/Forms/TextField";
 import Modal from "@/components/Modal";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 
-// Form schema
-const categorySchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-});
-
-type CategoryFormData = z.infer<typeof categorySchema>;
+// Form data interface
+interface CategoryFormData {
+  name: string;
+  description?: string;
+}
 
 // Props for CategoryModal
 interface CategoryModalProps {
@@ -50,11 +46,18 @@ export default function CategoryModal({
     handleSubmit,
     formState: { errors },
   } = useForm<CategoryFormData>({
-    resolver: zodResolver(categorySchema),
     defaultValues,
   });
 
+  const validateForm = (data: CategoryFormData): boolean => {
+    if (!data.name.trim()) {
+      return false;
+    }
+    return true;
+  };
+
   const onSubmit = (data: CategoryFormData) => {
+    if (!validateForm(data)) return;
     onSave(data);
   };
 
@@ -84,8 +87,8 @@ export default function CategoryModal({
         <TextField
           id={`${mode}-name`}
           label="Name"
-          error={errors.name?.message}
-          {...register("name")}
+          error={!errors.name?.message ? undefined : "Name is required"}
+          {...register("name", { required: "Name is required" })}
         />
         <TextArea
           id={`${mode}-description`}

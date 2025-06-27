@@ -9,18 +9,18 @@
     "lint": "next lint",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "prepare": "husky",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepare": "husky"
   },
   "dependencies": {
     "@auth/core": "^0.18.6",
     "@auth/drizzle-adapter": "^0.3.12",
     "@floating-ui/react-dom": "^2.1.2",
     "@heroicons/react": "^2.2.0",
-    "@hookform/resolvers": "^5.0.1",
+    "@hookform/resolvers": "^5.1.1",
     "@neondatabase/serverless": "^1.0.0",
     "@radix-ui/react-avatar": "^1.0.4",
     "@radix-ui/react-dialog": "^1.0.5",
@@ -60,9 +60,9 @@
     "react-plaid-link": "^4.0.1",
     "resend": "^4.5.1",
     "swr": "^2.3.3",
-    "tailwind-merge": "^3.3.0",
+    "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.25.50",
+    "zod": "^3.25.56",
     "zustand": "^5.0.4"
   },
   "devDependencies": {

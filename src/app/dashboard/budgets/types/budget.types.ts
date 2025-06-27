@@ -42,3 +42,29 @@ export const CATEGORY_COLORS: Record<BudgetCategoryName, string> = {
   Pets: "#84CC16",
   Miscellaneous: "#64748B",
 };
+
+export interface Category {
+  id: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Budget {
+  id: string;
+  amount: number;
+  month: Date;
+  categoryId: string;
+  category: Category;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface NewCategory {
+  categoryId: string;
+  amount: string;
+}
+
+export interface FormErrors {
+  [key: string]: string;
+}

@@ -36,6 +36,7 @@ describe("CategoryList", () => {
         onDelete={mockOnDelete}
         deleteConfirmId={null}
         setDeleteConfirmId={mockSetDeleteConfirmId}
+        isDeleting={false}
       />,
     );
 
@@ -59,6 +60,7 @@ describe("CategoryList", () => {
         onDelete={mockOnDelete}
         deleteConfirmId={null}
         setDeleteConfirmId={mockSetDeleteConfirmId}
+        isDeleting={false}
       />,
     );
 
@@ -77,6 +79,7 @@ describe("CategoryList", () => {
         onDelete={mockOnDelete}
         deleteConfirmId={null}
         setDeleteConfirmId={mockSetDeleteConfirmId}
+        isDeleting={false}
       />,
     );
 
@@ -94,6 +97,7 @@ describe("CategoryList", () => {
         onDelete={mockOnDelete}
         deleteConfirmId={null}
         setDeleteConfirmId={mockSetDeleteConfirmId}
+        isDeleting={false}
       />,
     );
 
@@ -111,11 +115,35 @@ describe("CategoryList", () => {
         onDelete={mockOnDelete}
         deleteConfirmId="1"
         setDeleteConfirmId={mockSetDeleteConfirmId}
+        isDeleting={false}
       />,
     );
 
-    const confirmButton = screen.getByText("Confirm?");
+    const confirmButton = screen.getByRole("button", { name: /confirm\?/i });
     fireEvent.click(confirmButton);
     expect(mockOnDelete).toHaveBeenCalledWith("1");
+  });
+
+  it("disables delete buttons and shows loading state when isDeleting is true", () => {
+    render(
+      <CategoryList
+        categories={mockCategories}
+        searchQuery=""
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+        deleteConfirmId="1"
+        setDeleteConfirmId={mockSetDeleteConfirmId}
+        isDeleting={true}
+      />,
+    );
+
+    const deleteButtons = screen.getAllByLabelText("Delete category");
+    deleteButtons.forEach((button) => {
+      expect(button).toBeDisabled();
+    });
+
+    const confirmButton = screen.getByRole("button", { name: /confirm\?/i });
+    expect(confirmButton).toBeDisabled();
+    expect(confirmButton.querySelector(".animate-spin")).toBeInTheDocument();
   });
 });

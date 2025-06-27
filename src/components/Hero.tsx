@@ -9,7 +9,7 @@ export default function Hero() {
             Budget first,
             <span className="text-secondary-400 md:text-5xl">
               <br />
-              less oops and more cha-ching
+              panic never
             </span>
           </h1>
           <p className="text-xl text-accent-700 max-w-2xl mx-auto mb-8">

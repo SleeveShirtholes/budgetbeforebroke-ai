@@ -1,14 +1,16 @@
-import { deleteCategory } from "@/app/actions/category";
+import { Controller, useForm } from "react-hook-form";
+
 import Button from "@/components/Button";
 import CustomRadioGroup from "@/components/Forms/CustomRadioGroup";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
 import { TRANSACTION_CATEGORIES } from "@/types/transaction";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { deleteCategory } from "@/app/actions/category";
 import { mutate } from "swr";
+import { useState } from "react";
 import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 /**
  * Schema for validating the delete category form data.
@@ -80,28 +82,26 @@ export default function DeleteCategoryModal({
   categoryToDelete,
   selectedAccountId,
 }: DeleteCategoryModalProps) {
-  // Initialize form with react-hook-form and zod validation
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const {
+    control,
     handleSubmit,
     watch,
-    formState: { errors, isSubmitting },
-    setValue,
+    formState: { errors },
   } = useForm<DeleteCategoryFormData>({
-    resolver: zodResolver(deleteCategorySchema),
     defaultValues: {
       transactionHandling: "unassign",
     },
+    resolver: zodResolver(deleteCategorySchema),
   });
 
-  // Watch the transactionHandling field to conditionally render the replacement category select
   const transactionHandling = watch("transactionHandling");
 
-  /**
-   * Handles the category deletion process
-   * @param {DeleteCategoryFormData} data - The validated form data
-   */
   const handleDeleteCategory = async (data: DeleteCategoryFormData) => {
     if (!categoryToDelete) return;
+
+    setIsSubmitting(true);
     try {
       await deleteCategory({
         id: categoryToDelete.id,
@@ -110,11 +110,12 @@ export default function DeleteCategoryModal({
             ? data.replacementCategory
             : undefined,
       });
-      // Refresh the categories list after successful deletion
       await mutate(["categories", selectedAccountId]);
       onClose();
     } catch (error) {
       console.error("Failed to delete category:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -166,40 +167,49 @@ export default function DeleteCategoryModal({
               <p>What would you like to do with these transactions?</p>
 
               {/* Radio group for selecting transaction handling method */}
-              <CustomRadioGroup
-                label="Transaction Handling"
-                options={[
-                  { value: "unassign", label: "Leave transactions unassigned" },
-                  { value: "reassign", label: "Assign to another category" },
-                ]}
-                value={transactionHandling}
-                onChange={(value) => {
-                  setValue(
-                    "transactionHandling",
-                    value as "unassign" | "reassign",
-                  );
-                  // Clear replacement category when switching to unassign
-                  if (value === "unassign") {
-                    setValue("replacementCategory", undefined);
-                  }
-                }}
-                error={errors.transactionHandling?.message}
+              <Controller
                 name="transactionHandling"
+                control={control}
+                render={({ field }) => (
+                  <CustomRadioGroup
+                    label="Transaction Handling"
+                    options={[
+                      {
+                        value: "unassign",
+                        label: "Leave transactions unassigned",
+                      },
+                      {
+                        value: "reassign",
+                        label: "Assign to another category",
+                      },
+                    ]}
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errors.transactionHandling?.message}
+                    name="transactionHandling"
+                  />
+                )}
               />
 
               {/* Conditional rendering of replacement category select */}
               {transactionHandling === "reassign" && (
                 <div className="ml-7 mt-2">
-                  <CustomSelect
-                    value={watch("replacementCategory") || ""}
-                    onChange={(value) => setValue("replacementCategory", value)}
-                    options={TRANSACTION_CATEGORIES.map((cat) => ({
-                      value: cat,
-                      label: cat,
-                    }))}
-                    label="Select category"
-                    placeholder="Choose a category"
-                    error={errors.replacementCategory?.message}
+                  <Controller
+                    name="replacementCategory"
+                    control={control}
+                    render={({ field }) => (
+                      <CustomSelect
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        options={TRANSACTION_CATEGORIES.map((cat) => ({
+                          value: cat,
+                          label: cat,
+                        }))}
+                        label="Select category"
+                        placeholder="Choose a category"
+                        error={errors.replacementCategory?.message}
+                      />
+                    )}
                   />
                 </div>
               )}

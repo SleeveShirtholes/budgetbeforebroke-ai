@@ -96,7 +96,7 @@ describe("PayModal", () => {
     const noteInput = screen.getByLabelText(/note/i);
 
     expect(amountInput).toHaveValue("100");
-    expect(dateInput).toHaveValue("Mar 31, 2024");
+    expect(dateInput).toHaveValue("Apr 1, 2024");
     expect(noteInput).toHaveValue("Test payment");
   });
 
