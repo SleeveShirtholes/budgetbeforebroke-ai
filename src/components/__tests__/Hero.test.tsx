@@ -8,9 +8,7 @@ describe("Hero Component", () => {
   it("renders the main heading", () => {
     render(<Hero />);
     expect(screen.getByText("Budget first,")).toBeInTheDocument();
-    expect(
-      screen.getByText("panic never"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("panic never")).toBeInTheDocument();
   });
 
   it("renders the description text", () => {

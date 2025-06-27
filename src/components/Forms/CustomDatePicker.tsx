@@ -48,7 +48,7 @@ export default function CustomDatePicker({
   const parseLocalDate = (dateString: string): Date | null => {
     // If it's just a date string like "2024-04-01", treat it as local date
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      const [year, month, day] = dateString.split('-').map(Number);
+      const [year, month, day] = dateString.split("-").map(Number);
       return new Date(year, month - 1, day); // month is 0-indexed
     }
     // Otherwise, parse as normal
