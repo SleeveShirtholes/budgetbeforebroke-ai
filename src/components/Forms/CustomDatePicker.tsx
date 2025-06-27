@@ -44,8 +44,20 @@ export default function CustomDatePicker({
   required,
   disabled,
 }: CustomDatePickerProps) {
+  // Helper function to parse date strings as local dates
+  const parseLocalDate = (dateString: string): Date | null => {
+    // If it's just a date string like "2024-04-01", treat it as local date
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      return new Date(year, month - 1, day); // month is 0-indexed
+    }
+    // Otherwise, parse as normal
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? null : date;
+  };
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(
-    value ? new Date(value) : null,
+    value ? parseLocalDate(value) : null,
   );
   const [inputValue, setInputValue] = useState(
     selectedDate ? format(selectedDate, "MMM d, yyyy") : "",

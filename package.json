@@ -9,11 +9,11 @@
     "lint": "next lint",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "prepare": "husky",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepare": "husky"
   },
   "dependencies": {
     "@auth/core": "^0.18.6",

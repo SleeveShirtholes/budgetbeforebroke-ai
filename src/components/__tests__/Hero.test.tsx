@@ -9,7 +9,7 @@ describe("Hero Component", () => {
     render(<Hero />);
     expect(screen.getByText("Budget first,")).toBeInTheDocument();
     expect(
-      screen.getByText("less oops and more cha-ching"),
+      screen.getByText("panic never"),
     ).toBeInTheDocument();
   });
 
