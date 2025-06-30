@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 
-import { Transaction } from "@/types/transaction";
+import { TransactionFormData } from "../TransactionForm";
 import userEvent from "@testing-library/user-event";
 import TransactionForm from "../TransactionForm";
 
@@ -35,17 +35,12 @@ const mockDate = "2024-03-26T00:00:00.000Z";
 const originalDate = new Date(mockDate);
 
 // Sample transaction data for testing
-const sampleTransaction: Transaction = {
-  id: "123",
+const sampleTransaction: Partial<TransactionFormData> = {
   date: mockDate,
-  merchant: "Test Store",
-  merchantLocation: "Test Location",
+  merchantName: "Test Store",
   amount: 42.99,
   type: "expense",
-  category: "Personal",
   description: "Test purchase",
-  createdAt: mockDate,
-  updatedAt: mockDate,
 };
 
 describe("TransactionForm", () => {
@@ -80,7 +75,7 @@ describe("TransactionForm", () => {
       render(<TransactionForm {...defaultProps} />);
 
       const requiredFields = screen.getAllByText("*");
-      expect(requiredFields).toHaveLength(4); // Date, Merchant, Amount, Category
+      expect(requiredFields).toHaveLength(4); // Date, Merchant, Amount, Type
     });
 
     it("initializes with default values", async () => {
@@ -95,13 +90,13 @@ describe("TransactionForm", () => {
       });
       expect(screen.getByLabelText(/date/i)).toHaveValue(formattedDate);
 
-      // Amount should be empty initially (will be 0 when submitted)
+      // Amount should be empty initially
       expect(screen.getByLabelText(/amount/i)).toHaveValue(null);
 
       // Category should show the default placeholder
       expect(screen.getByLabelText(/category/i)).toHaveAttribute(
         "placeholder",
-        "Other",
+        "Select a category",
       );
     });
   });
@@ -165,9 +160,12 @@ describe("TransactionForm", () => {
         expect(mockOnSubmit).toHaveBeenCalledTimes(1);
         expect(mockOnSubmit).toHaveBeenCalledWith(
           expect.objectContaining({
-            merchant: "Test Store",
+            merchantName: "Test Store",
             amount: 42.99,
-            category: "Personal",
+            categoryId: "",
+            date: "2024-03-26T00:00:00.000Z",
+            description: "",
+            type: "expense",
           }),
         );
       });
@@ -195,7 +193,7 @@ describe("TransactionForm", () => {
       expect(screen.getByLabelText(/amount/i)).toHaveValue(42.99);
       expect(screen.getByLabelText(/category/i)).toHaveAttribute(
         "placeholder",
-        "Personal",
+        "Select a category",
       );
       expect(screen.getByLabelText(/description/i)).toHaveValue(
         "Test purchase",

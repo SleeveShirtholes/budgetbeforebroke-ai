@@ -1,9 +1,7 @@
 "use client";
 
-import {
-  TRANSACTION_CATEGORIES,
-  TransactionCategory,
-} from "@/types/transaction";
+import { useState } from "react";
+import useSWR, { mutate } from "swr";
 import {
   ArrowTrendingDownIcon,
   ArrowTrendingUpIcon,
@@ -14,10 +12,17 @@ import { format, startOfDay } from "date-fns";
 import Button from "@/components/Button";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import Modal from "@/components/Modal";
+import Spinner from "@/components/Spinner";
 import Table from "@/components/Table/Table";
 import TransactionForm from "@/components/TransactionForm";
-import useTransactionsStore from "@/stores/transactionsStore";
-import { useEffect } from "react";
+import {
+  createTransaction,
+  getTransactionCategories,
+  getTransactions,
+  updateTransactionCategory,
+} from "@/app/actions/transaction";
+import { useToast } from "@/components/Toast";
+import { useBudgetAccount } from "@/stores/budgetAccountStore";
 
 /**
  * Transactions component that displays and manages financial transactions.
@@ -27,23 +32,36 @@ import { useEffect } from "react";
  * - Ability to add new transactions
  * - Ability to update transaction categories
  * - Detailed view of individual transactions
+ * - Real-time data synchronization using SWR
+ * - Filtering by selected budget account
  *
  * @returns {JSX.Element} The rendered Transactions component
  */
 export default function Transactions() {
-  const {
-    transactions,
-    isModalOpen,
-    setIsModalOpen,
-    createTransaction,
-    updateCategory,
-    initializeTransactions,
-  } = useTransactionsStore();
+  const { showToast } = useToast();
+  const { selectedAccount } = useBudgetAccount();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load mock transactions on component mount
-  useEffect(() => {
-    initializeTransactions();
-  }, [initializeTransactions]);
+  // Fetch transactions using SWR with selected account
+  const {
+    data: transactions = [],
+    error: transactionsError,
+    isLoading: isLoadingTransactions,
+  } = useSWR(
+    selectedAccount ? ["transactions", selectedAccount.id] : null,
+    () => (selectedAccount ? getTransactions(selectedAccount.id) : []),
+  );
+
+  // Fetch categories using SWR with selected account
+  const {
+    data: categories = [],
+    error: categoriesError,
+    isLoading: isLoadingCategories,
+  } = useSWR(
+    selectedAccount ? ["transaction-categories", selectedAccount.id] : null,
+    () => (selectedAccount ? getTransactionCategories(selectedAccount.id) : []),
+  );
 
   // Calculate insights
   const getTimeframeDate = () => {
@@ -80,7 +98,7 @@ export default function Transactions() {
         format(new Date(row.date as string), "MMM d, yyyy"),
     },
     {
-      key: "merchant",
+      key: "merchantName",
       header: "Merchant",
       sortable: true,
       filterable: true,
@@ -107,23 +125,38 @@ export default function Transactions() {
       },
     },
     {
-      key: "category",
+      key: "categoryName",
       header: "Category",
       sortable: true,
       filterable: true,
       accessor: (row: Record<string, unknown>) => {
-        const category = row.category as TransactionCategory;
-        const id = row.id as string;
+        const transactionId = row.id as string;
+        const currentCategoryId = row.categoryId as string | null;
+
         return (
           <CustomSelect
-            value={category}
-            onChange={(value) =>
-              updateCategory(id, value as TransactionCategory)
-            }
-            options={TRANSACTION_CATEGORIES.map((cat) => ({
-              value: cat,
-              label: cat,
-            }))}
+            value={currentCategoryId || ""}
+            onChange={async (value) => {
+              try {
+                await updateTransactionCategory(transactionId, value || null);
+                // Mutate both transactions and categories to update the UI
+                if (selectedAccount) {
+                  await mutate(["transactions", selectedAccount.id]);
+                  await mutate(["transaction-categories", selectedAccount.id]);
+                }
+                showToast("Category updated successfully", { type: "success" });
+              } catch (error) {
+                console.error("Failed to update category:", error);
+                showToast("Failed to update category", { type: "error" });
+              }
+            }}
+            options={[
+              { value: "", label: "No category" },
+              ...categories.map((cat) => ({
+                value: cat.id,
+                label: cat.name,
+              })),
+            ]}
             label=""
             fullWidth={false}
           />
@@ -131,6 +164,55 @@ export default function Transactions() {
       },
     },
   ];
+
+  /**
+   * Handle form submission for creating a new transaction
+   */
+  const handleCreateTransaction = async (data: {
+    date: string;
+    merchantName: string;
+    amount: number;
+    type: "income" | "expense";
+    categoryId?: string;
+    description?: string;
+  }) => {
+    setIsSubmitting(true);
+    try {
+      await createTransaction(data);
+      // Mutate both transactions and categories to update the UI
+      if (selectedAccount) {
+        await mutate(["transactions", selectedAccount.id]);
+        await mutate(["transaction-categories", selectedAccount.id]);
+      }
+      setIsModalOpen(false);
+      showToast("Transaction created successfully", { type: "success" });
+    } catch (error) {
+      console.error("Failed to create transaction:", error);
+      showToast("Failed to create transaction", { type: "error" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Show loading state
+  if (!selectedAccount || isLoadingTransactions || isLoadingCategories) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (transactionsError || categoriesError) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-600">
+          Failed to load transactions. Please try again.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -210,6 +292,7 @@ export default function Transactions() {
             variant="secondary"
             type="button"
             onClick={() => setIsModalOpen(false)}
+            disabled={isSubmitting}
           >
             Cancel
           </Button>,
@@ -218,12 +301,16 @@ export default function Transactions() {
             variant="primary"
             type="submit"
             form="transaction-form"
+            isLoading={isSubmitting}
           >
             Save
           </Button>,
         ]}
       >
-        <TransactionForm onSubmit={createTransaction} />
+        <TransactionForm
+          onSubmit={handleCreateTransaction}
+          categories={categories}
+        />
       </Modal>
     </div>
   );

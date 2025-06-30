@@ -1,18 +1,48 @@
 "use client";
 
 import { eachDayOfInterval, endOfMonth, format, startOfMonth } from "date-fns";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import useSWR from "swr";
 
 import BudgetCategoriesProgress from "@/components/BudgetCategoriesProgress";
 import DateRangeSelector from "@/app/dashboard/analytics/components/DateRangeSelector";
 import KeyMetrics from "@/app/dashboard/analytics/components/KeyMetrics";
 import RecentTransactions from "./components/RecentTransactions";
 import SpendingChart from "@/app/dashboard/analytics/components/SpendingChart";
+import { getTransactions } from "@/app/actions/transaction";
+import Spinner from "@/components/Spinner";
 import { TransactionCategory } from "@/types/transaction";
-import useTransactionsStore from "@/stores/transactionsStore";
 
 // Define possible chart view modes
 type ChartViewMode = "total" | "byCategory" | "incomeVsExpense";
+
+/**
+ * Helper function to convert string category names to TransactionCategory type
+ * Falls back to "Other" if the category name doesn't match any known category
+ */
+function mapCategoryNameToType(
+  categoryName: string | null | undefined,
+): TransactionCategory {
+  if (!categoryName) return "Other";
+
+  // Map common category names to TransactionCategory values
+  const categoryMap: Record<string, TransactionCategory> = {
+    Housing: "Housing",
+    Transportation: "Transportation",
+    Food: "Food",
+    Utilities: "Utilities",
+    Insurance: "Insurance",
+    Healthcare: "Healthcare",
+    Savings: "Savings",
+    Personal: "Personal",
+    Entertainment: "Entertainment",
+    Debt: "Debt",
+    Income: "Income",
+    Other: "Other",
+  };
+
+  return categoryMap[categoryName] || "Other";
+}
 
 /**
  * Analytics Dashboard Page Component
@@ -28,24 +58,25 @@ type ChartViewMode = "total" | "byCategory" | "incomeVsExpense";
  * and offers different chart visualization modes for analyzing spending patterns.
  */
 export default function AnalyticsPage() {
+  // Fetch transactions using SWR
+  const {
+    data: transactions = [],
+    error,
+    isLoading,
+  } = useSWR("transactions", getTransactions);
+
   // State management
-  const { transactions, initializeTransactions } = useTransactionsStore();
-  const [selectedCategories, setSelectedCategories] = useState<
-    Set<TransactionCategory>
-  >(new Set());
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
+    new Set(),
+  );
   const [chartViewMode, setChartViewMode] = useState<ChartViewMode>("total");
   const [selectedChartCategories, setSelectedChartCategories] = useState<
-    Set<TransactionCategory>
+    Set<string>
   >(new Set());
   const [dateRange, setDateRange] = useState({
     startDate: startOfMonth(new Date()),
     endDate: endOfMonth(new Date()),
   });
-
-  // Load transactions on component mount
-  useEffect(() => {
-    initializeTransactions();
-  }, [initializeTransactions]);
 
   // Calculate financial insights for the selected date range
   const insights = useMemo(() => {
@@ -74,7 +105,8 @@ export default function AnalyticsPage() {
       .filter((t) => t.type === "expense")
       .reduce(
         (acc, t) => {
-          acc[t.category] = (acc[t.category] || 0) + t.amount;
+          const categoryName = mapCategoryNameToType(t.categoryName);
+          acc[categoryName] = (acc[categoryName] || 0) + t.amount;
           return acc;
         },
         {} as Record<TransactionCategory, number>,
@@ -99,40 +131,6 @@ export default function AnalyticsPage() {
     };
   }, [transactions, dateRange]);
 
-  // Category selection handlers for transactions list
-  const handleCategoryToggle = (category: TransactionCategory) => {
-    setSelectedCategories((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(category)) {
-        newSet.delete(category);
-      } else {
-        newSet.add(category);
-      }
-      return newSet;
-    });
-  };
-
-  const clearCategorySelection = () => {
-    setSelectedCategories(new Set());
-  };
-
-  // Category selection handlers for chart
-  const handleChartCategoryToggle = (category: TransactionCategory) => {
-    setSelectedChartCategories((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(category)) {
-        newSet.delete(category);
-      } else {
-        newSet.add(category);
-      }
-      return newSet;
-    });
-  };
-
-  const clearChartSelection = () => {
-    setSelectedChartCategories(new Set());
-  };
-
   // Prepare chart data based on selected view mode
   const chartData = useMemo(() => {
     const timeframeTransactions = transactions.filter(
@@ -155,13 +153,14 @@ export default function AnalyticsPage() {
           .reduce(
             (acc, t) => {
               const day = format(new Date(t.date), "MMM d");
-              if (!acc[t.category]) {
-                acc[t.category] = {};
+              const categoryName = mapCategoryNameToType(t.categoryName);
+              if (!acc[categoryName]) {
+                acc[categoryName] = {};
               }
-              acc[t.category][day] = (acc[t.category][day] || 0) + t.amount;
+              acc[categoryName][day] = (acc[categoryName][day] || 0) + t.amount;
               return acc;
             },
-            {} as Record<string, Record<string, number>>,
+            {} as Record<TransactionCategory, Record<string, number>>,
           );
 
         // Convert to chart data format with dynamic colors for each category
@@ -243,54 +242,37 @@ export default function AnalyticsPage() {
       case "total":
       default: {
         // Filter transactions by selected category if any
-        const filteredTransactions = timeframeTransactions.filter(
-          (t) =>
-            t.type === "expense" &&
-            (!selectedCategories.size || selectedCategories.has(t.category)),
-        );
+        const filteredTransactions =
+          selectedChartCategories.size > 0
+            ? timeframeTransactions.filter((t) =>
+                selectedChartCategories.has(
+                  mapCategoryNameToType(t.categoryName),
+                ),
+              )
+            : timeframeTransactions;
 
-        // Group by day
-        const dailyData = filteredTransactions.reduce(
-          (acc, t) => {
-            const day = format(new Date(t.date), "MMM d");
-            acc[day] = (acc[day] || 0) + t.amount;
-            return acc;
-          },
-          {} as Record<string, number>,
-        );
+        // Group by day and calculate total spending
+        const dailySpending = filteredTransactions
+          .filter((t) => t.type === "expense")
+          .reduce(
+            (acc, t) => {
+              const day = format(new Date(t.date), "MMM d");
+              acc[day] = (acc[day] || 0) + t.amount;
+              return acc;
+            },
+            {} as Record<string, number>,
+          );
 
-        // Convert to chart data format with primary color theme
         return {
           data: days.map((day) => ({
             month: day,
-            amount: dailyData[day] || 0,
+            amount: dailySpending[day] || 0,
           })),
-          datasets: [
-            {
-              label: selectedCategories.size
-                ? Array.from(selectedCategories)[0]
-                : "Total Spending",
-              data: days.map((day) => dailyData[day] || 0),
-              borderColor: "#4e008e", // primary-500
-              backgroundColor: "rgba(78, 0, 142, 0.1)", // primary-500 with opacity
-              tension: 0.4,
-              fill: true,
-              pointBackgroundColor: "#4e008e",
-              pointBorderColor: "#4e008e",
-              pointRadius: 4,
-              pointHoverRadius: 6,
-            },
-          ],
+          datasets: [],
         };
       }
     }
-  }, [
-    transactions,
-    selectedCategories,
-    chartViewMode,
-    selectedChartCategories,
-    dateRange,
-  ]);
+  }, [transactions, dateRange, chartViewMode, selectedChartCategories]);
 
   // Filter transactions for the recent transactions list
   const filteredTransactions = useMemo(() => {
@@ -299,10 +281,65 @@ export default function AnalyticsPage() {
         (t) =>
           new Date(t.date) >= dateRange.startDate &&
           new Date(t.date) <= dateRange.endDate &&
-          (!selectedCategories.size || selectedCategories.has(t.category)),
+          (!selectedCategories.size ||
+            selectedCategories.has(mapCategoryNameToType(t.categoryName))),
       )
       .slice(0, 10);
   }, [transactions, selectedCategories, dateRange]);
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-600">
+          Failed to load transactions. Please try again.
+        </p>
+      </div>
+    );
+  }
+
+  // Category selection handlers for transactions list
+  const handleCategoryToggle = (category: string) => {
+    setSelectedCategories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
+  const clearCategorySelection = () => {
+    setSelectedCategories(new Set());
+  };
+
+  // Category selection handlers for chart
+  const handleChartCategoryToggle = (category: string) => {
+    setSelectedChartCategories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
+  const clearChartSelection = () => {
+    setSelectedChartCategories(new Set());
+  };
 
   return (
     <div className="space-y-6">

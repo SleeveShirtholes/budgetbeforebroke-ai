@@ -1,14 +1,17 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-
-import useTransactionsStore from "@/stores/transactionsStore";
-import { TransactionCategory } from "@/types/transaction";
 import { act } from "react";
+import useSWR from "swr";
 import AnalyticsPage from "../page";
 
-// Mock the transactions store
-jest.mock("@/stores/transactionsStore", () => ({
+// Mock SWR
+jest.mock("swr", () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+
+// Mock the transaction actions
+jest.mock("@/app/actions/transaction", () => ({
+  getTransactions: jest.fn(),
 }));
 
 // Mock the components
@@ -64,30 +67,53 @@ describe("AnalyticsPage", () => {
   const mockTransactions = [
     {
       id: "1",
-      date: "2024-01-15",
+      budgetAccountId: "account-1",
+      categoryId: "category-1",
+      createdByUserId: "user-1",
       amount: 100,
-      type: "income",
-      category: "salary" as TransactionCategory,
       description: "Salary",
+      date: new Date("2024-01-15"),
+      type: "income" as const,
+      status: "completed",
+      merchantName: "Employer",
+      plaidCategory: null,
+      pending: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      categoryName: "Salary",
     },
     {
       id: "2",
-      date: "2024-01-16",
+      budgetAccountId: "account-1",
+      categoryId: "category-2",
+      createdByUserId: "user-1",
       amount: 50,
-      type: "expense",
-      category: "groceries" as TransactionCategory,
       description: "Groceries",
+      date: new Date("2024-01-16"),
+      type: "expense" as const,
+      status: "completed",
+      merchantName: "Grocery Store",
+      plaidCategory: null,
+      pending: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      categoryName: "Groceries",
     },
   ];
+
+  const mockUseSWR = useSWR as jest.MockedFunction<typeof useSWR>;
 
   beforeEach(() => {
     // Reset all mocks before each test
     jest.clearAllMocks();
 
-    // Mock the transactions store implementation
-    (useTransactionsStore as unknown as jest.Mock).mockImplementation(() => ({
-      transactions: mockTransactions,
-      initializeTransactions: jest.fn(),
+    // Mock SWR to return successful data
+    mockUseSWR.mockImplementation(() => ({
+      data: mockTransactions,
+      error: null,
+      isLoading: false,
+      mutate: jest.fn(),
+      isValidating: false,
     }));
   });
 
@@ -103,15 +129,32 @@ describe("AnalyticsPage", () => {
     expect(screen.getByTestId("recent-transactions")).toBeInTheDocument();
   });
 
-  it("initializes transactions on mount", () => {
-    const mockInitializeTransactions = jest.fn();
-    (useTransactionsStore as unknown as jest.Mock).mockImplementation(() => ({
-      transactions: mockTransactions,
-      initializeTransactions: mockInitializeTransactions,
+  it("shows loading state when data is loading", () => {
+    mockUseSWR.mockImplementation(() => ({
+      data: undefined,
+      error: null,
+      isLoading: true,
+      mutate: jest.fn(),
+      isValidating: true,
     }));
 
     render(<AnalyticsPage />);
-    expect(mockInitializeTransactions).toHaveBeenCalled();
+    expect(screen.getByTestId("spinner")).toBeInTheDocument();
+  });
+
+  it("shows error state when data fails to load", () => {
+    mockUseSWR.mockImplementation(() => ({
+      data: undefined,
+      error: new Error("Failed to load"),
+      isLoading: false,
+      mutate: jest.fn(),
+      isValidating: false,
+    }));
+
+    render(<AnalyticsPage />);
+    expect(
+      screen.getByText("Failed to load transactions. Please try again."),
+    ).toBeInTheDocument();
   });
 
   it("updates date range when selector is used", async () => {
@@ -140,9 +183,12 @@ describe("AnalyticsPage", () => {
   });
 
   it("handles empty transactions gracefully", () => {
-    (useTransactionsStore as unknown as jest.Mock).mockImplementation(() => ({
-      transactions: [],
-      initializeTransactions: jest.fn(),
+    mockUseSWR.mockImplementation(() => ({
+      data: [],
+      error: null,
+      isLoading: false,
+      mutate: jest.fn(),
+      isValidating: false,
     }));
 
     render(<AnalyticsPage />);

@@ -20,6 +20,7 @@ import ColumnFilter from "./ColumnFilter";
  * @param {(sorting: SortingState) => void} props.onSort - Callback when sorting changes
  * @param {(columnKey: string, filter: FilterValue | null) => void} props.onFilterChange - Callback when a column filter changes
  * @param {boolean} props.actions - Whether to show the actions column
+ * @param {boolean} props.hasDetailPanel - Whether the table has a detail panel (controls expansion column visibility)
  */
 
 interface TableHeaderProps<T> {
@@ -29,6 +30,7 @@ interface TableHeaderProps<T> {
   onSort: (sorting: SortingState) => void;
   onFilterChange: (columnKey: string, filter: FilterValue | null) => void;
   actions: boolean;
+  hasDetailPanel: boolean;
 }
 
 export default function TableHeader<T>({
@@ -38,6 +40,7 @@ export default function TableHeader<T>({
   onSort,
   onFilterChange,
   actions,
+  hasDetailPanel,
 }: TableHeaderProps<T>) {
   const handleSort = (column: ColumnDef<T>) => {
     if (!column.sortable) return;
@@ -68,8 +71,8 @@ export default function TableHeader<T>({
   return (
     <thead className="bg-secondary-50">
       <tr>
-        {/* Expansion column */}
-        <th className="w-10 px-4 py-3 text-left" />
+        {/* Expansion column - only show if detailPanel is provided */}
+        {hasDetailPanel && <th className="w-10 px-4 py-3 text-left" />}
 
         {/* Data columns */}
         {columns.map((column) => (

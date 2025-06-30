@@ -39,6 +39,7 @@ describe("TableHeader Component", () => {
         onSort={mockOnSort}
         onFilterChange={mockOnFilterChange}
         actions={false}
+        hasDetailPanel={false}
       />,
     );
 
@@ -47,6 +48,42 @@ describe("TableHeader Component", () => {
         expect(screen.getByText(column.header)).toBeInTheDocument();
       }
     });
+  });
+
+  it("shows expansion column when hasDetailPanel is true", () => {
+    renderWithTable(
+      <TableHeader
+        columns={columns}
+        sorting={initialSorting}
+        filters={initialFilters}
+        onSort={mockOnSort}
+        onFilterChange={mockOnFilterChange}
+        actions={false}
+        hasDetailPanel={true}
+      />,
+    );
+
+    // Check that the expansion column is present (it's an empty th element)
+    const headerCells = screen.getAllByRole("columnheader");
+    expect(headerCells).toHaveLength(columns.length + 1); // +1 for expansion column
+  });
+
+  it("hides expansion column when hasDetailPanel is false", () => {
+    renderWithTable(
+      <TableHeader
+        columns={columns}
+        sorting={initialSorting}
+        filters={initialFilters}
+        onSort={mockOnSort}
+        onFilterChange={mockOnFilterChange}
+        actions={false}
+        hasDetailPanel={false}
+      />,
+    );
+
+    // Check that the expansion column is not present
+    const headerCells = screen.getAllByRole("columnheader");
+    expect(headerCells).toHaveLength(columns.length); // No expansion column
   });
 
   it("handles sorting when clicking sortable columns", () => {
@@ -59,6 +96,7 @@ describe("TableHeader Component", () => {
         onSort={mockOnSort}
         onFilterChange={mockOnFilterChange}
         actions={false}
+        hasDetailPanel={false}
       />,
     );
 
@@ -88,6 +126,7 @@ describe("TableHeader Component", () => {
           onSort={mockOnSort}
           onFilterChange={mockOnFilterChange}
           actions={false}
+          hasDetailPanel={false}
         />
       </table>,
     );
@@ -109,6 +148,7 @@ describe("TableHeader Component", () => {
           onSort={mockOnSort}
           onFilterChange={mockOnFilterChange}
           actions={false}
+          hasDetailPanel={false}
         />
       </table>,
     );
@@ -130,6 +170,7 @@ describe("TableHeader Component", () => {
         onSort={mockOnSort}
         onFilterChange={mockOnFilterChange}
         actions={false}
+        hasDetailPanel={false}
       />,
     );
 
@@ -146,6 +187,7 @@ describe("TableHeader Component", () => {
         onSort={mockOnSort}
         onFilterChange={mockOnFilterChange}
         actions={false}
+        hasDetailPanel={false}
       />,
     );
 

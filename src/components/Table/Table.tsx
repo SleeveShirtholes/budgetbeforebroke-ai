@@ -329,6 +329,7 @@ export default function Table<T extends Record<string, unknown>>({
             actions={!!actions}
             filters={filters}
             onFilterChange={handleFilterChange}
+            hasDetailPanel={!!detailPanel}
           />
           <TableBody<T>
             data={displayData}
