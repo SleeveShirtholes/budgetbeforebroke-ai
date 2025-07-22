@@ -25,8 +25,7 @@ export const debtFormSchema = z.object({
     .string()
     .min(1, "Interest rate is required")
     .refine(
-      (val) =>
-        !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 100,
+      (val) => !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 100,
       { message: "Interest rate must be a valid number between 0 and 100" },
     ),
   dueDate: z
