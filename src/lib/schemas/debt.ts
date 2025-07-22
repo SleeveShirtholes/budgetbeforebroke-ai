@@ -10,12 +10,12 @@ export const debtFormSchema = z.object({
     .max(100, "Name must be less than 100 characters"),
   balance: z
     .string()
+    .min(1, "Balance is required")
     .refine(
       (val) =>
-        val === "" ||
-        (!isNaN(Number(val)) &&
-          Number(val) >= 0.01 &&
-          Number(val) <= 999999999.99),
+        !isNaN(Number(val)) &&
+        Number(val) >= 0.01 &&
+        Number(val) <= 999999999.99,
       {
         message:
           "Balance must be a valid number greater than 0 and less than 1 billion",
@@ -23,10 +23,10 @@ export const debtFormSchema = z.object({
     ),
   interestRate: z
     .string()
+    .min(1, "Interest rate is required")
     .refine(
       (val) =>
-        val === "" ||
-        (!isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 100),
+        !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 100,
       { message: "Interest rate must be a valid number between 0 and 100" },
     ),
   dueDate: z

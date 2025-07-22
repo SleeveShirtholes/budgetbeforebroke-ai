@@ -52,7 +52,8 @@ export default function PaymentForm({
       <DecimalInput
         label="Amount"
         value={watchedValues.amount?.toString() || ""}
-        onChange={(value) => setValue("amount", parseFloat(value) || 0)}
+        // Always set a number: if value is empty, set NaN (invalid), else parse as float. This allows Zod to handle required/invalid cases.
+        onChange={(value) => setValue("amount", value === "" ? NaN : parseFloat(value))}
         error={errors.amount?.message}
         required
         placeholder="0.00"
