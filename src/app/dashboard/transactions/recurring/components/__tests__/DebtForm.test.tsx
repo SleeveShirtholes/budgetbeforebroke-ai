@@ -28,12 +28,7 @@ describe("DebtForm", () => {
   });
 
   it("renders all form fields correctly", () => {
-    render(
-      <DebtForm
-        debt={mockDebt}
-        onSubmit={mockOnSubmit}
-      />,
-    );
+    render(<DebtForm debt={mockDebt} onSubmit={mockOnSubmit} />);
 
     expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/balance/i)).toBeInTheDocument();
@@ -42,12 +37,7 @@ describe("DebtForm", () => {
   });
 
   it("renders initial values correctly", () => {
-    render(
-      <DebtForm
-        debt={mockDebt}
-        onSubmit={mockOnSubmit}
-      />,
-    );
+    render(<DebtForm debt={mockDebt} onSubmit={mockOnSubmit} />);
 
     expect(screen.getByLabelText(/name/i)).toHaveValue("Test Debt");
     expect(screen.getByLabelText(/balance/i)).toHaveValue("1,000");
@@ -66,12 +56,7 @@ describe("DebtForm", () => {
   });
 
   it("calls onSubmit when form is submitted", async () => {
-    render(
-      <DebtForm
-        debt={mockDebt}
-        onSubmit={mockOnSubmit}
-      />,
-    );
+    render(<DebtForm debt={mockDebt} onSubmit={mockOnSubmit} />);
 
     const form = screen.getByRole("form");
     fireEvent.submit(form);

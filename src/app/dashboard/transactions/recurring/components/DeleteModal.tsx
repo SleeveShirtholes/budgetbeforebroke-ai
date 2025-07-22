@@ -30,10 +30,10 @@ export default function DeleteModal({
           <Button type="button" onClick={onClose} variant="outline" size="sm">
             Cancel
           </Button>
-          <Button 
-            type="button" 
-            onClick={onConfirm} 
-            variant="danger" 
+          <Button
+            type="button"
+            onClick={onConfirm}
+            variant="danger"
             size="sm"
             isLoading={isLoading}
           >

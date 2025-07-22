@@ -112,7 +112,9 @@ describe("Debt Actions", () => {
       // Mock user query to return no default budget account
       actualDb.limit.mockResolvedValueOnce([]);
 
-      await expect(getDebts()).rejects.toThrow("No default budget account found");
+      await expect(getDebts()).rejects.toThrow(
+        "No default budget account found",
+      );
     });
 
     it("should return debts with payments", async () => {
@@ -250,14 +252,18 @@ describe("Debt Actions", () => {
     it("should throw error if not authenticated", async () => {
       (auth.api.getSession as jest.Mock).mockResolvedValue(null);
 
-      await expect(createDebt(createDebtData)).rejects.toThrow("Not authenticated");
+      await expect(createDebt(createDebtData)).rejects.toThrow(
+        "Not authenticated",
+      );
     });
 
     it("should throw error if no default budget account found", async () => {
       // Mock user query to return no default budget account
       actualDb.limit.mockResolvedValueOnce([]);
 
-      await expect(createDebt(createDebtData)).rejects.toThrow("No default budget account found");
+      await expect(createDebt(createDebtData)).rejects.toThrow(
+        "No default budget account found",
+      );
     });
 
     it("should throw error if budget account not found", async () => {
@@ -268,7 +274,9 @@ describe("Debt Actions", () => {
       // Mock budget account query to return no account
       actualDb.limit.mockResolvedValueOnce([]);
 
-      await expect(createDebt(createDebtData)).rejects.toThrow("Budget account not found");
+      await expect(createDebt(createDebtData)).rejects.toThrow(
+        "Budget account not found",
+      );
     });
 
     it("should create debt successfully", async () => {
@@ -299,7 +307,7 @@ describe("Debt Actions", () => {
 
     it("should use provided budget account ID", async () => {
       const customAccountId = "custom-account-123";
-      
+
       // Mock budget account query to return account
       actualDb.limit.mockResolvedValueOnce([{ id: customAccountId }]);
       actualDb.values.mockResolvedValueOnce({});
@@ -309,7 +317,7 @@ describe("Debt Actions", () => {
       expect(actualDb.values).toHaveBeenCalledWith(
         expect.objectContaining({
           budgetAccountId: customAccountId,
-        })
+        }),
       );
     });
   });
@@ -326,14 +334,18 @@ describe("Debt Actions", () => {
     it("should throw error if not authenticated", async () => {
       (auth.api.getSession as jest.Mock).mockResolvedValue(null);
 
-      await expect(updateDebt(updateDebtData)).rejects.toThrow("Not authenticated");
+      await expect(updateDebt(updateDebtData)).rejects.toThrow(
+        "Not authenticated",
+      );
     });
 
     it("should throw error if no default budget account found", async () => {
       // Mock user query to return no default budget account
       actualDb.limit.mockResolvedValueOnce([]);
 
-      await expect(updateDebt(updateDebtData)).rejects.toThrow("No default budget account found");
+      await expect(updateDebt(updateDebtData)).rejects.toThrow(
+        "No default budget account found",
+      );
     });
 
     it("should throw error if debt not found", async () => {
@@ -344,7 +356,9 @@ describe("Debt Actions", () => {
       // Mock debt query to return no debt
       actualDb.limit.mockResolvedValueOnce([]);
 
-      await expect(updateDebt(updateDebtData)).rejects.toThrow("Debt not found");
+      await expect(updateDebt(updateDebtData)).rejects.toThrow(
+        "Debt not found",
+      );
     });
 
     it("should update debt successfully", async () => {
@@ -374,7 +388,7 @@ describe("Debt Actions", () => {
 
     it("should use provided budget account ID", async () => {
       const customAccountId = "custom-account-123";
-      
+
       // Mock debt query to return debt
       actualDb.limit.mockResolvedValueOnce([mockDebt]);
 
@@ -399,7 +413,9 @@ describe("Debt Actions", () => {
       // Mock user query to return no default budget account
       actualDb.limit.mockResolvedValueOnce([]);
 
-      await expect(deleteDebt(mockDebtId)).rejects.toThrow("No default budget account found");
+      await expect(deleteDebt(mockDebtId)).rejects.toThrow(
+        "No default budget account found",
+      );
     });
 
     it("should throw error if debt not found", async () => {
@@ -434,7 +450,7 @@ describe("Debt Actions", () => {
 
     it("should use provided budget account ID", async () => {
       const customAccountId = "custom-account-123";
-      
+
       // Mock debt query to return debt
       actualDb.limit.mockResolvedValueOnce([mockDebt]);
 
@@ -472,14 +488,18 @@ describe("Debt Actions", () => {
     it("should throw error if not authenticated", async () => {
       (auth.api.getSession as jest.Mock).mockResolvedValue(null);
 
-      await expect(createDebtPayment(createPaymentData)).rejects.toThrow("Not authenticated");
+      await expect(createDebtPayment(createPaymentData)).rejects.toThrow(
+        "Not authenticated",
+      );
     });
 
     it("should throw error if no default budget account found", async () => {
       // Mock user query to return no default budget account
       actualDb.limit.mockResolvedValueOnce([]);
 
-      await expect(createDebtPayment(createPaymentData)).rejects.toThrow("No default budget account found");
+      await expect(createDebtPayment(createPaymentData)).rejects.toThrow(
+        "No default budget account found",
+      );
     });
 
     it("should throw error if debt not found", async () => {
@@ -490,7 +510,9 @@ describe("Debt Actions", () => {
       // Mock debt query to return no debt
       actualDb.limit.mockResolvedValueOnce([]);
 
-      await expect(createDebtPayment(createPaymentData)).rejects.toThrow("Debt not found");
+      await expect(createDebtPayment(createPaymentData)).rejects.toThrow(
+        "Debt not found",
+      );
     });
 
     it("should throw error if payment amount exceeds balance", async () => {
@@ -506,7 +528,7 @@ describe("Debt Actions", () => {
       const largePaymentData = { ...createPaymentData, amount: 100.0 };
 
       await expect(createDebtPayment(largePaymentData)).rejects.toThrow(
-        "Payment amount cannot exceed current balance"
+        "Payment amount cannot exceed current balance",
       );
     });
 
@@ -536,7 +558,7 @@ describe("Debt Actions", () => {
           amount: "100",
           date: new Date("2024-01-15"),
           note: "Test payment",
-        })
+        }),
       );
     });
 
@@ -565,7 +587,7 @@ describe("Debt Actions", () => {
           name: "Debts",
           color: "#8B5CF6",
           icon: "banknotes",
-        })
+        }),
       );
     });
 
@@ -590,9 +612,9 @@ describe("Debt Actions", () => {
       expect(actualDb.set).toHaveBeenCalledWith(
         expect.objectContaining({
           balance: "900", // reduced by payment amount
-        })
+        }),
       );
-      
+
       // Verify that due date was advanced (the exact date depends on the month calculation)
       const setCall = actualDb.set.mock.calls[0][0];
       expect(setCall.dueDate).toBeInstanceOf(Date);
@@ -622,12 +644,12 @@ describe("Debt Actions", () => {
       expect(actualDb.set).toHaveBeenCalledWith(
         expect.objectContaining({
           balance: "900", // reduced by payment amount
-        })
+        }),
       );
       expect(actualDb.set).not.toHaveBeenCalledWith(
         expect.objectContaining({
           dueDate: expect.any(Date),
-        })
+        }),
       );
     });
 
@@ -640,9 +662,9 @@ describe("Debt Actions", () => {
       // Use a date that represents the same month as the payment (January 2024)
       const lastPaymentMonth = new Date("2024-01-15"); // Same month as payment date
       actualDb.limit.mockResolvedValueOnce([
-        { 
-          ...mockExistingDebt, 
-          lastPaymentMonth: lastPaymentMonth
+        {
+          ...mockExistingDebt,
+          lastPaymentMonth: lastPaymentMonth,
         },
       ]);
       // Mock category query to return existing category
@@ -659,7 +681,7 @@ describe("Debt Actions", () => {
       expect(actualDb.set).toHaveBeenCalledWith(
         expect.objectContaining({
           balance: "900", // reduced by payment amount
-        })
+        }),
       );
     });
 
@@ -687,13 +709,13 @@ describe("Debt Actions", () => {
           type: "expense",
           status: "completed",
           merchantName: "Test Debt",
-        })
+        }),
       );
     });
 
     it("should use provided budget account ID", async () => {
       const customAccountId = "custom-account-123";
-      
+
       // Mock debt query to return debt
       actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
       // Mock category query to return existing category
@@ -709,4 +731,4 @@ describe("Debt Actions", () => {
       expect(actualDb.where).toHaveBeenCalled();
     });
   });
-}); 
+});

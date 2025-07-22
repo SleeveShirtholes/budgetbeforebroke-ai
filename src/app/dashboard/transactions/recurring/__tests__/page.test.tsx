@@ -11,7 +11,9 @@ const mockUseDebts = useDebts as jest.MockedFunction<typeof useDebts>;
 
 // Mock the useBudgetAccount hook
 jest.mock("@/stores/budgetAccountStore");
-const mockUseBudgetAccount = useBudgetAccount as jest.MockedFunction<typeof useBudgetAccount>;
+const mockUseBudgetAccount = useBudgetAccount as jest.MockedFunction<
+  typeof useBudgetAccount
+>;
 
 // Mock SWR
 jest.mock("swr", () => ({
@@ -94,11 +96,7 @@ describe("RecurringPage", () => {
   });
 
   const renderWithProviders = (component: React.ReactElement) => {
-    return render(
-      <ToastProvider>
-        {component}
-      </ToastProvider>
-    );
+    return render(<ToastProvider>{component}</ToastProvider>);
   };
 
   it("renders the page with debts", async () => {
@@ -128,7 +126,9 @@ describe("RecurringPage", () => {
     });
 
     renderWithProviders(<RecurringPage />);
-    expect(screen.getByText("Error loading debts. Please try again.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Error loading debts. Please try again."),
+    ).toBeInTheDocument();
   });
 
   it("shows empty state when no debts", () => {
@@ -204,4 +204,4 @@ describe("RecurringPage", () => {
       expect(screen.getByText("Pay Recurring")).toBeInTheDocument();
     });
   });
-}); 
+});

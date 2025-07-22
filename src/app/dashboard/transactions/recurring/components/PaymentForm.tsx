@@ -3,7 +3,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import CustomDatePicker from "@/components/Forms/CustomDatePicker";
 import DecimalInput from "@/components/Forms/DecimalInput";
 import TextField from "@/components/Forms/TextField";
-import { debtPaymentFormSchema, type DebtPaymentFormData } from "@/lib/schemas/debt";
+import {
+  debtPaymentFormSchema,
+  type DebtPaymentFormData,
+} from "@/lib/schemas/debt";
 
 /**
  * Form component for recording a payment on a recurring debt.
@@ -40,10 +43,10 @@ export default function PaymentForm({
   };
 
   return (
-    <form 
-      id="pay-form" 
-      onSubmit={handleSubmit(handleFormSubmit)} 
-      className="space-y-4" 
+    <form
+      id="pay-form"
+      onSubmit={handleSubmit(handleFormSubmit)}
+      className="space-y-4"
       role="form"
     >
       <DecimalInput

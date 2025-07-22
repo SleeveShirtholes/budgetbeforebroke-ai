@@ -29,7 +29,7 @@ import PayModal from "./components/PayModal";
  * - Search and filter debts
  *
  * The component uses SWR for data management and react-hook-form with Zod validation
- * for form handling. Each debt includes details like name, balance, interest rate, 
+ * for form handling. Each debt includes details like name, balance, interest rate,
  * due date, and payment history.
  */
 function RecurringPage() {
@@ -37,14 +37,14 @@ function RecurringPage() {
   const { selectedAccount, isLoading: isAccountsLoading } = useBudgetAccount();
 
   // SWR hook for managing debt data
-  const { 
-    debts, 
-    error, 
-    isLoading, 
-    addDebt, 
-    updateDebtById, 
-    removeDebt, 
-    addPayment 
+  const {
+    debts,
+    error,
+    isLoading,
+    addDebt,
+    updateDebtById,
+    removeDebt,
+    addPayment,
   } = useDebts(selectedAccount?.id);
 
   // State for managing modal interactions
@@ -62,14 +62,17 @@ function RecurringPage() {
   // Filter debts based on search query
   const filteredDebts = useMemo(() => {
     if (!debts) return [];
-    
+
     return debts.filter((debt) => {
       const query = search.toLowerCase();
       return (
         debt.name.toLowerCase().includes(query) ||
         debt.balance.toString().includes(query) ||
         debt.interestRate.toString().includes(query) ||
-        new Date(debt.dueDate).toLocaleDateString().toLowerCase().includes(query)
+        new Date(debt.dueDate)
+          .toLocaleDateString()
+          .toLowerCase()
+          .includes(query)
       );
     });
   }, [debts, search]);
@@ -89,7 +92,10 @@ function RecurringPage() {
   };
 
   const handleSubmit = async (
-    data: Omit<DebtFormData, 'balance' | 'interestRate'> & { balance: number; interestRate: number }
+    data: Omit<DebtFormData, "balance" | "interestRate"> & {
+      balance: number;
+      interestRate: number;
+    },
   ) => {
     if (!selectedAccount) {
       showToast("No budget account selected", { type: "error" });
@@ -107,7 +113,9 @@ function RecurringPage() {
           showToast("Debt updated successfully!", { type: "success" });
           closeModal();
         } else {
-          showToast("Failed to update debt. Please try again.", { type: "error" });
+          showToast("Failed to update debt. Please try again.", {
+            type: "error",
+          });
         }
       } else {
         const result = await addDebt({
@@ -135,7 +143,7 @@ function RecurringPage() {
 
   const confirmDelete = async () => {
     if (!deletingDebtId || !selectedAccount) return;
-    
+
     setIsSubmitting(true);
     try {
       const result = await removeDebt(deletingDebtId);
@@ -144,7 +152,9 @@ function RecurringPage() {
         setDeleteModalOpen(false);
         setDeletingDebtId(null);
       } else {
-        showToast("Failed to delete debt. Please try again.", { type: "error" });
+        showToast("Failed to delete debt. Please try again.", {
+          type: "error",
+        });
       }
     } catch (err) {
       console.error("Error deleting debt:", err);
@@ -171,7 +181,7 @@ function RecurringPage() {
 
   const handlePaySubmit = async (data: DebtPaymentFormData) => {
     if (!payingDebtId || !selectedAccount) return;
-    
+
     setIsSubmitting(true);
     try {
       const result = await addPayment({
@@ -182,11 +192,15 @@ function RecurringPage() {
         showToast("Payment successful!", { type: "success" });
         closePayModal();
       } else {
-        showToast("Failed to record payment. Please try again.", { type: "error" });
+        showToast("Failed to record payment. Please try again.", {
+          type: "error",
+        });
       }
     } catch (err) {
       console.error("Error recording payment:", err);
-      showToast("Failed to record payment. Please try again.", { type: "error" });
+      showToast("Failed to record payment. Please try again.", {
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -237,7 +251,9 @@ function RecurringPage() {
       <div className="max-w-4xl mx-auto">
         <Card variant="default" padding="lg">
           <div className="flex items-center justify-center py-8">
-            <div className="text-red-500">Error loading debts. Please try again.</div>
+            <div className="text-red-500">
+              Error loading debts. Please try again.
+            </div>
           </div>
         </Card>
       </div>
@@ -271,7 +287,9 @@ function RecurringPage() {
         <div className="flex flex-col gap-1 mb-6">
           {filteredDebts.length === 0 ? (
             <div className="bg-white/80 shadow rounded-xl px-8 py-8 text-center text-gray-500 border border-gray-200">
-              {search ? "No debts found matching your search" : "No debts found"}
+              {search
+                ? "No debts found matching your search"
+                : "No debts found"}
             </div>
           ) : (
             filteredDebts.map((debt) => (

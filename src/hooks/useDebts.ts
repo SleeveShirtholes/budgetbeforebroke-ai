@@ -1,6 +1,16 @@
 import useSWR from "swr";
-import { getDebts, createDebt, updateDebt, deleteDebt, createDebtPayment } from "@/app/actions/debt";
-import type { CreateDebtInput, UpdateDebtInput, CreateDebtPaymentInput } from "@/types/debt";
+import {
+  getDebts,
+  createDebt,
+  updateDebt,
+  deleteDebt,
+  createDebtPayment,
+} from "@/app/actions/debt";
+import type {
+  CreateDebtInput,
+  UpdateDebtInput,
+  CreateDebtPaymentInput,
+} from "@/types/debt";
 
 const DEBTS_KEY = "/api/debts";
 
@@ -9,13 +19,18 @@ const DEBTS_KEY = "/api/debts";
  * Provides data fetching, caching, and mutation functions for debts
  */
 export function useDebts(budgetAccountId?: string) {
-  const { data: debts, error, isLoading, mutate: mutateDebts } = useSWR(
+  const {
+    data: debts,
+    error,
+    isLoading,
+    mutate: mutateDebts,
+  } = useSWR(
     budgetAccountId ? [DEBTS_KEY, budgetAccountId] : null,
     () => getDebts(budgetAccountId),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
-    }
+    },
   );
 
   /**
@@ -88,4 +103,4 @@ export function useDebts(budgetAccountId?: string) {
     addPayment,
     mutateDebts,
   };
-} 
+}

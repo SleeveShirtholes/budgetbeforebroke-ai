@@ -1,7 +1,14 @@
 "use server";
 
 import { and, eq, desc } from "drizzle-orm";
-import { debts, debtPayments, budgetAccounts, user, transactions, categories } from "@/db/schema";
+import {
+  debts,
+  debtPayments,
+  budgetAccounts,
+  user,
+  transactions,
+  categories,
+} from "@/db/schema";
 
 import { db } from "@/db/config";
 import { auth } from "@/lib/auth";
@@ -133,7 +140,7 @@ export async function getDebts(budgetAccountId?: string) {
 
   // Group payments by debt
   const debtMap = new Map<string, Debt>();
-  
+
   debtsWithPayments.forEach((row) => {
     if (!debtMap.has(row.id)) {
       debtMap.set(row.id, {
@@ -178,7 +185,10 @@ export async function getDebts(budgetAccountId?: string) {
  * @returns Promise<{id: string}> - Object containing the ID of the created debt
  * @throws Error - If user is not authenticated or budget account not found
  */
-export async function createDebt(data: CreateDebtInput, budgetAccountId?: string) {
+export async function createDebt(
+  data: CreateDebtInput,
+  budgetAccountId?: string,
+) {
   // Get the current user session
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
@@ -231,7 +241,10 @@ export async function createDebt(data: CreateDebtInput, budgetAccountId?: string
  * @returns Promise<{id: string}> - Object containing the ID of the updated debt
  * @throws Error - If user is not authenticated or debt not found
  */
-export async function updateDebt(data: UpdateDebtInput, budgetAccountId?: string) {
+export async function updateDebt(
+  data: UpdateDebtInput,
+  budgetAccountId?: string,
+) {
   // Get the current user session
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
@@ -249,12 +262,7 @@ export async function updateDebt(data: UpdateDebtInput, budgetAccountId?: string
   const existingDebt = await db
     .select()
     .from(debts)
-    .where(
-      and(
-        eq(debts.id, data.id),
-        eq(debts.budgetAccountId, accountId)
-      )
-    )
+    .where(and(eq(debts.id, data.id), eq(debts.budgetAccountId, accountId)))
     .limit(1);
 
   if (!existingDebt[0]) {
@@ -305,12 +313,7 @@ export async function deleteDebt(id: string, budgetAccountId?: string) {
   const existingDebt = await db
     .select()
     .from(debts)
-    .where(
-      and(
-        eq(debts.id, id),
-        eq(debts.budgetAccountId, accountId)
-      )
-    )
+    .where(and(eq(debts.id, id), eq(debts.budgetAccountId, accountId)))
     .limit(1);
 
   if (!existingDebt[0]) {
@@ -335,7 +338,10 @@ export async function deleteDebt(id: string, budgetAccountId?: string) {
  * @returns Promise<{id: string}> - Object containing the ID of the created payment
  * @throws Error - If user is not authenticated, debt not found, or insufficient balance
  */
-export async function createDebtPayment(data: CreateDebtPaymentInput, budgetAccountId?: string) {
+export async function createDebtPayment(
+  data: CreateDebtPaymentInput,
+  budgetAccountId?: string,
+) {
   // Get the current user session
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
@@ -353,12 +359,7 @@ export async function createDebtPayment(data: CreateDebtPaymentInput, budgetAcco
   const existingDebtArr = await db
     .select()
     .from(debts)
-    .where(
-      and(
-        eq(debts.id, data.debtId),
-        eq(debts.budgetAccountId, accountId)
-      )
-    )
+    .where(and(eq(debts.id, data.debtId), eq(debts.budgetAccountId, accountId)))
     .limit(1);
 
   const existingDebt = existingDebtArr[0];
@@ -392,7 +393,7 @@ export async function createDebtPayment(data: CreateDebtPaymentInput, budgetAcco
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    debtsCategory = { 
+    debtsCategory = {
       id: newCategoryId,
       name: "Debts",
       color: "#8B5CF6",
@@ -400,7 +401,7 @@ export async function createDebtPayment(data: CreateDebtPaymentInput, budgetAcco
       createdAt: new Date(),
       updatedAt: new Date(),
       budgetAccountId: accountId,
-      icon: "banknotes"
+      icon: "banknotes",
     };
   }
 
@@ -435,36 +436,48 @@ export async function createDebtPayment(data: CreateDebtPaymentInput, budgetAcco
   // Advance due date only if payment is for the current due period
   const paymentDate = new Date(data.date);
   const dueDate = new Date(existingDebt.dueDate);
-  const lastPaymentMonth = existingDebt.lastPaymentMonth ? new Date(existingDebt.lastPaymentMonth) : null;
-  const paymentMonth = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), 1);
+  const lastPaymentMonth = existingDebt.lastPaymentMonth
+    ? new Date(existingDebt.lastPaymentMonth)
+    : null;
+  const paymentMonth = new Date(
+    paymentDate.getFullYear(),
+    paymentDate.getMonth(),
+    1,
+  );
   const dueMonth = new Date(dueDate.getFullYear(), dueDate.getMonth(), 1);
 
   // Advance due date if:
   // 1. Payment is made before or on the due date, OR
   // 2. Payment is made for the current due period (same month as due date)
   // AND not already paid for this month
-  const shouldAdvanceDueDate = (
+  const shouldAdvanceDueDate =
     (paymentDate <= dueDate || paymentMonth.getTime() === dueMonth.getTime()) &&
-    (!lastPaymentMonth || lastPaymentMonth.getTime() !== paymentMonth.getTime())
-  );
+    (!lastPaymentMonth ||
+      lastPaymentMonth.getTime() !== paymentMonth.getTime());
 
   if (shouldAdvanceDueDate) {
     // Advance due date by one month
     const nextDueDate = new Date(dueDate);
     nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-    await db.update(debts).set({
-      dueDate: nextDueDate,
-      lastPaymentMonth: paymentMonth,
-      balance: newBalance.toString(),
-      updatedAt: new Date(),
-    }).where(eq(debts.id, data.debtId));
+    await db
+      .update(debts)
+      .set({
+        dueDate: nextDueDate,
+        lastPaymentMonth: paymentMonth,
+        balance: newBalance.toString(),
+        updatedAt: new Date(),
+      })
+      .where(eq(debts.id, data.debtId));
   } else {
     // Just update balance
-    await db.update(debts).set({
-      balance: newBalance.toString(),
-      updatedAt: new Date(),
-    }).where(eq(debts.id, data.debtId));
+    await db
+      .update(debts)
+      .set({
+        balance: newBalance.toString(),
+        updatedAt: new Date(),
+      })
+      .where(eq(debts.id, data.debtId));
   }
 
   return { id: data.debtId };
-} 
+}

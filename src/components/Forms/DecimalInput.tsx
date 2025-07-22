@@ -83,7 +83,7 @@ const DecimalInput = forwardRef<HTMLInputElement, DecimalInputProps>(
   ) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
-      
+
       // Allow empty string
       if (inputValue === "") {
         onChange("");
@@ -92,7 +92,7 @@ const DecimalInput = forwardRef<HTMLInputElement, DecimalInputProps>(
 
       // Only allow numbers and one decimal point
       const cleanValue = inputValue.replace(/[^0-9.]/g, "");
-      
+
       // Handle multiple decimal points - keep only the first one
       const parts = cleanValue.split(".");
       if (parts.length > 2) {
@@ -103,7 +103,8 @@ const DecimalInput = forwardRef<HTMLInputElement, DecimalInputProps>(
 
       // Limit decimal places
       if (parts.length === 2 && parts[1].length > maxDecimalPlaces) {
-        const formattedValue = parts[0] + "." + parts[1].slice(0, maxDecimalPlaces);
+        const formattedValue =
+          parts[0] + "." + parts[1].slice(0, maxDecimalPlaces);
         onChange(formattedValue);
         return;
       }
@@ -199,4 +200,4 @@ const DecimalInput = forwardRef<HTMLInputElement, DecimalInputProps>(
 
 DecimalInput.displayName = "DecimalInput";
 
-export default DecimalInput; 
+export default DecimalInput;

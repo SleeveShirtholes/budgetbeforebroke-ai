@@ -9,7 +9,12 @@ import { Debt } from "@/types/debt";
 
 interface DebtFormProps {
   debt?: Debt;
-  onSubmit: (data: Omit<DebtFormData, 'balance' | 'interestRate'> & { balance: number; interestRate: number }) => void;
+  onSubmit: (
+    data: Omit<DebtFormData, "balance" | "interestRate"> & {
+      balance: number;
+      interestRate: number;
+    },
+  ) => void;
   isLoading?: boolean;
 }
 
@@ -34,27 +39,33 @@ export default function DebtForm({
     defaultValues: {
       name: debt?.name || "",
       balance: debt?.balance !== undefined ? debt.balance.toString() : "",
-      interestRate: debt?.interestRate !== undefined ? debt.interestRate.toString() : "",
-      dueDate: debt?.dueDate ? new Date(debt.dueDate).toISOString().slice(0, 10) : "",
+      interestRate:
+        debt?.interestRate !== undefined ? debt.interestRate.toString() : "",
+      dueDate: debt?.dueDate
+        ? new Date(debt.dueDate).toISOString().slice(0, 10)
+        : "",
     },
   });
 
   const watchedValues = watch();
 
-  const handleFormSubmit = (data: DebtFormData & { balance: string; interestRate: string }) => {
+  const handleFormSubmit = (
+    data: DebtFormData & { balance: string; interestRate: string },
+  ) => {
     // Convert string values to numbers, fallback to 0 if blank
     onSubmit({
       ...data,
       balance: data.balance === "" ? 0 : parseFloat(data.balance),
-      interestRate: data.interestRate === "" ? 0 : parseFloat(data.interestRate),
+      interestRate:
+        data.interestRate === "" ? 0 : parseFloat(data.interestRate),
     });
   };
 
   return (
-    <form 
-      id="debt-form" 
-      className="space-y-4" 
-      role="form" 
+    <form
+      id="debt-form"
+      className="space-y-4"
+      role="form"
       onSubmit={handleSubmit(handleFormSubmit)}
     >
       <TextField

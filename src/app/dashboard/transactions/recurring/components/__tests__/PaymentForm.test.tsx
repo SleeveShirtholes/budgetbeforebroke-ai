@@ -38,7 +38,7 @@ describe("PaymentForm", () => {
         expect.objectContaining({
           amount: 100.5,
           note: "Test payment",
-        })
+        }),
       );
       // Check that date is a valid ISO string
       const submitted = mockOnSubmit.mock.calls[0][0];
@@ -97,7 +97,9 @@ describe("PaymentForm", () => {
     fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText(/payment amount must be greater than 0/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/payment amount must be greater than 0/i),
+      ).toBeInTheDocument();
     });
   });
 
@@ -130,7 +132,9 @@ describe("PaymentForm", () => {
     fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(screen.getByText(/payment amount must be less than 1 billion/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/payment amount must be less than 1 billion/i),
+      ).toBeInTheDocument();
     });
   });
 });

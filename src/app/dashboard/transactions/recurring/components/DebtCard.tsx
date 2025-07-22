@@ -130,14 +130,17 @@ export default function DebtCard({
                     key: "date",
                     header: "Date",
                     accessor: (row) =>
-                      new Date((row as unknown as DebtPayment).date).toLocaleDateString(),
+                      new Date(
+                        (row as unknown as DebtPayment).date,
+                      ).toLocaleDateString(),
                     sortable: true,
                     filterable: true,
                   },
                   {
                     key: "amount",
                     header: "Amount",
-                    accessor: (row) => `$${(row as unknown as DebtPayment).amount.toLocaleString()}`,
+                    accessor: (row) =>
+                      `$${(row as unknown as DebtPayment).amount.toLocaleString()}`,
                     sortable: true,
                     filterable: true,
                   },

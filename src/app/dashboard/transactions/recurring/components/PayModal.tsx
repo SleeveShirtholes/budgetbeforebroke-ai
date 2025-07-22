@@ -29,19 +29,19 @@ export default function PayModal({
       maxWidth="sm"
       footerButtons={
         <div className="flex gap-2">
-          <Button 
-            type="button" 
-            onClick={onClose} 
-            variant="outline" 
+          <Button
+            type="button"
+            onClick={onClose}
+            variant="outline"
             size="sm"
             disabled={isLoading}
           >
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            form="pay-form" 
-            variant="primary" 
+          <Button
+            type="submit"
+            form="pay-form"
+            variant="primary"
             size="sm"
             disabled={isLoading}
             isLoading={isLoading}
@@ -51,10 +51,7 @@ export default function PayModal({
         </div>
       }
     >
-      <PaymentForm
-        onSubmit={onSubmit}
-        isLoading={isLoading}
-      />
+      <PaymentForm onSubmit={onSubmit} isLoading={isLoading} />
     </Modal>
   );
 }

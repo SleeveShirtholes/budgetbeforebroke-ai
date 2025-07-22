@@ -7,7 +7,12 @@ import DebtForm from "./DebtForm";
 interface AddEditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<DebtFormData, 'balance' | 'interestRate'> & { balance: number; interestRate: number }) => void;
+  onSubmit: (
+    data: Omit<DebtFormData, "balance" | "interestRate"> & {
+      balance: number;
+      interestRate: number;
+    },
+  ) => void;
   editingDebt: Debt | null;
   isLoading?: boolean;
 }
@@ -32,19 +37,19 @@ export default function AddEditModal({
       maxWidth="md"
       footerButtons={
         <div className="flex gap-2">
-          <Button 
-            type="button" 
-            onClick={onClose} 
-            variant="outline" 
+          <Button
+            type="button"
+            onClick={onClose}
+            variant="outline"
             size="sm"
             disabled={isLoading}
           >
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            form="debt-form" 
-            variant="primary" 
+          <Button
+            type="submit"
+            form="debt-form"
+            variant="primary"
             size="sm"
             disabled={isLoading}
             isLoading={isLoading}

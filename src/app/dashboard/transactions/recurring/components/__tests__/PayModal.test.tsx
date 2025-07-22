@@ -13,11 +13,7 @@ describe("PayModal", () => {
 
   it("renders correctly with initial values", () => {
     render(
-      <PayModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-      />,
+      <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
     );
 
     expect(screen.getByText("Pay Recurring")).toBeInTheDocument();
@@ -27,11 +23,7 @@ describe("PayModal", () => {
 
   it("calls onClose when cancel button is clicked", async () => {
     render(
-      <PayModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-      />,
+      <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
     );
 
     const cancelButton = screen.getByText("Cancel");
@@ -42,11 +34,7 @@ describe("PayModal", () => {
 
   it("renders PaymentForm with correct props", () => {
     render(
-      <PayModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-      />,
+      <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
     );
 
     // Check if form fields are rendered
@@ -57,11 +45,7 @@ describe("PayModal", () => {
 
   it("renders form with default values", () => {
     render(
-      <PayModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-      />,
+      <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
     );
 
     const amountInput = screen.getByLabelText(/amount/i);
@@ -72,7 +56,7 @@ describe("PayModal", () => {
     expect(amountInput).toBeInTheDocument();
     expect(dateInput).toBeInTheDocument();
     expect(noteInput).toBeInTheDocument();
-    
+
     // Amount should be empty by default
     expect(amountInput).toHaveValue("");
     // Note should be empty by default
@@ -81,11 +65,7 @@ describe("PayModal", () => {
 
   it("calls onSubmit when Record Payment button is clicked with valid data", async () => {
     render(
-      <PayModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-      />,
+      <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
     );
 
     // Fill in required fields
