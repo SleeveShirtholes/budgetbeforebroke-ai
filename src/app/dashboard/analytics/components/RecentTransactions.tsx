@@ -3,7 +3,7 @@
 import Card from "@/components/Card";
 import Table from "@/components/Table/Table";
 import { ColumnDef } from "@/components/Table/types";
-import { Transaction } from "@/types/transaction";
+import { Transaction } from "@/app/actions/transaction";
 import { format } from "date-fns";
 
 /**
@@ -48,7 +48,7 @@ export default function RecentTransactions({
       accessor: (row: Transaction) => format(new Date(row.date), "MMM d, yyyy"),
     },
     {
-      key: "merchant",
+      key: "merchantName",
       header: "Merchant",
       sortable: true,
       filterable: true,
@@ -72,10 +72,11 @@ export default function RecentTransactions({
       ),
     },
     {
-      key: "category",
+      key: "categoryName",
       header: "Category",
       sortable: true,
       filterable: true,
+      accessor: (row: Transaction) => row.categoryName || "Uncategorized",
     },
   ];
 

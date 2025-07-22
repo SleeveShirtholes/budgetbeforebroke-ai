@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 
 import { ColumnDef } from "@/components/Table/types";
-import { Transaction } from "@/types/transaction";
+import { Transaction } from "@/app/actions/transaction";
 import { format } from "date-fns";
 import RecentTransactions from "../RecentTransactions";
 
@@ -34,27 +34,37 @@ describe("RecentTransactions", () => {
   const mockTransactions: Transaction[] = [
     {
       id: "1",
-      date: "2024-03-15",
-      description: "Grocery shopping",
-      merchant: "Grocery Store",
-      merchantLocation: "Local Store",
+      budgetAccountId: "account-1",
+      categoryId: "category-1",
+      createdByUserId: "user-1",
       amount: 50.25,
+      description: "Grocery shopping",
+      date: new Date("2024-03-15"),
       type: "expense",
-      category: "Food",
-      createdAt: "2024-03-15T10:00:00Z",
-      updatedAt: "2024-03-15T10:00:00Z",
+      status: "completed",
+      merchantName: "Grocery Store",
+      plaidCategory: null,
+      pending: false,
+      createdAt: new Date("2024-03-15T10:00:00Z"),
+      updatedAt: new Date("2024-03-15T10:00:00Z"),
+      categoryName: "Food",
     },
     {
       id: "2",
-      date: "2024-03-14",
-      description: "Monthly salary",
-      merchant: "Employer",
-      merchantLocation: "Office",
+      budgetAccountId: "account-1",
+      categoryId: "category-2",
+      createdByUserId: "user-1",
       amount: 3000.0,
+      description: "Monthly salary",
+      date: new Date("2024-03-14"),
       type: "income",
-      category: "Income",
-      createdAt: "2024-03-14T09:00:00Z",
-      updatedAt: "2024-03-14T09:00:00Z",
+      status: "completed",
+      merchantName: "Employer",
+      plaidCategory: null,
+      pending: false,
+      createdAt: new Date("2024-03-14T09:00:00Z"),
+      updatedAt: new Date("2024-03-14T09:00:00Z"),
+      categoryName: "Income",
     },
   ];
 
@@ -75,7 +85,17 @@ describe("RecentTransactions", () => {
     expect(table).toBeInTheDocument();
 
     const tableData = screen.getByTestId("table-data");
-    expect(JSON.parse(tableData.textContent || "")).toEqual(mockTransactions);
+    const serializedData = JSON.parse(tableData.textContent || "");
+
+    // Convert Date objects to strings for comparison since JSON.stringify converts them
+    const expectedSerializedData = mockTransactions.map((transaction) => ({
+      ...transaction,
+      date: transaction.date.toISOString(),
+      createdAt: transaction.createdAt.toISOString(),
+      updatedAt: transaction.updatedAt.toISOString(),
+    }));
+
+    expect(serializedData).toEqual(expectedSerializedData);
 
     const tableColumns = screen.getByTestId("table-columns");
     const columns = JSON.parse(tableColumns.textContent || "");
@@ -83,9 +103,9 @@ describe("RecentTransactions", () => {
     // Verify column structure
     expect(columns).toHaveLength(4);
     expect(columns[0].key).toBe("date");
-    expect(columns[1].key).toBe("merchant");
+    expect(columns[1].key).toBe("merchantName");
     expect(columns[2].key).toBe("amount");
-    expect(columns[3].key).toBe("category");
+    expect(columns[3].key).toBe("categoryName");
 
     // Verify column configurations
     columns.forEach((column: { sortable: boolean; filterable: boolean }) => {

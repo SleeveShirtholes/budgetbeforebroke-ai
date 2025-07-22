@@ -1,8 +1,8 @@
 import HighlightedText from "@/components/Table/HighlightedText";
-import { RecurringDebt } from "@/types/debt";
+import { Debt } from "@/types/debt";
 
 interface DebtDetailsProps {
-  debt: RecurringDebt;
+  debt: Debt;
   search: string;
 }
 
@@ -23,7 +23,10 @@ export default function DebtDetails({ debt, search }: DebtDetailsProps) {
             Balance
           </span>
           <span className="text-base font-semibold text-gray-900">
-            <HighlightedText text={`$${debt.balance}`} highlight={search} />
+            <HighlightedText
+              text={`$${debt.balance.toLocaleString()}`}
+              highlight={search}
+            />
           </span>
         </div>
         <div className="hidden sm:block h-8 border-l border-gray-200 mx-2"></div>

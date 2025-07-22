@@ -23,8 +23,17 @@ describe("RootLayout", () => {
     expect(body.type).toBe("body");
     expect(body.props.className).toBe("bg-pastel-gradient inter-font");
 
+    // Verify the SWRConfig wrapper
+    const swrConfig = body.props.children;
+    expect(swrConfig.type.name).toBe("SWRConfig");
+    expect(swrConfig.props.value).toEqual({
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      dedupingInterval: 2000,
+    });
+
     // Verify the ToastProvider and main content
-    const toastProvider = body.props.children;
+    const toastProvider = swrConfig.props.children;
     expect(toastProvider.type.name).toBe("ToastProvider");
     expect(toastProvider.props.defaultPosition).toBe("top-center");
 

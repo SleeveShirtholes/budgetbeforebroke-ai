@@ -5,9 +5,6 @@ import PayModal from "../PayModal";
 
 const mockOnClose = jest.fn();
 const mockOnSubmit = jest.fn();
-const mockOnAmountChange = jest.fn();
-const mockOnDateChange = jest.fn();
-const mockOnNoteChange = jest.fn();
 
 describe("PayModal", () => {
   beforeEach(() => {
@@ -16,37 +13,17 @@ describe("PayModal", () => {
 
   it("renders correctly with initial values", () => {
     render(
-      <PayModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-        amount="100"
-        date="2024-04-01"
-        note="Test payment"
-        onAmountChange={mockOnAmountChange}
-        onDateChange={mockOnDateChange}
-        onNoteChange={mockOnNoteChange}
-      />,
+      <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
     );
 
     expect(screen.getByText("Pay Recurring")).toBeInTheDocument();
     expect(screen.getByText("Cancel")).toBeInTheDocument();
-    expect(screen.getByText("Pay")).toBeInTheDocument();
+    expect(screen.getByText("Record Payment")).toBeInTheDocument();
   });
 
   it("calls onClose when cancel button is clicked", async () => {
     render(
-      <PayModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-        amount="100"
-        date="2024-04-01"
-        note="Test payment"
-        onAmountChange={mockOnAmountChange}
-        onDateChange={mockOnDateChange}
-        onNoteChange={mockOnNoteChange}
-      />,
+      <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
     );
 
     const cancelButton = screen.getByText("Cancel");
@@ -57,17 +34,7 @@ describe("PayModal", () => {
 
   it("renders PaymentForm with correct props", () => {
     render(
-      <PayModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-        amount="100"
-        date="2024-04-01"
-        note="Test payment"
-        onAmountChange={mockOnAmountChange}
-        onDateChange={mockOnDateChange}
-        onNoteChange={mockOnNoteChange}
-      />,
+      <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
     );
 
     // Check if form fields are rendered
@@ -76,48 +43,57 @@ describe("PayModal", () => {
     expect(screen.getByLabelText(/note/i)).toBeInTheDocument();
   });
 
-  it("passes correct initial values to PaymentForm", () => {
+  it("renders form with default values", () => {
     render(
-      <PayModal
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-        amount="100"
-        date="2024-04-01"
-        note="Test payment"
-        onAmountChange={mockOnAmountChange}
-        onDateChange={mockOnDateChange}
-        onNoteChange={mockOnNoteChange}
-      />,
+      <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
     );
 
     const amountInput = screen.getByLabelText(/amount/i);
     const dateInput = screen.getByLabelText(/date/i);
     const noteInput = screen.getByLabelText(/note/i);
 
-    expect(amountInput).toHaveValue("100");
-    expect(dateInput).toHaveValue("Apr 1, 2024");
-    expect(noteInput).toHaveValue("Test payment");
+    // Check that inputs exist and have default values
+    expect(amountInput).toBeInTheDocument();
+    expect(dateInput).toBeInTheDocument();
+    expect(noteInput).toBeInTheDocument();
+
+    // Amount should be empty by default
+    expect(amountInput).toHaveValue("");
+    // Note should be empty by default
+    expect(noteInput).toHaveValue("");
   });
 
-  it("calls onSubmit when Pay button is clicked", async () => {
+  it("calls onSubmit when Record Payment button is clicked with valid data", async () => {
+    render(
+      <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
+    );
+
+    // Fill in required fields
+    const amountInput = screen.getByLabelText(/amount/i);
+    await userEvent.type(amountInput, "100");
+    // Date is pre-filled, so we can leave it as is
+
+    const payButton = screen.getByRole("button", { name: /record payment/i });
+    await userEvent.click(payButton);
+
+    expect(mockOnSubmit).toHaveBeenCalled();
+  });
+
+  it("passes isLoading prop correctly", () => {
     render(
       <PayModal
         isOpen={true}
         onClose={mockOnClose}
         onSubmit={mockOnSubmit}
-        amount="100"
-        date="2024-04-01"
-        note="Test payment"
-        onAmountChange={mockOnAmountChange}
-        onDateChange={mockOnDateChange}
-        onNoteChange={mockOnNoteChange}
+        isLoading={true}
       />,
     );
 
-    const payButton = screen.getByText("Pay");
-    await userEvent.click(payButton);
+    // Find the actual button elements
+    const cancelButton = screen.getByRole("button", { name: /cancel/i });
+    const payButton = screen.getByRole("button", { name: /record payment/i });
 
-    expect(mockOnSubmit).toHaveBeenCalled();
+    expect(cancelButton).toBeDisabled();
+    expect(payButton).toBeDisabled();
   });
 });

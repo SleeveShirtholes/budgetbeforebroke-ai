@@ -1,7 +1,6 @@
 import Card from "@/components/Card";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import MonthlySpendingChart from "@/components/MonthlySpendingChart";
-import { TransactionCategory } from "@/types/transaction";
 
 // Defines the possible view modes for the spending chart
 type ChartViewMode = "total" | "byCategory" | "incomeVsExpense";
@@ -24,7 +23,7 @@ interface SpendingChartProps {
     }>;
   };
   chartViewMode: ChartViewMode;
-  selectedCategories: Set<TransactionCategory>;
+  selectedCategories: Set<string>;
   onChartViewModeChange: (mode: ChartViewMode) => void;
 }
 
@@ -40,7 +39,7 @@ interface SpendingChartProps {
  * @param {Array} props.chartData.data - Array of monthly spending data points
  * @param {Array} props.chartData.datasets - Array of chart datasets with styling properties
  * @param {ChartViewMode} props.chartViewMode - Current view mode of the chart
- * @param {Set<TransactionCategory>} props.selectedCategories - Set of selected transaction categories
+ * @param {Set<string>} props.selectedCategories - Set of selected transaction categories
  * @param {Function} props.onChartViewModeChange - Callback function to handle view mode changes
  *
  * @returns {JSX.Element} A chart component with view mode controls

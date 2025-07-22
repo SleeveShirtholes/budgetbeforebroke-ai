@@ -60,6 +60,56 @@ describe("Table Component", () => {
     });
   });
 
+  it("shows expansion column when detailPanel is provided", () => {
+    const detailPanel = (row: TestData) => (
+      <div data-testid={`detail-${row.id}`}>Detail for {row.name}</div>
+    );
+
+    render(
+      <Table data={mockData} columns={columns} detailPanel={detailPanel} />,
+    );
+
+    // Check that the expansion column is present in the header
+    const headerCells = screen.getAllByRole("columnheader");
+    expect(headerCells).toHaveLength(columns.length + 1); // +1 for expansion column
+  });
+
+  it("hides expansion column when detailPanel is not provided", () => {
+    render(<Table data={mockData} columns={columns} />);
+
+    // Check that the expansion column is not present in the header
+    const headerCells = screen.getAllByRole("columnheader");
+    expect(headerCells).toHaveLength(columns.length); // No expansion column
+  });
+
+  it("handles detail panel expansion", () => {
+    const detailPanel = (row: TestData) => (
+      <div data-testid={`detail-${row.id}`}>Detail for {row.name}</div>
+    );
+
+    render(
+      <Table data={mockData} columns={columns} detailPanel={detailPanel} />,
+    );
+
+    // Initially, no detail panels should be visible
+    expect(screen.queryByTestId("detail-1")).not.toBeInTheDocument();
+
+    // Click on the first row to expand it
+    const firstRow = screen.getByText("John Doe").closest("tr");
+    if (!firstRow) {
+      throw new Error("Could not find first row");
+    }
+    fireEvent.click(firstRow);
+
+    // Detail panel should now be visible
+    expect(screen.getByTestId("detail-1")).toBeInTheDocument();
+    expect(screen.getByText("Detail for John Doe")).toBeInTheDocument();
+
+    // Click again to collapse
+    fireEvent.click(firstRow);
+    expect(screen.queryByTestId("detail-1")).not.toBeInTheDocument();
+  });
+
   it("handles basic filtering", async () => {
     render(<Table data={mockData} columns={columns} />);
 

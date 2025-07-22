@@ -41,6 +41,7 @@ const Spinner: React.FC<SpinnerProps> = ({ size = "md", className = "" }) => {
         className={`${sizeClasses[size]} animate-spin rounded-full border-4 border-gray-200 border-t-primary-600`}
         role="status"
         aria-label="loading"
+        data-testid="spinner"
       />
     </div>
   );
