@@ -374,6 +374,10 @@ export async function createDebtPayment(
     throw new Error("Payment amount cannot exceed current balance");
   }
 
+  if (paymentAmount <= 0) {
+    throw new Error("Payment amount must be positive");
+  }
+
   // Calculate new balance
   const newBalance = currentBalance - paymentAmount;
 
@@ -423,7 +427,7 @@ export async function createDebtPayment(
     budgetAccountId: accountId,
     categoryId: debtsCategory.id,
     createdByUserId: sessionResult.user.id,
-    amount: (-Math.abs(paymentAmount)).toString(), // negative for expense, convert to string
+    amount: (-paymentAmount).toString(), // negative for expense, convert to string
     description: `Debt payment: ${existingDebt.name}`,
     date: new Date(data.date),
     type: "expense",
