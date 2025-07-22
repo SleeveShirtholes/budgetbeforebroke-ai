@@ -5,6 +5,7 @@ import { ToastProvider } from "@/components/Toast";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
+import { SWRConfig } from "swr";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,11 +28,19 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={`bg-pastel-gradient ${inter.className}`}>
-        <ToastProvider defaultPosition="top-center">
-          <Suspense fallback={<Spinner size="md" />}>
-            <main className="pt-0">{children}</main>
-          </Suspense>
-        </ToastProvider>
+        <SWRConfig
+          value={{
+            revalidateOnFocus: false,
+            revalidateOnReconnect: true,
+            dedupingInterval: 2000,
+          }}
+        >
+          <ToastProvider defaultPosition="top-center">
+            <Suspense fallback={<Spinner size="md" />}>
+              <main className="pt-0">{children}</main>
+            </Suspense>
+          </ToastProvider>
+        </SWRConfig>
       </body>
     </html>
   );

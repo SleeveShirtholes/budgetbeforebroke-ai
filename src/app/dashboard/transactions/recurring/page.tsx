@@ -4,9 +4,13 @@ import Button from "@/components/Button";
 import Card from "@/components/Card";
 import SearchInput from "@/components/Forms/SearchInput";
 import { useToast } from "@/components/Toast";
-import { RecurringDebt } from "@/types/debt";
+import Spinner from "@/components/Spinner";
+import { Debt } from "@/types/debt";
+import { DebtFormData, DebtPaymentFormData } from "@/lib/schemas/debt";
+import { useDebts } from "@/hooks/useDebts";
+import { useBudgetAccount } from "@/stores/budgetAccountStore";
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import AddEditModal from "./components/AddEditModal";
 import DebtCard from "./components/DebtCard";
 import DeleteModal from "./components/DeleteModal";
@@ -15,7 +19,8 @@ import PayModal from "./components/PayModal";
 /**
  * RecurringPage Component
  *
- * A page component that manages recurring debts and payments. It provides functionality to:
+ * A page component that manages recurring debts and payments using SWR for data fetching
+ * and server actions for database operations. It provides functionality to:
  * - View a list of recurring debts with their details
  * - Add new recurring debts
  * - Edit existing recurring debts
@@ -23,166 +28,103 @@ import PayModal from "./components/PayModal";
  * - Record payments against debts
  * - Search and filter debts
  *
- * The component maintains local state for debts and various modal interactions.
- * Each debt includes details like name, balance, interest rate, due date, and payment history.
+ * The component uses SWR for data management and react-hook-form with Zod validation
+ * for form handling. Each debt includes details like name, balance, interest rate, 
+ * due date, and payment history.
  */
 function RecurringPage() {
-  // State for managing the list of recurring debts
-  const [debts, setDebts] = useState<RecurringDebt[]>([
-    {
-      id: "1",
-      name: "Car Loan",
-      balance: "15,000",
-      interestRate: "4.5",
-      dueDate: "2025-05-07",
-      payments: [
-        {
-          id: "p1",
-          amount: "300",
-          date: "2024-05-01",
-          note: "Monthly payment",
-        },
-        {
-          id: "p2",
-          amount: "300",
-          date: "2024-04-01",
-          note: "Monthly payment",
-        },
-      ],
-    },
-    {
-      id: "2",
-      name: "Credit Card",
-      balance: "3,200",
-      interestRate: "19.99",
-      dueDate: "2024-07-15",
-      payments: [
-        {
-          id: "p3",
-          amount: "150",
-          date: "2024-05-03",
-          note: "Minimum payment",
-        },
-      ],
-    },
-    {
-      id: "3",
-      name: "Student Loan",
-      balance: "28,000",
-      interestRate: "6.8",
-      dueDate: "2026-09-01",
-      payments: [],
-    },
-    {
-      id: "4",
-      name: "Personal Loan",
-      balance: "7,500",
-      interestRate: "8.2",
-      dueDate: "2024-12-20",
-      payments: [{ id: "p4", amount: "200", date: "2024-05-05" }],
-    },
-    {
-      id: "5",
-      name: "Home Equity Line",
-      balance: "12,000",
-      interestRate: "5.25",
-      dueDate: "2025-03-10",
-      payments: [],
-    },
-  ]);
-  // State for managing the editing mode and form data
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Omit<RecurringDebt, "id">>({
-    name: "",
-    balance: "",
-    interestRate: "",
-    dueDate: "",
-    payments: [],
-  });
-  // State for managing various modal interactions
+  // Get the selected budget account
+  const { selectedAccount, isLoading: isAccountsLoading } = useBudgetAccount();
+
+  // SWR hook for managing debt data
+  const { 
+    debts, 
+    error, 
+    isLoading, 
+    addDebt, 
+    updateDebtById, 
+    removeDebt, 
+    addPayment 
+  } = useDebts(selectedAccount?.id);
+
+  // State for managing modal interactions
   const [modalOpen, setModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [payingDebtId, setPayingDebtId] = useState<string | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingDebtId, setDeletingDebtId] = useState<string | null>(null);
-  const [paymentForm, setPaymentForm] = useState<{
-    amount: string;
-    date: string;
-    note: string;
-  }>({
-    amount: "",
-    date: new Date().toISOString().slice(0, 10),
-    note: "",
-  });
+  const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { showToast } = useToast();
 
-  const openModal = (debt?: RecurringDebt) => {
+  // Filter debts based on search query
+  const filteredDebts = useMemo(() => {
+    if (!debts) return [];
+    
+    return debts.filter((debt) => {
+      const query = search.toLowerCase();
+      return (
+        debt.name.toLowerCase().includes(query) ||
+        debt.balance.toString().includes(query) ||
+        debt.interestRate.toString().includes(query) ||
+        new Date(debt.dueDate).toLocaleDateString().toLowerCase().includes(query)
+      );
+    });
+  }, [debts, search]);
+
+  const openModal = (debt?: Debt) => {
     if (debt) {
-      setFormData({
-        name: debt.name,
-        balance: debt.balance,
-        interestRate: debt.interestRate,
-        dueDate: debt.dueDate,
-        payments: debt.payments || [],
-      });
-      setEditingId(debt.id);
+      setEditingDebt(debt);
     } else {
-      setFormData({
-        name: "",
-        balance: "",
-        interestRate: "",
-        dueDate: "",
-        payments: [],
-      });
-      setEditingId(null);
+      setEditingDebt(null);
     }
     setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
-    setEditingId(null);
-    setFormData({
-      name: "",
-      balance: "",
-      interestRate: "",
-      dueDate: "",
-      payments: [],
-    });
+    setEditingDebt(null);
   };
 
-  const handleSubmit = (e: React.FormEvent, addAnother: boolean = false) => {
-    e.preventDefault();
+  const handleSubmit = async (
+    data: Omit<DebtFormData, 'balance' | 'interestRate'> & { balance: number; interestRate: number }
+  ) => {
+    if (!selectedAccount) {
+      showToast("No budget account selected", { type: "error" });
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      if (editingId) {
-        setDebts(
-          debts.map((debt) =>
-            debt.id === editingId ? { ...formData, id: editingId } : debt,
-          ),
-        );
-        setEditingId(null);
-        setModalOpen(false);
-        showToast("Recurring updated successfully!", { type: "success" });
-      } else {
-        setDebts([...debts, { ...formData, id: crypto.randomUUID() }]);
-        if (!addAnother) {
-          setModalOpen(false);
+      if (editingDebt) {
+        const result = await updateDebtById({
+          id: editingDebt.id,
+          ...data,
+        });
+        if (result.success) {
+          showToast("Debt updated successfully!", { type: "success" });
+          closeModal();
+        } else {
+          showToast("Failed to update debt. Please try again.", { type: "error" });
         }
-        showToast("Recurring added successfully!", { type: "success" });
+      } else {
+        const result = await addDebt({
+          ...data,
+        });
+        if (result.success) {
+          showToast("Debt added successfully!", { type: "success" });
+          closeModal();
+        } else {
+          showToast("Failed to add debt. Please try again.", { type: "error" });
+        }
       }
-      setFormData({
-        name: "",
-        balance: "",
-        interestRate: "",
-        dueDate: "",
-        payments: [],
-      });
     } catch (err) {
-      console.error("Error saving recurring:", err);
-      showToast("Failed to save recurring. Please try again.", {
-        type: "error",
-      });
+      console.error("Error saving debt:", err);
+      showToast("Failed to save debt. Please try again.", { type: "error" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -191,12 +133,25 @@ function RecurringPage() {
     setDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (!deletingDebtId) return;
-    setDebts(debts.filter((debt) => debt.id !== deletingDebtId));
-    showToast("Recurring deleted successfully!", { type: "success" });
-    setDeleteModalOpen(false);
-    setDeletingDebtId(null);
+  const confirmDelete = async () => {
+    if (!deletingDebtId || !selectedAccount) return;
+    
+    setIsSubmitting(true);
+    try {
+      const result = await removeDebt(deletingDebtId);
+      if (result.success) {
+        showToast("Debt deleted successfully!", { type: "success" });
+        setDeleteModalOpen(false);
+        setDeletingDebtId(null);
+      } else {
+        showToast("Failed to delete debt. Please try again.", { type: "error" });
+      }
+    } catch (err) {
+      console.error("Error deleting debt:", err);
+      showToast("Failed to delete debt. Please try again.", { type: "error" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const cancelDelete = () => {
@@ -206,62 +161,88 @@ function RecurringPage() {
 
   const openPayModal = (debtId: string) => {
     setPayingDebtId(debtId);
-    setPaymentForm({
-      amount: "",
-      date: new Date().toISOString().slice(0, 10),
-      note: "",
-    });
     setPayModalOpen(true);
   };
 
   const closePayModal = () => {
     setPayModalOpen(false);
     setPayingDebtId(null);
-    setPaymentForm({
-      amount: "",
-      date: new Date().toISOString().slice(0, 10),
-      note: "",
-    });
   };
 
-  const handlePaySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!payingDebtId) return;
-    setDebts((prev) =>
-      prev.map((debt) => {
-        if (debt.id !== payingDebtId) return debt;
-        const newBalance = (
-          parseFloat(debt.balance.replace(/,/g, "")) -
-          parseFloat(paymentForm.amount || "0")
-        ).toLocaleString();
-        return {
-          ...debt,
-          balance: newBalance,
-          payments: [
-            {
-              id: crypto.randomUUID(),
-              amount: paymentForm.amount,
-              date: paymentForm.date,
-              note: paymentForm.note,
-            },
-            ...debt.payments,
-          ],
-        };
-      }),
-    );
-    showToast("Payment successful!", { type: "success" });
-    closePayModal();
+  const handlePaySubmit = async (data: DebtPaymentFormData) => {
+    if (!payingDebtId || !selectedAccount) return;
+    
+    setIsSubmitting(true);
+    try {
+      const result = await addPayment({
+        ...data,
+        debtId: payingDebtId,
+      });
+      if (result.success) {
+        showToast("Payment successful!", { type: "success" });
+        closePayModal();
+      } else {
+        showToast("Failed to record payment. Please try again.", { type: "error" });
+      }
+    } catch (err) {
+      console.error("Error recording payment:", err);
+      showToast("Failed to record payment. Please try again.", { type: "error" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const filteredDebts = debts.filter((debt) => {
-    const query = search.toLowerCase();
+  // Show loading state for accounts
+  if (isAccountsLoading) {
     return (
-      debt.name.toLowerCase().includes(query) ||
-      debt.balance.toLowerCase().includes(query) ||
-      debt.interestRate.toLowerCase().includes(query) ||
-      new Date(debt.dueDate).toLocaleDateString().toLowerCase().includes(query)
+      <div className="max-w-4xl mx-auto">
+        <Card variant="default" padding="lg">
+          <div className="flex items-center justify-center py-8">
+            <Spinner size="md" />
+          </div>
+        </Card>
+      </div>
     );
-  });
+  }
+
+  // Show error state for accounts
+  if (!selectedAccount) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <Card variant="default" padding="lg">
+          <div className="flex items-center justify-center py-8">
+            <div className="text-red-500">No budget account selected</div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show loading state for debts
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <Card variant="default" padding="lg">
+          <div className="flex items-center justify-center py-8">
+            <Spinner size="md" />
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show error state for debts
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <Card variant="default" padding="lg">
+          <div className="flex items-center justify-center py-8">
+            <div className="text-red-500">Error loading debts. Please try again.</div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -279,6 +260,7 @@ function RecurringPage() {
             onClick={() => openModal()}
             variant="primary"
             className="w-full sm:w-auto"
+            disabled={isSubmitting}
           >
             <PlusIcon className="h-5 w-5 mr-2" />
             Add Recurring
@@ -289,7 +271,7 @@ function RecurringPage() {
         <div className="flex flex-col gap-1 mb-6">
           {filteredDebts.length === 0 ? (
             <div className="bg-white/80 shadow rounded-xl px-8 py-8 text-center text-gray-500 border border-gray-200">
-              No recurring found
+              {search ? "No debts found matching your search" : "No debts found"}
             </div>
           ) : (
             filteredDebts.map((debt) => (
@@ -309,9 +291,8 @@ function RecurringPage() {
           isOpen={modalOpen}
           onClose={closeModal}
           onSubmit={handleSubmit}
-          editingId={editingId}
-          formData={formData}
-          onChange={setFormData}
+          editingDebt={editingDebt}
+          isLoading={isSubmitting}
         />
 
         <DeleteModal
@@ -324,16 +305,7 @@ function RecurringPage() {
           isOpen={payModalOpen}
           onClose={closePayModal}
           onSubmit={handlePaySubmit}
-          amount={paymentForm.amount}
-          date={paymentForm.date}
-          note={paymentForm.note}
-          onAmountChange={(value) =>
-            setPaymentForm((f) => ({ ...f, amount: value }))
-          }
-          onDateChange={(date) => setPaymentForm((f) => ({ ...f, date }))}
-          onNoteChange={(value) =>
-            setPaymentForm((f) => ({ ...f, note: value }))
-          }
+          isLoading={isSubmitting}
         />
       </Card>
     </div>

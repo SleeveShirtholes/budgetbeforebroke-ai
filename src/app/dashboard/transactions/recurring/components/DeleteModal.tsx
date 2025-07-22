@@ -5,6 +5,7 @@ interface DeleteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -16,6 +17,7 @@ export default function DeleteModal({
   isOpen,
   onClose,
   onConfirm,
+  isLoading = false,
 }: DeleteModalProps) {
   return (
     <Modal
@@ -28,7 +30,13 @@ export default function DeleteModal({
           <Button type="button" onClick={onClose} variant="outline" size="sm">
             Cancel
           </Button>
-          <Button type="button" onClick={onConfirm} variant="danger" size="sm">
+          <Button 
+            type="button" 
+            onClick={onConfirm} 
+            variant="danger" 
+            size="sm"
+            isLoading={isLoading}
+          >
             Delete
           </Button>
         </div>

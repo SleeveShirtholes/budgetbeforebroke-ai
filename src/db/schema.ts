@@ -415,3 +415,55 @@ export const incomeSources = pgTable("income_source", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// Debt Management
+export const debts = pgTable("debt", {
+  id: text("id").primaryKey(),
+  budgetAccountId: text("budget_account_id")
+    .notNull()
+    .references(() => budgetAccounts.id, { onDelete: "cascade" }),
+  createdByUserId: text("created_by_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  balance: decimal("balance", { precision: 10, scale: 2 }).notNull(),
+  interestRate: decimal("interest_rate", { precision: 5, scale: 2 }).notNull(),
+  dueDate: timestamp("due_date").notNull(),
+  lastPaymentMonth: timestamp("last_payment_month"), // Tracks the last month a payment was made for due date advancement
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Debt Payment Management
+export const debtPayments = pgTable("debt_payment", {
+  id: text("id").primaryKey(),
+  debtId: text("debt_id")
+    .notNull()
+    .references(() => debts.id, { onDelete: "cascade" }),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  date: timestamp("date").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Define relations for debts
+export const debtsRelations = relations(debts, ({ one, many }) => ({
+  budgetAccount: one(budgetAccounts, {
+    fields: [debts.budgetAccountId],
+    references: [budgetAccounts.id],
+  }),
+  createdByUser: one(user, {
+    fields: [debts.createdByUserId],
+    references: [user.id],
+  }),
+  payments: many(debtPayments),
+}));
+
+// Define relations for debt payments
+export const debtPaymentsRelations = relations(debtPayments, ({ one }) => ({
+  debt: one(debts, {
+    fields: [debtPayments.debtId],
+    references: [debts.id],
+  }),
+}));

@@ -1,55 +1,80 @@
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import CustomDatePicker from "@/components/Forms/CustomDatePicker";
-import NumberInput from "@/components/Forms/NumberInput";
+import DecimalInput from "@/components/Forms/DecimalInput";
 import TextField from "@/components/Forms/TextField";
+import { debtPaymentFormSchema, type DebtPaymentFormData } from "@/lib/schemas/debt";
 
 /**
  * Form component for recording a payment on a recurring debt.
- * Handles input for payment amount, date, and optional notes.
+ * Uses react-hook-form with Zod validation for form handling.
  * Provides proper formatting for monetary values and date selection.
  */
 interface PaymentFormProps {
-  amount: string;
-  date: string;
-  note: string;
-  onAmountChange: (value: string) => void;
-  onDateChange: (date: string) => void;
-  onNoteChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (data: DebtPaymentFormData) => void;
+  isLoading?: boolean;
 }
 
 export default function PaymentForm({
-  amount,
-  date,
-  note,
-  onAmountChange,
-  onDateChange,
-  onNoteChange,
   onSubmit,
+  isLoading = false,
 }: PaymentFormProps) {
+  const {
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+  } = useForm<DebtPaymentFormData>({
+    resolver: zodResolver(debtPaymentFormSchema),
+    defaultValues: {
+      amount: undefined,
+      date: new Date().toISOString().slice(0, 10),
+      note: "",
+    },
+  });
+
+  const watchedValues = watch();
+
+  const handleFormSubmit = (data: DebtPaymentFormData) => {
+    onSubmit(data);
+  };
+
   return (
-    <form id="pay-form" onSubmit={onSubmit} className="space-y-4" role="form">
-      <NumberInput
+    <form 
+      id="pay-form" 
+      onSubmit={handleSubmit(handleFormSubmit)} 
+      className="space-y-4" 
+      role="form"
+    >
+      <DecimalInput
         label="Amount"
-        value={amount}
-        onChange={onAmountChange}
+        value={watchedValues.amount?.toString() || ""}
+        onChange={(value) => setValue("amount", parseFloat(value) || 0)}
+        error={errors.amount?.message}
         required
         placeholder="0.00"
         leftIcon={<span className="text-gray-500">$</span>}
         id="amount"
+        disabled={isLoading}
+        maxDecimalPlaces={2}
       />
       <CustomDatePicker
         label="Date"
-        value={date}
-        onChange={onDateChange}
+        value={watchedValues.date || ""}
+        onChange={(date) => setValue("date", date)}
+        error={errors.date?.message}
         required
         id="date"
+        disabled={isLoading}
       />
       <TextField
         label="Note (optional)"
-        value={note}
-        onChange={(e) => onNoteChange(e.target.value)}
+        value={watchedValues.note || ""}
+        onChange={(e) => setValue("note", e.target.value)}
+        error={errors.note?.message}
         placeholder="e.g., Monthly payment"
         id="note"
+        disabled={isLoading}
       />
     </form>
   );

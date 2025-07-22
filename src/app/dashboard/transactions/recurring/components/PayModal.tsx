@@ -1,34 +1,25 @@
 import Button from "@/components/Button";
 import Modal from "@/components/Modal/Modal";
 import PaymentForm from "./PaymentForm";
+import { DebtPaymentFormData } from "@/lib/schemas/debt";
 
 interface PayModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (e: React.FormEvent) => void;
-  amount: string;
-  date: string;
-  note: string;
-  onAmountChange: (value: string) => void;
-  onDateChange: (date: string) => void;
-  onNoteChange: (value: string) => void;
+  onSubmit: (data: DebtPaymentFormData) => void;
+  isLoading?: boolean;
 }
 
 /**
  * Modal component for recording a payment on a recurring debt.
  * Wraps the PaymentForm component with modal functionality.
- * Provides cancel and submit actions for the payment process.
+ * Uses react-hook-form with Zod validation for form handling.
  */
 export default function PayModal({
   isOpen,
   onClose,
   onSubmit,
-  amount,
-  date,
-  note,
-  onAmountChange,
-  onDateChange,
-  onNoteChange,
+  isLoading = false,
 }: PayModalProps) {
   return (
     <Modal
@@ -38,23 +29,31 @@ export default function PayModal({
       maxWidth="sm"
       footerButtons={
         <div className="flex gap-2">
-          <Button type="button" onClick={onClose} variant="outline" size="sm">
+          <Button 
+            type="button" 
+            onClick={onClose} 
+            variant="outline" 
+            size="sm"
+            disabled={isLoading}
+          >
             Cancel
           </Button>
-          <Button type="submit" form="pay-form" variant="primary" size="sm">
-            Pay
+          <Button 
+            type="submit" 
+            form="pay-form" 
+            variant="primary" 
+            size="sm"
+            disabled={isLoading}
+            isLoading={isLoading}
+          >
+            Record Payment
           </Button>
         </div>
       }
     >
       <PaymentForm
-        amount={amount}
-        date={date}
-        note={note}
-        onAmountChange={onAmountChange}
-        onDateChange={onDateChange}
-        onNoteChange={onNoteChange}
         onSubmit={onSubmit}
+        isLoading={isLoading}
       />
     </Modal>
   );
