@@ -467,3 +467,67 @@ export const debtPaymentsRelations = relations(debtPayments, ({ one }) => ({
     references: [debts.id],
   }),
 }));
+
+/**
+ * Support Requests Table
+ * Stores support tickets submitted by users.
+ */
+export const supportRequests = pgTable("support_request", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull(), // e.g., 'Issue', 'Feature Request'
+  status: text("status").notNull(), // e.g., 'Open', 'In Progress', 'Closed'
+  isPublic: boolean("is_public").notNull().default(false),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  upvotes: integer("upvotes").notNull().default(0),
+  downvotes: integer("downvotes").notNull().default(0),
+  lastUpdated: timestamp("last_updated").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/**
+ * Support Comments Table
+ * Stores comments on support requests.
+ */
+export const supportComments = pgTable("support_comment", {
+  id: text("id").primaryKey(),
+  requestId: text("request_id")
+    .notNull()
+    .references(() => supportRequests.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  // Removed userName field; user name can be joined from the user table
+  text: text("text").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
+// Support table relations
+export const supportRequestsRelations = relations(
+  supportRequests,
+  ({ one, many }) => ({
+    user: one(user, {
+      fields: [supportRequests.userId],
+      references: [user.id],
+    }),
+    comments: many(supportComments),
+  }),
+);
+
+export const supportCommentsRelations = relations(
+  supportComments,
+  ({ one }) => ({
+    request: one(supportRequests, {
+      fields: [supportComments.requestId],
+      references: [supportRequests.id],
+    }),
+    user: one(user, {
+      fields: [supportComments.userId],
+      references: [user.id],
+      // User name can be accessed via join with user table
+    }),
+  }),
+);
