@@ -88,7 +88,8 @@ export async function createSupportRequest({
   isPublic: boolean;
   userId: string;
 }) {
-  if (!userId) throw new Error("Not authenticated");
+  if (!userId)
+    throw new Error("Authentication required to create support request");
   const now = new Date();
   const newRequest = {
     id: randomUUID(),

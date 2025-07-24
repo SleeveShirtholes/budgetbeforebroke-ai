@@ -37,11 +37,15 @@ const SupportDetailPanel: React.FC<SupportDetailPanelProps> = ({
   showId = false,
 }) => {
   const [commentLoading, setCommentLoading] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
 
   const handleAddComment = async (comment: string) => {
     setCommentLoading(true);
+    setCommentError(null); // Clear previous error
     try {
       await onAddComment(row.id, comment);
+    } catch {
+      setCommentError("Failed to submit comment. Please try again.");
     } finally {
       setCommentLoading(false);
     }
@@ -166,6 +170,9 @@ const SupportDetailPanel: React.FC<SupportDetailPanelProps> = ({
           <h5 className="text-sm font-semibold text-gray-700 mb-2">
             Add a comment
           </h5>
+          {commentError && (
+            <p className="text-sm text-red-500 mb-2">{commentError}</p>
+          )}
           <AddCommentForm
             onSubmit={handleAddComment}
             loading={commentLoading}

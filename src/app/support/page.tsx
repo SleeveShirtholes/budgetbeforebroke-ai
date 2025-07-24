@@ -5,8 +5,8 @@ import {
   SupportStatus,
   TableSupportRequest,
   supportStatusOptions,
-  SupportCategory,
-  Comment,
+  SupportCategory, // re-add for type assertion
+  // Comment, // removed unused
 } from "./types";
 import React, { useState } from "react";
 import Table, { ColumnDef } from "@/components/Table";
@@ -25,7 +25,10 @@ import {
   downvoteSupportRequest,
   updateSupportRequestStatus,
 } from "@/app/actions/supportRequests";
-import { addSupportComment } from "@/app/actions/supportComments";
+import {
+  addSupportComment,
+  getSupportCommentsForRequests,
+} from "@/app/actions/supportComments";
 import { authClient } from "@/lib/auth-client";
 import Spinner from "@/components/Spinner";
 import { format } from "date-fns";
@@ -47,6 +50,7 @@ import { NewRequestFormData } from "./components/NewRequestModal";
  * - newRequest: Form data for creating new requests
  * - issueView: Toggle between personal and public requests
  * - statusView: Toggle between open and closed requests
+ * - showPagination: Controls visibility of table pagination (external to Table)
  */
 export default function Support() {
   // Get the current user's session
@@ -57,71 +61,101 @@ export default function Support() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [issueView, setIssueView] = useState<"my" | "public">("my");
   const [statusView, setStatusView] = useState<"open" | "closed">("open");
+  // Pagination state for Table
+  const [showPagination, setShowPagination] = useState(true);
 
   // SWR for support requests
   const {
     data: rawRequests = [],
     mutate,
     isLoading,
-  } = useSWR(["supportRequests", issueView, statusView, userId], () => {
-    // Use the authenticated user's id for personal requests (fallback to empty array if undefined)
-    const status = statusView === "open" ? undefined : "Closed";
+  } = useSWR(["supportRequests", issueView, statusView, userId], async () => {
+    // Fix: Only filter for 'Closed' status, otherwise fetch all non-closed for 'open'
+    const status = statusView === "closed" ? "Closed" : undefined;
 
-    if (!userId) {
-      return [];
-    }
-
+    // Fix: Allow unauthenticated users to view public requests
     if (issueView === "my") {
+      if (!userId) return [];
       return getMySupportRequests(userId, status);
     } else {
       return getPublicSupportRequests(status);
     }
   });
 
-  // Type guard for TableSupportRequest
+  // SWR for comments for all requests
+  const { data: allComments = [] } = useSWR(
+    [
+      "supportComments",
+      rawRequests.map((r: unknown) => (r as { id: string }).id),
+    ],
+    () =>
+      getSupportCommentsForRequests(
+        rawRequests.map((r: unknown) => (r as { id: string }).id),
+      ),
+    { keepPreviousData: true },
+  );
+
+  // Improved type guard for TableSupportRequest
   function isTableSupportRequest(obj: unknown): obj is TableSupportRequest {
+    if (typeof obj !== "object" || obj === null) return false;
+    const o = obj as Record<string, unknown>;
     return (
-      typeof obj === "object" &&
-      obj !== null &&
-      "id" in obj &&
-      "title" in obj &&
-      "description" in obj &&
-      "category" in obj &&
-      "status" in obj &&
-      "lastUpdated" in obj &&
-      "isPublic" in obj &&
-      "comments" in obj &&
-      "upvotes" in obj &&
-      "downvotes" in obj &&
-      "user" in obj
+      typeof o.id === "string" &&
+      typeof o.title === "string" &&
+      typeof o.description === "string" &&
+      typeof o.category === "string" &&
+      typeof o.status === "string" &&
+      typeof o.lastUpdated === "string" &&
+      typeof o.isPublic === "boolean" &&
+      Array.isArray(o.comments) &&
+      typeof o.upvotes === "number" &&
+      typeof o.downvotes === "number" &&
+      typeof o.user === "string"
     );
   }
 
-  // Map backend results to TableSupportRequest[]
-  const requests: TableSupportRequest[] = rawRequests.map((req: unknown) => {
-    if (isTableSupportRequest(req)) {
-      return req;
+  // Map backend results to TableSupportRequest[], merging in comments
+  const requests = (rawRequests as unknown[]).map((req: unknown) => {
+    // Find comments for this request
+    const comments = (allComments as unknown[])
+      .filter(
+        (c: unknown) =>
+          (c as { requestId: string }).requestId === (req as { id: string }).id,
+      )
+      .map((c: unknown) => ({
+        id: (c as { id: string }).id,
+        user:
+          (c as { userName?: string; userId?: string }).userName ||
+          (c as { userId?: string }).userId ||
+          "Unknown",
+        text: (c as { text: string }).text,
+        timestamp:
+          (c as { timestamp: string | Date }).timestamp instanceof Date
+            ? (c as { timestamp: Date }).timestamp.toISOString()
+            : (c as { timestamp: string }).timestamp,
+      }));
+    // Use improved type guard
+    if (isTableSupportRequest({ ...(req as object), comments })) {
+      return { ...(req as object), comments } as TableSupportRequest;
     }
     // Fallback: fill missing fields with defaults
     return {
-      id: ((req as Record<string, unknown>).id as string) || "",
-      title: ((req as Record<string, unknown>).title as string) || "",
-      description:
-        ((req as Record<string, unknown>).description as string) || "",
+      id: (req as { id?: string }).id || "",
+      title: (req as { title?: string }).title || "",
+      description: (req as { description?: string }).description || "",
       category:
-        ((req as Record<string, unknown>).category as SupportCategory) ||
+        ((req as { category?: string }).category as SupportCategory) ||
         "General Question",
-      status:
-        ((req as Record<string, unknown>).status as SupportStatus) || "Open",
+      status: ((req as { status?: string }).status as SupportStatus) || "Open",
       lastUpdated:
-        ((req as Record<string, unknown>).lastUpdated as string) ||
+        (req as { lastUpdated?: string }).lastUpdated ||
         new Date().toISOString(),
-      isPublic: ((req as Record<string, unknown>).isPublic as boolean) || false,
-      comments: ((req as Record<string, unknown>).comments as Comment[]) || [],
-      upvotes: ((req as Record<string, unknown>).upvotes as number) || 0,
-      downvotes: ((req as Record<string, unknown>).downvotes as number) || 0,
-      user: ((req as Record<string, unknown>).user as string) || "",
-    } as TableSupportRequest;
+      isPublic: (req as { isPublic?: boolean }).isPublic || false,
+      comments,
+      upvotes: (req as { upvotes?: number }).upvotes || 0,
+      downvotes: (req as { downvotes?: number }).downvotes || 0,
+      user: (req as { user?: string }).user || "",
+    } satisfies TableSupportRequest;
   });
 
   // Table title
@@ -259,9 +293,11 @@ export default function Support() {
           onStatusViewChange={setStatusView}
         />
         <Table<TableSupportRequest>
-          data={requests as TableSupportRequest[]}
+          data={requests}
           columns={columns as ColumnDef<TableSupportRequest>[]}
           pageSize={5}
+          showPagination={showPagination}
+          onPaginationChange={setShowPagination}
           detailPanel={(row) => (
             <SupportDetailPanel
               request={row}

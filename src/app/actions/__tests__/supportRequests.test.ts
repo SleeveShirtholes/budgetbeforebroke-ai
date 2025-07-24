@@ -173,7 +173,7 @@ describe("SupportRequests Actions", () => {
         userId: "",
       };
       await expect(createSupportRequest(requestData)).rejects.toThrow(
-        "Not authenticated",
+        "Authentication required to create support request",
       );
     });
   });
