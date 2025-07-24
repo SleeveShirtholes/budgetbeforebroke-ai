@@ -1,13 +1,12 @@
 "use client";
 
 import {
-  Comment,
-  SupportCategory,
   SupportRequest,
   SupportStatus,
   TableSupportRequest,
-  currentUser,
   supportStatusOptions,
+  SupportCategory,
+  Comment,
 } from "./types";
 import React, { useState } from "react";
 import Table, { ColumnDef } from "@/components/Table";
@@ -17,66 +16,20 @@ import SupportDetailPanel from "./components/SupportDetailPanel";
 import SupportFilters from "./components/SupportFilters";
 import SupportHeader from "./components/SupportHeader";
 import SupportTableHeader from "./components/SupportTableHeader";
-
-// Mock data for initial display
-const mockSupportRequests: SupportRequest[] = [
-  {
-    id: "SR001",
-    title: "Login Issue",
-    description:
-      "User is unable to login with their valid credentials. This started happening after the last update. Error message says 'Invalid username or password' but credentials are correct.",
-    category: "Issue",
-    status: "Open",
-    lastUpdated: "2024-07-28",
-    isPublic: false,
-    comments: [
-      {
-        id: "C1",
-        user: "Admin",
-        text: "Looking into this.",
-        timestamp: "2024-07-28T10:00:00Z",
-      },
-    ],
-    upvotes: 10,
-    downvotes: 1,
-    user: "John Doe",
-  },
-  {
-    id: "SR002",
-    title: "Feature Request: Dark Mode",
-    description:
-      "It would be great to have a dark mode option for the application to reduce eye strain, especially during night time use.",
-    category: "Feature Request",
-    status: "In Progress",
-    lastUpdated: "2024-07-27",
-    isPublic: true,
-    comments: [],
-    upvotes: 25,
-    downvotes: 0,
-    user: "Jane Smith",
-  },
-  {
-    id: "SR003",
-    title: "Payment Failed",
-    description:
-      "User reported a payment failure with error code X. Attempted multiple times with different cards. Needs urgent attention.",
-    category: "Issue",
-    status: "Closed",
-    lastUpdated: "2024-07-26",
-    isPublic: false,
-    comments: [
-      {
-        id: "C2",
-        user: "SupportTeam",
-        text: "Issue resolved. Was a temporary gateway problem.",
-        timestamp: "2024-07-26T14:00:00Z",
-      },
-    ],
-    upvotes: 5,
-    downvotes: 2,
-    user: "John Doe",
-  },
-];
+import useSWR from "swr";
+import {
+  getPublicSupportRequests,
+  getMySupportRequests,
+  createSupportRequest,
+  upvoteSupportRequest,
+  downvoteSupportRequest,
+  updateSupportRequestStatus,
+} from "@/app/actions/supportRequests";
+import { addSupportComment } from "@/app/actions/supportComments";
+import { authClient } from "@/lib/auth-client";
+import Spinner from "@/components/Spinner";
+import { format } from "date-fns";
+import { NewRequestFormData } from "./components/NewRequestModal";
 
 /**
  * Support Page Component
@@ -92,45 +45,86 @@ const mockSupportRequests: SupportRequest[] = [
  * - requests: List of all support requests
  * - isModalOpen: Controls visibility of new request modal
  * - newRequest: Form data for creating new requests
- * - commentText: Current comment being written
  * - issueView: Toggle between personal and public requests
  * - statusView: Toggle between open and closed requests
  */
 export default function Support() {
-  // State management for support requests and UI controls
-  const [requests, setRequests] =
-    useState<SupportRequest[]>(mockSupportRequests);
+  // Get the current user's session
+  const { data } = authClient.useSession();
+  // Extract userId from the session data
+  const userId = data?.user?.id;
+  // UI state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newRequest, setNewRequest] = useState<
-    Omit<SupportRequest, "id" | "lastUpdated">
-  >({
-    title: "",
-    description: "",
-    category: "Issue",
-    status: "Open",
-    isPublic: false,
-    comments: [],
-    upvotes: 0,
-    downvotes: 0,
-    user: currentUser,
-  });
-  const [commentText, setCommentText] = useState("");
   const [issueView, setIssueView] = useState<"my" | "public">("my");
   const [statusView, setStatusView] = useState<"open" | "closed">("open");
 
-  // Filter requests based on current view settings (my/public and open/closed)
-  const filteredRequests = requests.filter((req) => {
-    const isClosed = req.status === "Closed";
-    if (statusView === "open" && isClosed) return false;
-    if (statusView === "closed" && !isClosed) return false;
+  // SWR for support requests
+  const {
+    data: rawRequests = [],
+    mutate,
+    isLoading,
+  } = useSWR(["supportRequests", issueView, statusView, userId], () => {
+    // Use the authenticated user's id for personal requests (fallback to empty array if undefined)
+    const status = statusView === "open" ? undefined : "Closed";
+
+    if (!userId) {
+      return [];
+    }
+
     if (issueView === "my") {
-      return req.user === currentUser;
+      return getMySupportRequests(userId, status);
     } else {
-      return req.isPublic;
+      return getPublicSupportRequests(status);
     }
   });
 
-  // Generate table title based on current view settings
+  // Type guard for TableSupportRequest
+  function isTableSupportRequest(obj: unknown): obj is TableSupportRequest {
+    return (
+      typeof obj === "object" &&
+      obj !== null &&
+      "id" in obj &&
+      "title" in obj &&
+      "description" in obj &&
+      "category" in obj &&
+      "status" in obj &&
+      "lastUpdated" in obj &&
+      "isPublic" in obj &&
+      "comments" in obj &&
+      "upvotes" in obj &&
+      "downvotes" in obj &&
+      "user" in obj
+    );
+  }
+
+  // Map backend results to TableSupportRequest[]
+  const requests: TableSupportRequest[] = rawRequests.map((req: unknown) => {
+    if (isTableSupportRequest(req)) {
+      return req;
+    }
+    // Fallback: fill missing fields with defaults
+    return {
+      id: ((req as Record<string, unknown>).id as string) || "",
+      title: ((req as Record<string, unknown>).title as string) || "",
+      description:
+        ((req as Record<string, unknown>).description as string) || "",
+      category:
+        ((req as Record<string, unknown>).category as SupportCategory) ||
+        "General Question",
+      status:
+        ((req as Record<string, unknown>).status as SupportStatus) || "Open",
+      lastUpdated:
+        ((req as Record<string, unknown>).lastUpdated as string) ||
+        new Date().toISOString(),
+      isPublic: ((req as Record<string, unknown>).isPublic as boolean) || false,
+      comments: ((req as Record<string, unknown>).comments as Comment[]) || [],
+      upvotes: ((req as Record<string, unknown>).upvotes as number) || 0,
+      downvotes: ((req as Record<string, unknown>).downvotes as number) || 0,
+      user: ((req as Record<string, unknown>).user as string) || "",
+    } as TableSupportRequest;
+  });
+
+  // Table title
   const tableTitle =
     statusView === "closed"
       ? issueView === "my"
@@ -140,9 +134,9 @@ export default function Support() {
         ? "My Open Issues"
         : "All Public Issues";
 
-  // Table column definitions with custom rendering for specific fields
+  // Table columns (ID removed from main table)
   const columns: ColumnDef<SupportRequest>[] = [
-    { key: "id", header: "ID", sortable: true, filterable: true },
+    // Removed ID column from main table
     {
       key: "title",
       header: "Title",
@@ -175,104 +169,80 @@ export default function Support() {
         </span>
       ),
     },
-    { key: "lastUpdated", header: "Last Updated", sortable: true },
+    {
+      key: "lastUpdated",
+      header: "Last Updated",
+      sortable: true,
+      // Format date using date-fns to 'MMM d, yyyy h:mm a' (e.g., 'Jul 22, 2025 4:59 pm')
+      accessor: (row) =>
+        format(new Date(row.lastUpdated), "MMM d, yyyy h:mm a"),
+    },
   ];
 
-  // Event handlers for managing support requests
-  const handleNewRequestChange = (
-    field: keyof Omit<
-      SupportRequest,
-      "id" | "lastUpdated" | "comments" | "upvotes" | "downvotes" | "user"
-    >,
-    value: string | SupportCategory | boolean | SupportStatus,
-  ) => {
-    setNewRequest((prev) => ({ ...prev, [field]: value }));
-  };
-
-  // Create a new support request with validation
-  const handleCreateRequest = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Validation: do not add if title or description is empty
-    if (!newRequest.title.trim() || !newRequest.description.trim()) {
-      return;
-    }
-    const newSupportRequest: SupportRequest = {
-      ...newRequest,
-      id: `SR${String(requests.length + 1).padStart(3, "0")}`,
-      lastUpdated: new Date().toISOString().split("T")[0],
-    };
-    setRequests((prev) => [newSupportRequest, ...prev]);
-    setIsModalOpen(false);
-    setNewRequest({
-      title: "",
-      description: "",
-      category: "Issue",
-      status: "Open",
-      isPublic: false,
-      comments: [],
-      upvotes: 0,
-      downvotes: 0,
-      user: currentUser,
+  // Create a new support request (now expects form data, not event)
+  const handleCreateRequest = async (data: NewRequestFormData) => {
+    if (!data.title.trim() || !data.description.trim()) return;
+    if (!userId) return; // Ensure user is authenticated
+    await createSupportRequest({
+      title: data.title,
+      description: data.description,
+      category: data.category,
+      isPublic: data.isPublic,
+      userId: userId,
     });
+    setIsModalOpen(false);
+    // Await mutate to ensure UI updates after mutation
+    await mutate();
   };
 
-  // Add a comment to an existing support request
-  const handleAddComment = (requestId: string) => {
-    if (!commentText.trim()) return;
+  // Add a comment to a support request
+  const handleAddComment = async (requestId: string, comment: string) => {
+    if (!comment.trim()) return;
+    if (!userId) return; // Ensure user is authenticated
+    await addSupportComment({
+      requestId,
+      text: comment.trim(),
+      userId: userId,
+    });
+    // Await mutate to ensure UI updates after mutation
+    await mutate();
+  };
 
-    const newComment: Comment = {
-      id: `C${Date.now()}`,
-      user: "CurrentUser",
-      text: commentText.trim(),
-      timestamp: new Date().toISOString(),
-    };
+  // Upvote a support request
+  const handleUpvote = async (requestId: string) => {
+    await upvoteSupportRequest(requestId);
+    // Await mutate to ensure UI updates after mutation
+    await mutate();
+  };
 
-    setRequests((prevRequests) =>
-      prevRequests.map((req) =>
-        req.id === requestId
-          ? {
-              ...req,
-              comments: [...req.comments, newComment],
-              lastUpdated: new Date().toISOString().split("T")[0],
-            }
-          : req,
-      ),
+  // Downvote a support request
+  const handleDownvote = async (requestId: string) => {
+    await downvoteSupportRequest(requestId);
+    // Await mutate to ensure UI updates after mutation
+    await mutate();
+  };
+
+  // Change status of a support request
+  const handleStatusChange = async (
+    requestId: string,
+    newStatus: SupportStatus,
+  ) => {
+    await updateSupportRequestStatus(requestId, newStatus);
+    // Await mutate to ensure UI updates after mutation
+    await mutate();
+  };
+
+  /**
+   * Show a loading spinner until both session and data are available.
+   * This ensures the UI does not render until authentication and data fetching are complete.
+   */
+  if (!data || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Spinner size="lg" />
+      </div>
     );
-    setCommentText("");
-  };
-
-  // Handle upvoting a support request
-  const handleUpvote = (requestId: string) => {
-    setRequests((prevRequests) =>
-      prevRequests.map((req) =>
-        req.id === requestId ? { ...req, upvotes: req.upvotes + 1 } : req,
-      ),
-    );
-  };
-
-  // Handle downvoting a support request
-  const handleDownvote = (requestId: string) => {
-    setRequests((prevRequests) =>
-      prevRequests.map((req) =>
-        req.id === requestId ? { ...req, downvotes: req.downvotes + 1 } : req,
-      ),
-    );
-  };
-
-  // Update the status of a support request
-  const handleStatusChange = (requestId: string, newStatus: SupportStatus) => {
-    setRequests((prevRequests) =>
-      prevRequests.map((req) =>
-        req.id === requestId
-          ? {
-              ...req,
-              status: newStatus,
-              lastUpdated: new Date().toISOString().split("T")[0],
-            }
-          : req,
-      ),
-    );
-  };
+  }
 
   return (
     <div className="container mx-auto p-2">
@@ -289,7 +259,7 @@ export default function Support() {
           onStatusViewChange={setStatusView}
         />
         <Table<TableSupportRequest>
-          data={filteredRequests as TableSupportRequest[]}
+          data={requests as TableSupportRequest[]}
           columns={columns as ColumnDef<TableSupportRequest>[]}
           pageSize={5}
           detailPanel={(row) => (
@@ -299,9 +269,9 @@ export default function Support() {
               onDownvote={handleDownvote}
               onStatusChange={handleStatusChange}
               onAddComment={handleAddComment}
-              commentText={commentText}
-              setCommentText={setCommentText}
               supportStatusOptions={supportStatusOptions}
+              // Show the ID in the details panel
+              showId={true}
             />
           )}
         />
@@ -310,8 +280,6 @@ export default function Support() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleCreateRequest}
-        newRequest={newRequest}
-        onNewRequestChange={handleNewRequestChange}
       />
     </div>
   );
