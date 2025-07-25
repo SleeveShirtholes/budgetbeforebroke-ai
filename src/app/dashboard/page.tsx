@@ -5,10 +5,12 @@ import {
   ArrowTrendingUpIcon,
   BanknotesIcon,
 } from "@heroicons/react/24/outline";
+import useSWR from "swr";
 
 import BudgetCategoriesProgress from "@/components/BudgetCategoriesProgress";
 import Card from "@/components/Card";
 import MonthlySpendingChart from "@/components/MonthlySpendingChart";
+import { getDashboardData, type DashboardData } from "@/app/actions/dashboard";
 
 // Format number as currency string
 const formatCurrency = (value: number): string => {
@@ -18,45 +20,86 @@ const formatCurrency = (value: number): string => {
   }).format(value);
 };
 
-// Mock data - replace with real data from your backend
-const totalBalance = 24000;
-const monthlyIncome = 4200;
-const monthlyExpenses = 2800;
-
-const monthlySpendingData = [
-  { month: "Jan", amount: 1200 },
-  { month: "Feb", amount: 1800 },
-  { month: "Mar", amount: 1400 },
-  { month: "Apr", amount: 900 },
-  { month: "May", amount: 1100 },
-  { month: "Jun", amount: 1300 },
-  { month: "Jul", amount: 1250 },
-  { month: "Aug", amount: 1600 },
-  { month: "Sep", amount: 1450 },
-  { month: "Oct", amount: 1000 },
-  { month: "Nov", amount: 1200 },
-  { month: "Dec", amount: 1100 },
-];
-
-const budgetCategories = [
-  { name: "Housing", spent: 1600, budget: 1500, color: "rgb(78, 0, 142)" }, // primary-500
-  { name: "Food", spent: 400, budget: 500, color: "rgb(153, 51, 255)" }, // primary-400
-  {
-    name: "Transportation",
-    spent: 200,
-    budget: 300,
-    color: "rgb(179, 102, 255)",
-  }, // primary-300
-  {
-    name: "Entertainment",
-    spent: 150,
-    budget: 200,
-    color: "rgb(209, 153, 255)",
-  }, // primary-200
-  { name: "Shopping", spent: 300, budget: 400, color: "rgb(230, 204, 255)" }, // primary-100
-];
+// SWR fetcher function for dashboard data
+const fetchDashboardData = async (): Promise<DashboardData> => {
+  return await getDashboardData();
+};
 
 export default function DashboardPage() {
+  // Use mutate from SWR to allow retrying the fetch without a full page reload
+  const { data, error, isLoading, mutate } = useSWR(
+    "dashboard-data",
+    fetchDashboardData,
+    {
+      refreshInterval: 30000, // Refresh every 30 seconds
+      revalidateOnFocus: true,
+    },
+  );
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <div className="text-center py-8">
+            <p className="text-red-600">
+              Error loading dashboard data: {error.message}
+            </p>
+            {/* Use SWR's mutate to retry fetching dashboard data instead of reloading the page */}
+            <button
+              onClick={() => mutate()}
+              className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            >
+              Retry
+            </button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Loading skeleton for overview cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="h-4 bg-gray-200 rounded w-24 mb-2 animate-pulse"></div>
+                  <div className="h-8 bg-gray-200 rounded w-32 animate-pulse"></div>
+                </div>
+                <div className="p-3 bg-gray-100 rounded-lg animate-pulse">
+                  <div className="w-6 h-6 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Loading skeleton for charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card>
+            <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+          </Card>
+          <div className="lg:col-span-2">
+            <Card>
+              <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const {
+    totalBalance,
+    monthlyIncome,
+    monthlyExpenses,
+    monthlySpendingData,
+    budgetCategories,
+  } = data!;
+
   return (
     <div className="space-y-6">
       {/* Overview Cards */}
