@@ -168,11 +168,11 @@ export async function getMonthlySpendingData(budgetAccountId?: string) {
     )
     .groupBy(
       sql`EXTRACT(YEAR FROM ${transactions.date})`,
-      sql`EXTRACT(MONTH FROM ${transactions.date})`
+      sql`EXTRACT(MONTH FROM ${transactions.date})`,
     )
     .orderBy(
       sql`EXTRACT(YEAR FROM ${transactions.date}) ASC`,
-      sql`EXTRACT(MONTH FROM ${transactions.date}) ASC`
+      sql`EXTRACT(MONTH FROM ${transactions.date}) ASC`,
     );
 
   // Build a map for quick lookup
@@ -193,7 +193,7 @@ export async function getMonthlySpendingData(budgetAccountId?: string) {
     const month = date.getMonth() + 1; // JS months are 0-based
     const key = `${year}-${month}`;
     const entry = dataMap.get(key);
-    const amount = (entry ? entry.income - entry.expenses : 0);
+    const amount = entry ? entry.income - entry.expenses : 0;
     monthlyData.push({
       month: date.toLocaleDateString("en-US", { month: "short" }),
       amount,
@@ -244,8 +244,8 @@ export async function getBudgetCategoriesWithSpending(
         eq(transactions.budgetAccountId, accountId),
         eq(transactions.type, "expense"),
         gte(transactions.date, startOfMonth),
-        lte(transactions.date, endOfMonth)
-      )
+        lte(transactions.date, endOfMonth),
+      ),
     )
     .where(eq(budgetCategories.budgetId, currentBudget.id))
     .groupBy(categories.name, budgetCategories.amount);
@@ -260,12 +260,14 @@ export async function getBudgetCategoriesWithSpending(
   ];
 
   // Map results to match previous structure and assign colors
-  const categoriesWithSpending = categoriesWithSpendingRaw.map((row, index) => ({
-    name: row.categoryName,
-    spent: Number(row.totalSpent || 0),
-    budget: Number(row.budgetAmount),
-    color: colors[index % colors.length],
-  }));
+  const categoriesWithSpending = categoriesWithSpendingRaw.map(
+    (row, index) => ({
+      name: row.categoryName,
+      spent: Number(row.totalSpent || 0),
+      budget: Number(row.budgetAmount),
+      color: colors[index % colors.length],
+    }),
+  );
 
   return categoriesWithSpending;
 }
