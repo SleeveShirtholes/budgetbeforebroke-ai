@@ -78,11 +78,12 @@ export default function SpendingChart({
           />
         </div>
       </div>
-      {/* Chart container with fixed height */}
-      <div className="h-[400px]">
+      {/* Chart container with fixed height and overflow control */}
+      <div className="h-[400px] w-full overflow-hidden">
         <MonthlySpendingChart
           data={chartData.data}
           datasets={chartData.datasets}
+          containerless={true}
         />
       </div>
     </Card>
