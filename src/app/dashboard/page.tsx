@@ -26,19 +26,27 @@ const fetchDashboardData = async (): Promise<DashboardData> => {
 };
 
 export default function DashboardPage() {
-  const { data, error, isLoading } = useSWR("dashboard-data", fetchDashboardData, {
-    refreshInterval: 30000, // Refresh every 30 seconds
-    revalidateOnFocus: true,
-  });
+  // Use mutate from SWR to allow retrying the fetch without a full page reload
+  const { data, error, isLoading, mutate } = useSWR(
+    "dashboard-data",
+    fetchDashboardData,
+    {
+      refreshInterval: 30000, // Refresh every 30 seconds
+      revalidateOnFocus: true,
+    },
+  );
 
   if (error) {
     return (
       <div className="space-y-6">
         <Card>
           <div className="text-center py-8">
-            <p className="text-red-600">Error loading dashboard data: {error.message}</p>
-            <button 
-              onClick={() => window.location.reload()} 
+            <p className="text-red-600">
+              Error loading dashboard data: {error.message}
+            </p>
+            {/* Use SWR's mutate to retry fetching dashboard data instead of reloading the page */}
+            <button
+              onClick={() => mutate()}
               className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
             >
               Retry

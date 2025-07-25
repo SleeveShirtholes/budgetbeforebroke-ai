@@ -15,7 +15,11 @@ jest.mock("swr", () => ({
 
 // Mock the child components since we're testing the parent component
 jest.mock("@/components/BudgetCategoriesProgress", () => {
-  return function MockBudgetCategoriesProgress({ categories }: { categories: unknown[] }) {
+  return function MockBudgetCategoriesProgress({
+    categories,
+  }: {
+    categories: unknown[];
+  }) {
     return (
       <div data-testid="budget-categories-progress">
         Budget Categories Progress ({categories.length} categories)
@@ -57,9 +61,7 @@ const mockDashboardData = {
 
 // Create a test wrapper - we'll mock SWR so don't need actual SWRConfig
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div data-testid="test-wrapper">
-    {children}
-  </div>
+  <div data-testid="test-wrapper">{children}</div>
 );
 
 describe("DashboardPage", () => {
@@ -79,12 +81,12 @@ describe("DashboardPage", () => {
     render(
       <TestWrapper>
         <DashboardPage />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     // Check for loading skeleton elements
     expect(screen.getAllByTestId("card")).toHaveLength(5); // 3 skeleton cards + 2 chart cards
-    const pulseElements = document.querySelectorAll('.animate-pulse');
+    const pulseElements = document.querySelectorAll(".animate-pulse");
     expect(pulseElements.length).toBeGreaterThan(0);
   });
 
@@ -99,10 +101,12 @@ describe("DashboardPage", () => {
     render(
       <TestWrapper>
         <DashboardPage />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
-    expect(screen.getByText(`Error loading dashboard data: ${errorMessage}`)).toBeInTheDocument();
+    expect(
+      screen.getByText(`Error loading dashboard data: ${errorMessage}`),
+    ).toBeInTheDocument();
     expect(screen.getByText("Retry")).toBeInTheDocument();
   });
 
@@ -116,7 +120,7 @@ describe("DashboardPage", () => {
     render(
       <TestWrapper>
         <DashboardPage />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     await waitFor(() => {
@@ -139,12 +143,16 @@ describe("DashboardPage", () => {
     render(
       <TestWrapper>
         <DashboardPage />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("budget-categories-progress")).toBeInTheDocument();
-      expect(screen.getByText("Budget Categories Progress (2 categories)")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("budget-categories-progress"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Budget Categories Progress (2 categories)"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -158,12 +166,14 @@ describe("DashboardPage", () => {
     render(
       <TestWrapper>
         <DashboardPage />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     await waitFor(() => {
       expect(screen.getByTestId("monthly-spending-chart")).toBeInTheDocument();
-      expect(screen.getByText("Monthly Spending Chart (3 months)")).toBeInTheDocument();
+      expect(
+        screen.getByText("Monthly Spending Chart (3 months)"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -177,7 +187,7 @@ describe("DashboardPage", () => {
     render(
       <TestWrapper>
         <DashboardPage />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     expect(useSWRMock).toHaveBeenCalledWith(
@@ -186,7 +196,7 @@ describe("DashboardPage", () => {
       {
         refreshInterval: 30000,
         revalidateOnFocus: true,
-      }
+      },
     );
   });
 });

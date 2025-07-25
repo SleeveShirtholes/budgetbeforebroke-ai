@@ -427,10 +427,10 @@ export async function createDebtPayment(
     budgetAccountId: accountId,
     categoryId: debtsCategory.id,
     createdByUserId: sessionResult.user.id,
-    amount: (-paymentAmount).toString(), // negative for expense, convert to string
+    amount: paymentAmount.toString(), // always positive, use type field to distinguish expense/income
     description: `Debt payment: ${existingDebt.name}`,
     date: new Date(data.date),
-    type: "expense",
+    type: "expense", // explicitly set as expense
     status: "completed",
     merchantName: existingDebt.name,
     createdAt: new Date(),

@@ -685,7 +685,7 @@ describe("Debt Actions", () => {
       );
     });
 
-    it("should create transaction with negative amount", async () => {
+    it("should create transaction with positive amount and expense type", async () => {
       // Mock user query to return default budget account
       actualDb.limit.mockResolvedValueOnce([
         { defaultBudgetAccountId: mockAccountId },
@@ -704,9 +704,9 @@ describe("Debt Actions", () => {
 
       expect(actualDb.values).toHaveBeenCalledWith(
         expect.objectContaining({
-          amount: "-100", // negative for expense
+          amount: "100", // always positive, use type field to distinguish expense/income
           description: "Debt payment: Test Debt",
-          type: "expense",
+          type: "expense", // explicitly set as expense
           status: "completed",
           merchantName: "Test Debt",
         }),
