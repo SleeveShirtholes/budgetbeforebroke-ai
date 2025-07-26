@@ -65,7 +65,7 @@ function SignUpForm() {
       if (inviteToken) {
         router.push(`/api/invite/accept?token=${inviteToken}`);
       } else {
-        router.push("/dashboard");
+        router.push("/auth/new-user");
       }
     } catch {
       setError("Failed to sign up with Google");
