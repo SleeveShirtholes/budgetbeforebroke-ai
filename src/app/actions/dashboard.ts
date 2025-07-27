@@ -273,6 +273,97 @@ export async function getBudgetCategoriesWithSpending(
 }
 
 /**
+ * Get budget categories with spending data for a specific date range
+ */
+export async function getBudgetCategoriesWithSpendingForDateRange(
+  budgetAccountId: string,
+  startDate: Date,
+  endDate: Date,
+) {
+  const accountId = budgetAccountId || (await getDefaultBudgetAccountId());
+
+  // Get current budget (we'll use this for budget amounts)
+  const now = new Date();
+  const currentBudget = await db.query.budgets.findFirst({
+    where: and(
+      eq(budgets.budgetAccountId, accountId),
+      eq(budgets.year, now.getFullYear()),
+      eq(budgets.month, now.getMonth() + 1),
+    ),
+  });
+
+  if (!currentBudget) {
+    return [];
+  }
+
+  // Get all categories for the budget account
+  const allCategories = await db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      color: categories.color,
+    })
+    .from(categories)
+    .where(eq(categories.budgetAccountId, accountId));
+
+  // Get budget amounts for each category
+  const budgetAmounts = await db
+    .select({
+      categoryId: budgetCategories.categoryId,
+      amount: budgetCategories.amount,
+    })
+    .from(budgetCategories)
+    .where(eq(budgetCategories.budgetId, currentBudget.id));
+
+  // Create a map of category ID to budget amount
+  const budgetMap = new Map(
+    budgetAmounts.map((b) => [b.categoryId, Number(b.amount)]),
+  );
+
+  // Get spending data for the date range
+  const spendingData = await db
+    .select({
+      categoryId: transactions.categoryId,
+      totalSpent: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.budgetAccountId, accountId),
+        eq(transactions.type, "expense"),
+        gte(transactions.date, startDate),
+        lte(transactions.date, endDate),
+        sql`${transactions.categoryId} IS NOT NULL`,
+      ),
+    )
+    .groupBy(transactions.categoryId);
+
+  // Create a map of category ID to spending
+  const spendingMap = new Map(
+    spendingData.map((s) => [s.categoryId, Number(s.totalSpent)]),
+  );
+
+  // Color scheme for budget categories (primary colors)
+  const colors = [
+    "rgb(78, 0, 142)", // primary-500
+    "rgb(153, 51, 255)", // primary-400
+    "rgb(179, 102, 255)", // primary-300
+    "rgb(209, 153, 255)", // primary-200
+    "rgb(230, 204, 255)", // primary-100
+  ];
+
+  // Combine all data
+  const categoriesWithSpending = allCategories.map((category, index) => ({
+    name: category.name,
+    spent: spendingMap.get(category.id) || 0,
+    budget: budgetMap.get(category.id) || 0,
+    color: category.color || colors[index % colors.length],
+  }));
+
+  return categoriesWithSpending;
+}
+
+/**
  * Get all dashboard data in a single call
  */
 export async function getDashboardData(

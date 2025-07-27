@@ -44,11 +44,13 @@ interface Dataset {
 interface MonthlySpendingChartProps {
   data: MonthlySpendingData[];
   datasets?: Dataset[];
+  containerless?: boolean;
 }
 
 export default function MonthlySpendingChart({
   data,
   datasets,
+  containerless = false,
 }: MonthlySpendingChartProps) {
   const chartData = {
     labels: data.map((item) => item.month),
@@ -58,11 +60,9 @@ export default function MonthlySpendingChart({
         data: data.map((item) => item.amount),
         borderColor: "#4e008e", // primary-500
         backgroundColor: "rgba(78, 0, 142, 0.1)", // primary-500 with opacity
-        tension: 0.4,
         fill: true,
         pointBackgroundColor: "#4e008e", // primary-500
         pointBorderColor: "#4e008e", // primary-500
-        pointRadius: 4,
         pointHoverRadius: 6,
       },
     ],
@@ -71,6 +71,18 @@ export default function MonthlySpendingChart({
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: {
+      intersect: false,
+      mode: "index" as const,
+    },
+    layout: {
+      padding: {
+        top: 20,
+        bottom: 20,
+        left: 10,
+        right: 10,
+      },
+    },
     plugins: {
       legend: {
         display: datasets !== undefined,
@@ -108,8 +120,28 @@ export default function MonthlySpendingChart({
         },
       },
     },
+    elements: {
+      point: {
+        radius: 4,
+        hoverRadius: 6,
+        hitRadius: 10,
+      },
+      line: {
+        tension: 0.4,
+      },
+    },
   };
 
+  // Render without container styling when used in analytics (containerless mode)
+  if (containerless) {
+    return (
+      <div className="h-full w-full">
+        <Line data={chartData} options={options} />
+      </div>
+    );
+  }
+
+  // Default render with container styling for standalone use
   return (
     <div className="bg-white rounded-xl shadow p-6 border border-secondary-100">
       <div className="h-[400px]">

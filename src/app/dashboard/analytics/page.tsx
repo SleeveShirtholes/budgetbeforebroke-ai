@@ -10,8 +10,10 @@ import KeyMetrics from "@/app/dashboard/analytics/components/KeyMetrics";
 import RecentTransactions from "./components/RecentTransactions";
 import SpendingChart from "@/app/dashboard/analytics/components/SpendingChart";
 import { getTransactions } from "@/app/actions/transaction";
+import { getBudgetCategoriesWithSpendingForDateRange } from "@/app/actions/dashboard";
 import Spinner from "@/components/Spinner";
 import { TransactionCategory } from "@/types/transaction";
+import { useBudgetAccount } from "@/stores/budgetAccountStore";
 
 // Define possible chart view modes
 type ChartViewMode = "total" | "byCategory" | "incomeVsExpense";
@@ -58,12 +60,8 @@ function mapCategoryNameToType(
  * and offers different chart visualization modes for analyzing spending patterns.
  */
 export default function AnalyticsPage() {
-  // Fetch transactions using SWR
-  const {
-    data: transactions = [],
-    error,
-    isLoading,
-  } = useSWR("transactions", getTransactions);
+  // Get the currently selected budget account
+  const { selectedAccount, isLoading: isAccountsLoading } = useBudgetAccount();
 
   // State management
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
@@ -77,6 +75,38 @@ export default function AnalyticsPage() {
     startDate: startOfMonth(new Date()),
     endDate: endOfMonth(new Date()),
   });
+
+  // Fetch transactions using SWR
+  const {
+    data: transactions = [],
+    error: transactionsError,
+    isLoading: isTransactionsLoading,
+  } = useSWR(
+    selectedAccount ? ["transactions", selectedAccount.id] : null,
+    () => getTransactions(selectedAccount!.id),
+  );
+
+  // Fetch budget categories with spending data using SWR
+  const {
+    data: budgetCategories = [],
+    error: categoriesError,
+    isLoading: isCategoriesLoading,
+  } = useSWR(
+    selectedAccount
+      ? [
+          "budget-categories",
+          selectedAccount.id,
+          dateRange.startDate,
+          dateRange.endDate,
+        ]
+      : null,
+    () =>
+      getBudgetCategoriesWithSpendingForDateRange(
+        selectedAccount!.id,
+        dateRange.startDate,
+        dateRange.endDate,
+      ),
+  );
 
   // Calculate financial insights for the selected date range
   const insights = useMemo(() => {
@@ -100,36 +130,13 @@ export default function AnalyticsPage() {
     // Calculate net savings
     const netSavings = totalIncome - totalExpenses;
 
-    // Calculate spending by category
-    const categorySpending = timeframeTransactions
-      .filter((t) => t.type === "expense")
-      .reduce(
-        (acc, t) => {
-          const categoryName = mapCategoryNameToType(t.categoryName);
-          acc[categoryName] = (acc[categoryName] || 0) + t.amount;
-          return acc;
-        },
-        {} as Record<TransactionCategory, number>,
-      );
-
-    // Get top 5 spending categories
-    const topCategories = Object.entries(categorySpending)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
-      .map(([category, amount]) => ({
-        name: category,
-        spent: amount,
-        budget: amount * 1.2, // Example budget calculation
-        color: "#4e008e", // primary-500
-      }));
-
     return {
       totalIncome,
       totalExpenses,
       netSavings,
-      topCategories,
+      topCategories: budgetCategories,
     };
-  }, [transactions, dateRange]);
+  }, [transactions, budgetCategories, dateRange]);
 
   // Prepare chart data based on selected view mode
   const chartData = useMemo(() => {
@@ -287,8 +294,8 @@ export default function AnalyticsPage() {
       .slice(0, 10);
   }, [transactions, selectedCategories, dateRange]);
 
-  // Show loading state
-  if (isLoading) {
+  // Show loading state only for initial load
+  if (isAccountsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="lg" />
@@ -297,11 +304,20 @@ export default function AnalyticsPage() {
   }
 
   // Show error state
-  if (error) {
+  if (transactionsError || categoriesError) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600">
-          Failed to load transactions. Please try again.
+        <p className="text-red-600">Failed to load data. Please try again.</p>
+      </div>
+    );
+  }
+
+  // Show message if no account is selected
+  if (!selectedAccount) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-600">
+          Please select a budget account to view analytics.
         </p>
       </div>
     );
@@ -351,6 +367,7 @@ export default function AnalyticsPage() {
           onDateRangeChange={(startDate, endDate) =>
             setDateRange({ startDate, endDate })
           }
+          isLoading={isTransactionsLoading || isCategoriesLoading}
         />
         <KeyMetrics
           totalIncome={insights.totalIncome}
@@ -358,6 +375,7 @@ export default function AnalyticsPage() {
           netSavings={insights.netSavings}
           startDate={dateRange.startDate}
           endDate={dateRange.endDate}
+          isLoading={isTransactionsLoading}
         />
       </div>
 
@@ -372,6 +390,7 @@ export default function AnalyticsPage() {
           selectedChartCategories={selectedChartCategories}
           onChartCategoryToggle={handleChartCategoryToggle}
           onClearChartSelection={clearChartSelection}
+          isLoading={isCategoriesLoading}
         />
         <SpendingChart
           chartData={chartData}
@@ -383,11 +402,15 @@ export default function AnalyticsPage() {
               setSelectedChartCategories(new Set());
             }
           }}
+          isLoading={isTransactionsLoading || isCategoriesLoading}
         />
       </div>
 
       {/* Recent Transactions */}
-      <RecentTransactions transactions={filteredTransactions} />
+      <RecentTransactions
+        transactions={filteredTransactions}
+        isLoading={isTransactionsLoading}
+      />
     </div>
   );
 }

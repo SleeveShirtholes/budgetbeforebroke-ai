@@ -5,6 +5,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 import StatsCard from "@/components/StatsCard";
+import Spinner from "@/components/Spinner";
 import { format } from "date-fns";
 
 /**
@@ -21,6 +22,8 @@ interface KeyMetricsProps {
   startDate: Date;
   /** End date of the period being analyzed */
   endDate: Date;
+  /** Whether the metrics are currently loading */
+  isLoading?: boolean;
 }
 
 /**
@@ -39,9 +42,27 @@ export default function KeyMetrics({
   netSavings,
   startDate,
   endDate,
+  isLoading,
 }: KeyMetricsProps) {
   // Format the date range for display
   const dateRange = `${format(startDate, "MMM d")} - ${format(endDate, "MMM d")}`;
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="bg-white rounded-xl shadow p-6 border border-secondary-100"
+          >
+            <div className="flex justify-center items-center h-20">
+              <Spinner size="sm" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
