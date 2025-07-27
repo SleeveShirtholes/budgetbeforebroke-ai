@@ -1,6 +1,7 @@
 import Card from "@/components/Card";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import MonthlySpendingChart from "@/components/MonthlySpendingChart";
+import Spinner from "@/components/Spinner";
 
 // Defines the possible view modes for the spending chart
 type ChartViewMode = "total" | "byCategory" | "incomeVsExpense";
@@ -25,6 +26,7 @@ interface SpendingChartProps {
   chartViewMode: ChartViewMode;
   selectedCategories: Set<string>;
   onChartViewModeChange: (mode: ChartViewMode) => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export default function SpendingChart({
   chartViewMode,
   selectedCategories,
   onChartViewModeChange,
+  isLoading,
 }: SpendingChartProps) {
   // Available view mode options for the chart
   const viewModeOptions = [
@@ -80,11 +83,17 @@ export default function SpendingChart({
       </div>
       {/* Chart container with fixed height and overflow control */}
       <div className="h-[400px] w-full overflow-hidden">
-        <MonthlySpendingChart
-          data={chartData.data}
-          datasets={chartData.datasets}
-          containerless={true}
-        />
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Spinner />
+          </div>
+        ) : (
+          <MonthlySpendingChart
+            data={chartData.data}
+            datasets={chartData.datasets}
+            containerless={true}
+          />
+        )}
       </div>
     </Card>
   );

@@ -75,7 +75,7 @@ export default function MonthlySpendingChart({
     maintainAspectRatio: false,
     interaction: {
       intersect: false,
-      mode: 'index' as const,
+      mode: "index" as const,
     },
     layout: {
       padding: {
