@@ -5,12 +5,15 @@ import {
   ArrowTrendingUpIcon,
   BanknotesIcon,
 } from "@heroicons/react/24/outline";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import useSWR from "swr";
 
 import BudgetCategoriesProgress from "@/components/BudgetCategoriesProgress";
 import Card from "@/components/Card";
 import MonthlySpendingChart from "@/components/MonthlySpendingChart";
 import { getDashboardData, type DashboardData } from "@/app/actions/dashboard";
+import { needsOnboarding } from "@/app/actions/onboarding";
 
 // Format number as currency string
 const formatCurrency = (value: number): string => {
@@ -26,6 +29,24 @@ const fetchDashboardData = async (): Promise<DashboardData> => {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
+
+  // Check if user needs onboarding on component mount
+  useEffect(() => {
+    async function checkOnboardingStatus() {
+      try {
+        const needsSetup = await needsOnboarding();
+        if (needsSetup) {
+          router.replace("/onboarding");
+        }
+      } catch (error) {
+        console.error("Error checking onboarding status:", error);
+      }
+    }
+
+    checkOnboardingStatus();
+  }, [router]);
+
   // Use mutate from SWR to allow retrying the fetch without a full page reload
   const { data, error, isLoading, mutate } = useSWR(
     "dashboard-data",
@@ -37,6 +58,19 @@ export default function DashboardPage() {
   );
 
   if (error) {
+    // If error is about missing budget account, redirect to onboarding
+    if (error.message?.includes("No default budget account found")) {
+      router.replace("/onboarding");
+      return (
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold">Setting up your account...</h2>
+            <p className="text-gray-500">Redirecting to complete setup...</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <Card>

@@ -110,3 +110,27 @@ export async function quickCompleteOnboarding(data: Partial<OnboardingData>) {
     budgetAccountId,
   };
 }
+
+/**
+ * Check if a user needs to complete onboarding
+ * Returns true if user doesn't have a default budget account
+ */
+export async function needsOnboarding(): Promise<boolean> {
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult?.session || !sessionResult?.user) {
+    throw new Error("Not authenticated");
+  }
+
+  const userResult = await db
+    .select({
+      defaultBudgetAccountId: user.defaultBudgetAccountId,
+    })
+    .from(user)
+    .where(eq(user.id, sessionResult.user.id))
+    .limit(1);
+
+  return !userResult[0]?.defaultBudgetAccountId;
+}

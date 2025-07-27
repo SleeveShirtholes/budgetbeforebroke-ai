@@ -32,6 +32,7 @@ import {
   updateUserDefaultAccount,
   completeOnboarding,
   quickCompleteOnboarding,
+  needsOnboarding,
 } from "../onboarding";
 
 describe("Onboarding Actions", () => {
@@ -44,6 +45,7 @@ describe("Onboarding Actions", () => {
       expect(typeof updateUserDefaultAccount).toBe("function");
       expect(typeof completeOnboarding).toBe("function");
       expect(typeof quickCompleteOnboarding).toBe("function");
+      expect(typeof needsOnboarding).toBe("function");
     });
   });
 
