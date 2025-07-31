@@ -250,11 +250,12 @@ export default function Table<T extends Record<string, unknown>>({
 
   return (
     <div className="flex flex-col w-full">
-      <div className="flex justify-between items-center mb-4">
+      {/* Header controls - responsive layout */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
         <div className="w-full sm:w-64">
           <TableSearch value={searchQuery} onChange={handleSearchChange} />
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-end space-x-2">
           {/* Clear sorting button */}
           <button
             onClick={clearAllSorting}
@@ -287,8 +288,8 @@ export default function Table<T extends Record<string, unknown>>({
 
       {/* Active filters display */}
       {activeFiltersCount > 0 && (
-        <div className="flex items-center mb-2 text-sm">
-          <span className="text-gray-700 mr-2">Active filters:</span>
+        <div className="flex flex-col sm:flex-row sm:items-center mb-2 text-sm gap-2">
+          <span className="text-gray-700 flex-shrink-0">Active filters:</span>
           <div className="flex flex-wrap gap-1">
             {Object.entries(filters).map(([columnKey, filterValue]) => {
               const column = columns.find((col) => col.key === columnKey);
@@ -320,42 +321,48 @@ export default function Table<T extends Record<string, unknown>>({
         </div>
       )}
 
+      {/* Table container with horizontal scroll on mobile */}
       <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-        <table className={`min-w-full divide-y divide-gray-200 ${className}`}>
-          <TableHeader<T>
-            columns={columns}
-            sorting={sorting}
-            onSort={setSorting}
-            actions={!!actions}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            hasDetailPanel={!!detailPanel}
-          />
-          <TableBody<T>
-            data={displayData}
-            columns={columns}
-            expandedRows={expandedRows}
-            toggleRowExpansion={toggleRowExpansion}
-            detailPanel={detailPanel}
-            actions={actions}
-            searchQuery={searchQuery}
-          />
-        </table>
+        <div className="min-w-full">
+          <table className={`w-full divide-y divide-gray-200 ${className}`}>
+            <TableHeader<T>
+              columns={columns}
+              sorting={sorting}
+              onSort={setSorting}
+              actions={!!actions}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              hasDetailPanel={!!detailPanel}
+            />
+            <TableBody<T>
+              data={displayData}
+              columns={columns}
+              expandedRows={expandedRows}
+              toggleRowExpansion={toggleRowExpansion}
+              detailPanel={detailPanel}
+              actions={actions}
+              searchQuery={searchQuery}
+            />
+          </table>
+        </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
-        <div className="text-sm text-gray-600">
+      {/* Footer with responsive layout */}
+      <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="text-sm text-gray-600 text-center sm:text-left">
           Showing {displayData.length} of {sortedData.length} rows
         </div>
 
         {showPagination && totalPages > 1 && (
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            showPagination={showPagination}
-            togglePagination={togglePagination}
-          />
+          <div className="flex justify-center sm:justify-end">
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              showPagination={showPagination}
+              togglePagination={togglePagination}
+            />
+          </div>
         )}
       </div>
     </div>

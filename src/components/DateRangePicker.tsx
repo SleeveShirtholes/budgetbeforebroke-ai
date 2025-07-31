@@ -14,23 +14,23 @@ export default function DateRangePicker({
   onEndDateChange,
 }: DateRangePickerProps) {
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
       <input
         type="date"
         value={format(startDate, "yyyy-MM-dd")}
         onChange={(e) =>
           onStartDateChange(new Date(e.target.value + "T12:00:00Z"))
         }
-        className="border border-secondary-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        className="border border-secondary-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-full sm:w-auto"
       />
-      <span className="text-secondary-600">to</span>
+      <span className="text-secondary-600 text-sm text-center sm:text-left">to</span>
       <input
         type="date"
         value={format(endDate, "yyyy-MM-dd")}
         onChange={(e) =>
           onEndDateChange(new Date(e.target.value + "T12:00:00Z"))
         }
-        className="border border-secondary-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        className="border border-secondary-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-full sm:w-auto"
       />
     </div>
   );
