@@ -426,6 +426,33 @@ describe("Transaction Actions", () => {
         updatedAt: expect.any(Date),
       });
     });
+
+    it("should handle date format correctly to avoid timezone issues", async () => {
+      // Test the specific case mentioned by the user: 7/31 being saved as 7/1
+      const dateUpdate: UpdateTransactionInput = {
+        id: mockTransactionId,
+        date: "2024-07-31", // July 31st
+      };
+
+      // Mock user query to return default budget account
+      actualDb.limit.mockResolvedValueOnce([
+        { defaultBudgetAccountId: mockAccountId },
+      ]);
+      // Mock transaction query to return transaction
+      actualDb.limit.mockResolvedValueOnce([mockTransaction]);
+
+      // Mock the update chain
+      const mockWhere = jest.fn().mockResolvedValue({});
+      actualDb.set.mockReturnValue({ where: mockWhere });
+
+      await updateTransaction(dateUpdate);
+
+      // Verify that the date is correctly parsed as July 31st, not July 1st
+      expect(actualDb.set).toHaveBeenCalledWith({
+        date: new Date("2024-07-31"),
+        updatedAt: expect.any(Date),
+      });
+    });
   });
 
   describe("updateTransactionCategory", () => {

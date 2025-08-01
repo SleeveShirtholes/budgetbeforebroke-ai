@@ -14,15 +14,24 @@ import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { inviteToAccount } from "@/app/actions/account";
 
 const inviteSchema = z.object({
-  invites: z.array(z.object({
-    email: z.string().email("Please enter a valid email address"),
-    role: z.enum(["member", "admin"]),
-  })).optional(),
+  invites: z
+    .array(
+      z.object({
+        email: z.string().email("Please enter a valid email address"),
+        role: z.enum(["member", "admin"]),
+      }),
+    )
+    .optional(),
 });
 
 type InviteFormData = z.infer<typeof inviteSchema>;
 
-const STEP_TITLES = ["Create Account", "Invite Others", "Add Income", "Add Bills"];
+const STEP_TITLES = [
+  "Create Account",
+  "Invite Others",
+  "Add Income",
+  "Add Bills",
+];
 
 const ROLE_OPTIONS = [
   { value: "member", label: "Member - Can view and add transactions" },
@@ -63,15 +72,17 @@ export default function OnboardingInvitePage() {
       if (data.invites && data.invites.length > 0) {
         // Send invitations
         const promises = data.invites
-          .filter(invite => invite.email.trim())
-          .map(invite => inviteToAccount(invite.email, invite.role));
-        
+          .filter((invite) => invite.email.trim())
+          .map((invite) => inviteToAccount(invite.email, invite.role));
+
         await Promise.all(promises);
         setSuccess(`Sent ${promises.length} invitation(s) successfully!`);
       }
 
       // Save progress to localStorage
-      const progress = JSON.parse(localStorage.getItem("onboardingProgress") || "[]");
+      const progress = JSON.parse(
+        localStorage.getItem("onboardingProgress") || "[]",
+      );
       if (!progress.includes("invite")) {
         progress.push("invite");
         localStorage.setItem("onboardingProgress", JSON.stringify(progress));
@@ -81,9 +92,10 @@ export default function OnboardingInvitePage() {
       setTimeout(() => {
         router.push("/onboarding/income");
       }, 1500);
-
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send invitations");
+      setError(
+        err instanceof Error ? err.message : "Failed to send invitations",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +103,9 @@ export default function OnboardingInvitePage() {
 
   const handleSkip = () => {
     // Save progress to localStorage
-    const progress = JSON.parse(localStorage.getItem("onboardingProgress") || "[]");
+    const progress = JSON.parse(
+      localStorage.getItem("onboardingProgress") || "[]",
+    );
     if (!progress.includes("invite")) {
       progress.push("invite");
       localStorage.setItem("onboardingProgress", JSON.stringify(progress));
@@ -109,18 +123,20 @@ export default function OnboardingInvitePage() {
 
   return (
     <div className="space-y-8">
-      <OnboardingProgress 
-        currentStep={2} 
-        totalSteps={4} 
+      <OnboardingProgress
+        currentStep={2}
+        totalSteps={4}
         stepTitles={STEP_TITLES}
       />
 
       <Card className="p-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Invite Others (Optional)</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Invite Others (Optional)
+          </h1>
           <p className="mt-2 text-gray-600">
-            Invite family members, partners, or anyone else you want to share your budget with. 
-            You can always invite people later.
+            Invite family members, partners, or anyone else you want to share
+            your budget with. You can always invite people later.
           </p>
         </div>
 
@@ -139,7 +155,10 @@ export default function OnboardingInvitePage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-4">
             {fields.map((field, index) => (
-              <div key={field.id} className="flex items-start space-x-4 p-4 border border-gray-200 rounded-lg">
+              <div
+                key={field.id}
+                className="flex items-start space-x-4 p-4 border border-gray-200 rounded-lg"
+              >
                 <div className="flex-grow space-y-4">
                   <TextField
                     label={`Email Address ${index + 1}`}
@@ -147,12 +166,17 @@ export default function OnboardingInvitePage() {
                     error={errors.invites?.[index]?.email?.message}
                     {...register(`invites.${index}.email` as const)}
                   />
-                  
+
                   <CustomSelect
                     label="Role"
                     options={ROLE_OPTIONS}
                     value={watch(`invites.${index}.role`) || ""}
-                    onChange={(value) => setValue(`invites.${index}.role`, value as "member" | "admin")}
+                    onChange={(value) =>
+                      setValue(
+                        `invites.${index}.role`,
+                        value as "member" | "admin",
+                      )
+                    }
                     error={errors.invites?.[index]?.role?.message}
                   />
                 </div>
@@ -201,12 +225,8 @@ export default function OnboardingInvitePage() {
               >
                 Skip for now
               </Button>
-              
-              <Button
-                type="submit"
-                disabled={isLoading}
-                isLoading={isLoading}
-              >
+
+              <Button type="submit" disabled={isLoading} isLoading={isLoading}>
                 Send Invitations
               </Button>
             </div>

@@ -33,7 +33,8 @@ export default function OnboardingCompletePage() {
             Welcome to Budget Before Broke!
           </h1>
           <p className="text-gray-600">
-            Your account is all set up and ready to go. You can now start managing your finances like a pro!
+            Your account is all set up and ready to go. You can now start
+            managing your finances like a pro!
           </p>
         </div>
 
@@ -53,15 +54,11 @@ export default function OnboardingCompletePage() {
         </div>
 
         <div className="space-y-3">
-          <Button
-            onClick={goToDashboard}
-            className="w-full"
-            size="lg"
-          >
+          <Button onClick={goToDashboard} className="w-full" size="lg">
             <RocketLaunchIcon className="w-5 h-5 mr-2" />
             Go to Dashboard
           </Button>
-          
+
           <p className="text-sm text-gray-500">
             Redirecting automatically in 5 seconds...
           </p>

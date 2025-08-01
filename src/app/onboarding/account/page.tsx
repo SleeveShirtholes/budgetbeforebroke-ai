@@ -20,7 +20,12 @@ const accountSchema = z.object({
 
 type AccountFormData = z.infer<typeof accountSchema>;
 
-const STEP_TITLES = ["Create Account", "Invite Others", "Add Income", "Add Bills"];
+const STEP_TITLES = [
+  "Create Account",
+  "Invite Others",
+  "Add Income",
+  "Add Bills",
+];
 
 export default function OnboardingAccountPage() {
   const router = useRouter();
@@ -46,12 +51,14 @@ export default function OnboardingAccountPage() {
 
       // Create the budget account
       const result = await createAccount(data.name, data.description || "");
-      
+
       // Update user's default account
       await updateUserDefaultAccount(result);
 
       // Save progress to localStorage
-      const progress = JSON.parse(localStorage.getItem("onboardingProgress") || "[]");
+      const progress = JSON.parse(
+        localStorage.getItem("onboardingProgress") || "[]",
+      );
       progress.push("account");
       localStorage.setItem("onboardingProgress", JSON.stringify(progress));
 
@@ -64,27 +71,26 @@ export default function OnboardingAccountPage() {
     }
   };
 
-  const handleSkip = () => {
-    router.push("/onboarding/invite");
-  };
-
   const handleBack = () => {
     router.push("/onboarding");
   };
 
   return (
     <div className="space-y-8">
-      <OnboardingProgress 
-        currentStep={1} 
-        totalSteps={4} 
+      <OnboardingProgress
+        currentStep={1}
+        totalSteps={4}
         stepTitles={STEP_TITLES}
       />
 
       <Card className="p-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Create Your Budget Account</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Create Your Budget Account
+          </h1>
           <p className="mt-2 text-gray-600">
-            Your budget account is the foundation for managing your finances. You can create additional accounts later.
+            Your budget account is the foundation for managing your finances.
+            You can create additional accounts later.
           </p>
         </div>
 
@@ -121,24 +127,9 @@ export default function OnboardingAccountPage() {
               Back
             </Button>
 
-            <div className="space-x-4">
-              <Button
-                type="button"
-                variant="text"
-                onClick={handleSkip}
-                disabled={isLoading}
-              >
-                Skip for now
-              </Button>
-              
-              <Button
-                type="submit"
-                disabled={isLoading}
-                isLoading={isLoading}
-              >
-                Create Account
-              </Button>
-            </div>
+            <Button type="submit" disabled={isLoading} isLoading={isLoading}>
+              Create Account
+            </Button>
           </div>
         </form>
       </Card>

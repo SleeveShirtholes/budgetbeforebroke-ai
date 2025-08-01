@@ -12,7 +12,7 @@ export default function NewUserPage() {
     async function checkOnboardingStatus() {
       try {
         const needsSetup = await needsOnboarding();
-        
+
         if (needsSetup) {
           router.replace("/onboarding");
         } else {

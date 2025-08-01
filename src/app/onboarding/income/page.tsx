@@ -16,18 +16,28 @@ import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createIncomeSource } from "@/app/actions/income";
 
 const incomeSchema = z.object({
-  incomeSources: z.array(z.object({
-    name: z.string().min(1, "Income source name is required"),
-    amount: z.number().min(0.01, "Amount must be greater than 0"),
-    frequency: z.enum(["weekly", "bi-weekly", "monthly"]),
-    startDate: z.date(),
-    notes: z.string().optional(),
-  })).min(1, "At least one income source is required"),
+  incomeSources: z
+    .array(
+      z.object({
+        name: z.string().min(1, "Income source name is required"),
+        amount: z.number().min(0.01, "Amount must be greater than 0"),
+        frequency: z.enum(["weekly", "bi-weekly", "monthly"]),
+        startDate: z.date(),
+        notes: z.string().optional(),
+      }),
+    )
+    .min(1, "At least one income source is required"),
 });
 
 type IncomeFormData = z.infer<typeof incomeSchema>;
 
-const STEP_TITLES = ["Create Account", "Invite Others", "Add Income", "Add Bills"];
+const STEP_TITLES = [
+  "Create Account",
+  "Invite Others",
+  "Add Income",
+  "Set Up Categories",
+  "Add Bills",
+];
 
 const FREQUENCY_OPTIONS = [
   { value: "weekly", label: "Weekly" },
@@ -50,13 +60,15 @@ export default function OnboardingIncomePage() {
   } = useForm<IncomeFormData>({
     resolver: zodResolver(incomeSchema),
     defaultValues: {
-      incomeSources: [{
-        name: "",
-        amount: 0,
-        frequency: "monthly",
-        startDate: new Date(),
-        notes: "",
-      }],
+      incomeSources: [
+        {
+          name: "",
+          amount: 0,
+          frequency: "monthly",
+          startDate: new Date(),
+          notes: "",
+        },
+      ],
     },
   });
 
@@ -71,37 +83,37 @@ export default function OnboardingIncomePage() {
       setError(null);
 
       // Create all income sources
-      const promises = data.incomeSources.map(income =>
+      const promises = data.incomeSources.map((income) =>
         createIncomeSource(
           income.name,
           income.amount,
           income.frequency,
           income.startDate,
           undefined,
-          income.notes
-        )
+          income.notes,
+        ),
       );
 
       await Promise.all(promises);
 
       // Save progress to localStorage
-      const progress = JSON.parse(localStorage.getItem("onboardingProgress") || "[]");
+      const progress = JSON.parse(
+        localStorage.getItem("onboardingProgress") || "[]",
+      );
       if (!progress.includes("income")) {
         progress.push("income");
         localStorage.setItem("onboardingProgress", JSON.stringify(progress));
       }
 
       // Redirect to next step
-      router.push("/onboarding/bills");
+      router.push("/onboarding/categories");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create income sources");
+      setError(
+        err instanceof Error ? err.message : "Failed to create income sources",
+      );
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSkip = () => {
-    router.push("/onboarding/bills");
   };
 
   const handleBack = () => {
@@ -120,18 +132,20 @@ export default function OnboardingIncomePage() {
 
   return (
     <div className="space-y-8">
-      <OnboardingProgress 
-        currentStep={3} 
-        totalSteps={4} 
+      <OnboardingProgress
+        currentStep={3}
+        totalSteps={5}
         stepTitles={STEP_TITLES}
       />
 
       <Card className="p-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Add Your Income Sources</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Add Your Income Sources
+          </h1>
           <p className="mt-2 text-gray-600">
-            Add your regular income sources like salary, freelance work, or other recurring income. 
-            This helps create an accurate budget.
+            Add your regular income sources like salary, freelance work, or
+            other recurring income. This helps create an accurate budget.
           </p>
         </div>
 
@@ -144,7 +158,10 @@ export default function OnboardingIncomePage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-6">
             {fields.map((field, index) => (
-              <div key={field.id} className="p-6 border border-gray-200 rounded-lg space-y-4">
+              <div
+                key={field.id}
+                className="p-6 border border-gray-200 rounded-lg space-y-4"
+              >
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium text-gray-900">
                     Income Source {index + 1}
@@ -173,22 +190,43 @@ export default function OnboardingIncomePage() {
                     label="Amount"
                     placeholder="0.00"
                     error={errors.incomeSources?.[index]?.amount?.message}
-                    value={watch(`incomeSources.${index}.amount`)?.toString() || ""}
-                    onChange={(value) => setValue(`incomeSources.${index}.amount`, parseFloat(value) || 0)}
+                    value={
+                      watch(`incomeSources.${index}.amount`)?.toString() || ""
+                    }
+                    onChange={(value) =>
+                      setValue(
+                        `incomeSources.${index}.amount`,
+                        parseFloat(value) || 0,
+                      )
+                    }
                   />
 
                   <CustomSelect
                     label="Frequency"
                     options={FREQUENCY_OPTIONS}
                     value={watch(`incomeSources.${index}.frequency`) || ""}
-                    onChange={(value) => setValue(`incomeSources.${index}.frequency`, value as "weekly" | "bi-weekly" | "monthly")}
+                    onChange={(value) =>
+                      setValue(
+                        `incomeSources.${index}.frequency`,
+                        value as "weekly" | "bi-weekly" | "monthly",
+                      )
+                    }
                     error={errors.incomeSources?.[index]?.frequency?.message}
                   />
 
                   <DatePicker
                     label="Start Date"
-                    value={watch(`incomeSources.${index}.startDate`)?.toISOString().split('T')[0] || ""}
-                    onChange={(e) => setValue(`incomeSources.${index}.startDate`, new Date(e.target.value))}
+                    value={
+                      watch(`incomeSources.${index}.startDate`)
+                        ?.toISOString()
+                        .split("T")[0] || ""
+                    }
+                    onChange={(e) =>
+                      setValue(
+                        `incomeSources.${index}.startDate`,
+                        new Date(e.target.value),
+                      )
+                    }
                     error={errors.incomeSources?.[index]?.startDate?.message}
                   />
                 </div>
@@ -204,7 +242,9 @@ export default function OnboardingIncomePage() {
           </div>
 
           {errors.incomeSources?.root && (
-            <p className="text-red-600 text-sm">{errors.incomeSources.root.message}</p>
+            <p className="text-red-600 text-sm">
+              {errors.incomeSources.root.message}
+            </p>
           )}
 
           <Button
@@ -227,24 +267,9 @@ export default function OnboardingIncomePage() {
               Back
             </Button>
 
-            <div className="space-x-4">
-              <Button
-                type="button"
-                variant="text"
-                onClick={handleSkip}
-                disabled={isLoading}
-              >
-                Skip for now
-              </Button>
-              
-              <Button
-                type="submit"
-                disabled={isLoading}
-                isLoading={isLoading}
-              >
-                Add Income Sources
-              </Button>
-            </div>
+            <Button type="submit" disabled={isLoading} isLoading={isLoading}>
+              Add Income Sources
+            </Button>
           </div>
         </form>
       </Card>

@@ -2,7 +2,12 @@ import { render, screen } from "@testing-library/react";
 import OnboardingProgress from "../OnboardingProgress";
 
 describe("OnboardingProgress", () => {
-  const stepTitles = ["Create Account", "Invite Others", "Add Income", "Add Bills"];
+  const stepTitles = [
+    "Create Account",
+    "Invite Others",
+    "Add Income",
+    "Add Bills",
+  ];
 
   it("should render progress with current step highlighted", () => {
     render(
@@ -10,7 +15,7 @@ describe("OnboardingProgress", () => {
         currentStep={2}
         totalSteps={4}
         stepTitles={stepTitles}
-      />
+      />,
     );
 
     expect(screen.getByText("Step 2 of 4")).toBeInTheDocument();
@@ -24,11 +29,11 @@ describe("OnboardingProgress", () => {
         currentStep={3}
         totalSteps={4}
         stepTitles={stepTitles}
-      />
+      />,
     );
 
     // First two steps should be completed (have check icons)
-    const checkIcons = document.querySelectorAll('svg');
+    const checkIcons = document.querySelectorAll("svg");
     expect(checkIcons.length).toBeGreaterThan(0);
   });
 
@@ -38,7 +43,7 @@ describe("OnboardingProgress", () => {
         currentStep={2}
         totalSteps={4}
         stepTitles={stepTitles}
-      />
+      />,
     );
 
     // Progress bar should be 50% (2/4 * 100)
@@ -52,11 +57,11 @@ describe("OnboardingProgress", () => {
         currentStep={4}
         totalSteps={4}
         stepTitles={stepTitles}
-      />
+      />,
     );
 
     expect(screen.getByText("Step 4 of 4")).toBeInTheDocument();
-    
+
     // Progress bar should be 100%
     const progressBar = document.querySelector('[style*="width: 100%"]');
     expect(progressBar).toBeInTheDocument();

@@ -1,6 +1,6 @@
 "use server";
 
-import { transactions, categories, budgetAccounts, user } from "@/db/schema";
+import { budgetAccounts, categories, transactions, user } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 
 import { db } from "@/db/config";
@@ -225,6 +225,26 @@ export async function createTransaction(data: CreateTransactionInput) {
 
   // Generate a unique transaction ID and insert the transaction
   const transactionId = randomUUID();
+
+  // Parse the date properly - handle both YYYY-MM-DD format and ISO strings
+  let transactionDate: Date;
+  if (data.date) {
+    // Handle both YYYY-MM-DD format and ISO strings
+    let dateString: string;
+    if (data.date.includes("T")) {
+      // If it's an ISO string, extract just the date part
+      dateString = data.date.split("T")[0]; // Get just YYYY-MM-DD
+    } else {
+      // If it's already in YYYY-MM-DD format, use it directly
+      dateString = data.date;
+    }
+    const [year, month, day] = dateString.split("-").map(Number);
+    // Create date in UTC at midnight to avoid timezone issues
+    transactionDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  } else {
+    transactionDate = new Date();
+  }
+
   await db.insert(transactions).values({
     id: transactionId,
     budgetAccountId,
@@ -232,7 +252,7 @@ export async function createTransaction(data: CreateTransactionInput) {
     createdByUserId: sessionResult.user.id,
     amount: data.amount.toString(),
     description: data.description || null,
-    date: new Date(data.date),
+    date: transactionDate,
     type: data.type,
     status: "completed",
     merchantName: data.merchantName || null,
@@ -320,7 +340,18 @@ export async function updateTransaction(data: UpdateTransactionInput) {
     updateData.description = data.description || null;
   }
   if (data.date !== undefined) {
-    updateData.date = new Date(data.date);
+    // Parse the date properly - handle both YYYY-MM-DD format and ISO strings
+    let dateString: string;
+    if (data.date.includes("T")) {
+      // If it's an ISO string, extract just the date part
+      dateString = data.date.split("T")[0]; // Get just YYYY-MM-DD
+    } else {
+      // If it's already in YYYY-MM-DD format, use it directly
+      dateString = data.date;
+    }
+    const [year, month, day] = dateString.split("-").map(Number);
+    // Create date in UTC at midnight to avoid timezone issues
+    updateData.date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
   }
   if (data.type !== undefined) {
     updateData.type = data.type;

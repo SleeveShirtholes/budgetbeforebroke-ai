@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { jest } from "@jest/globals";
 
 // Mock all the complex dependencies
 jest.mock("@/lib/auth", () => ({

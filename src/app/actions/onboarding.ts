@@ -22,7 +22,7 @@ export async function updateUserDefaultAccount(budgetAccountId: string) {
 
   await db
     .update(user)
-    .set({ 
+    .set({
       defaultBudgetAccountId: budgetAccountId,
       updatedAt: new Date(),
     })
@@ -46,7 +46,7 @@ export async function completeOnboarding() {
   // Mark user as having completed onboarding
   await db
     .update(user)
-    .set({ 
+    .set({
       updatedAt: new Date(),
     })
     .where(eq(user.id, sessionResult.user.id));
@@ -83,7 +83,7 @@ export async function quickCompleteOnboarding(data: Partial<OnboardingData>) {
   if (data.accountName) {
     const accountResult = await createAccount(
       data.accountName,
-      data.accountDescription || ""
+      data.accountDescription || "",
     );
     budgetAccountId = accountResult;
   }
@@ -99,13 +99,13 @@ export async function quickCompleteOnboarding(data: Partial<OnboardingData>) {
       data.incomeSource.name,
       data.incomeSource.amount,
       data.incomeSource.frequency,
-      data.incomeSource.startDate
+      data.incomeSource.startDate,
     );
   }
 
   await completeOnboarding();
 
-  return { 
+  return {
     success: true,
     budgetAccountId,
   };

@@ -68,7 +68,11 @@ export default function CustomDatePicker({
     setSelectedDate(date);
     setInputValue(date ? format(date, "MMM d, yyyy") : "");
     if (date) {
-      onChange(date.toISOString());
+      // Format date as YYYY-MM-DD to preserve local date without timezone conversion
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      onChange(`${year}-${month}-${day}`);
     }
     setIsOpen(false);
   };
@@ -81,7 +85,11 @@ export default function CustomDatePicker({
       const parsedDate = parse(value, "MMM d, yyyy", new Date());
       if (parsedDate && !isNaN(parsedDate.getTime())) {
         setSelectedDate(parsedDate);
-        onChange(parsedDate.toISOString());
+        // Format date as YYYY-MM-DD to preserve local date without timezone conversion
+        const year = parsedDate.getFullYear();
+        const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+        const day = String(parsedDate.getDate()).padStart(2, "0");
+        onChange(`${year}-${month}-${day}`);
       }
     } catch {
       // Invalid date format, just update input

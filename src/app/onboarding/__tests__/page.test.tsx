@@ -31,24 +31,28 @@ describe("OnboardingPage", () => {
   it("should render onboarding steps", () => {
     render(<OnboardingPage />);
 
-    expect(screen.getByText("Welcome to Budget Before Broke!")).toBeInTheDocument();
+    expect(screen.getByText("Welcome to")).toBeInTheDocument();
+    expect(screen.getByText("Budget Before Broke")).toBeInTheDocument();
     expect(screen.getByText("Create Budget Account")).toBeInTheDocument();
     expect(screen.getByText("Invite Others")).toBeInTheDocument();
     expect(screen.getByText("Add Income")).toBeInTheDocument();
+    expect(screen.getByText("Set Up Categories")).toBeInTheDocument();
     expect(screen.getByText("Add Recurring Bills")).toBeInTheDocument();
   });
 
-  it("should show required labels for account and income steps", () => {
+  it("should show required labels for account, income, and categories steps", () => {
     render(<OnboardingPage />);
 
     const requiredLabels = screen.getAllByText("Required");
-    expect(requiredLabels).toHaveLength(2);
+    expect(requiredLabels).toHaveLength(3);
   });
 
   it("should navigate to account step when step is clicked", () => {
     render(<OnboardingPage />);
 
-    const accountStep = screen.getByText("Create Budget Account").closest("div");
+    const accountStep = screen
+      .getByText("Create Budget Account")
+      .closest("div");
     fireEvent.click(accountStep!);
 
     expect(mockPush).toHaveBeenCalledWith("/onboarding/account");
@@ -92,7 +96,9 @@ describe("OnboardingPage", () => {
 
     render(<OnboardingPage />);
 
-    expect(screen.getByText("Skip remaining and go to dashboard")).toBeInTheDocument();
+    expect(
+      screen.getByText("Skip remaining and go to dashboard"),
+    ).toBeInTheDocument();
   });
 
   it("should navigate to dashboard when skip is clicked", () => {

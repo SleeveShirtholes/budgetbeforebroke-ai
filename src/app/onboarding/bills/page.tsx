@@ -16,17 +16,27 @@ import { createDebt } from "@/app/actions/debt";
 import { completeOnboarding } from "@/app/actions/onboarding";
 
 const billsSchema = z.object({
-  bills: z.array(z.object({
-    name: z.string().min(1, "Bill name is required"),
-    balance: z.number().min(0, "Balance must be 0 or greater"),
-    interestRate: z.number().min(0).max(100, "Interest rate must be between 0 and 100"),
-    dueDate: z.date(),
-  })).optional(),
+  bills: z
+    .array(
+      z.object({
+        name: z.string().min(1, "Bill name is required"),
+        balance: z.number().min(0, "Balance must be 0 or greater"),
+        interestRate: z.string().optional(),
+        dueDate: z.date(),
+      }),
+    )
+    .optional(),
 });
 
 type BillsFormData = z.infer<typeof billsSchema>;
 
-const STEP_TITLES = ["Create Account", "Invite Others", "Add Income", "Add Bills"];
+const STEP_TITLES = [
+  "Create Account",
+  "Invite Others",
+  "Add Income",
+  "Set Up Categories",
+  "Add Bills",
+];
 
 export default function OnboardingBillsPage() {
   const router = useRouter();
@@ -43,12 +53,14 @@ export default function OnboardingBillsPage() {
   } = useForm<BillsFormData>({
     resolver: zodResolver(billsSchema),
     defaultValues: {
-      bills: [{
-        name: "",
-        balance: 0,
-        interestRate: 0,
-        dueDate: new Date(),
-      }],
+      bills: [
+        {
+          name: "",
+          balance: 0,
+          interestRate: "",
+          dueDate: new Date(),
+        },
+      ],
     },
   });
 
@@ -64,23 +76,27 @@ export default function OnboardingBillsPage() {
 
       // Create all bills/debts if any are provided
       if (data.bills && data.bills.length > 0) {
-        const validBills = data.bills.filter(bill => bill.name.trim());
-        
+        const validBills = data.bills.filter((bill) => bill.name.trim());
+
         if (validBills.length > 0) {
-          const promises = validBills.map(bill =>
+          const promises = validBills.map((bill) =>
             createDebt({
               name: bill.name,
               balance: bill.balance,
-              interestRate: bill.interestRate,
-              dueDate: bill.dueDate.toISOString().split('T')[0]
-            })
+              interestRate: bill.interestRate
+                ? parseFloat(bill.interestRate)
+                : 0,
+              dueDate: bill.dueDate.toISOString().split("T")[0],
+            }),
           );
           await Promise.all(promises);
         }
       }
 
       // Save progress to localStorage
-      const progress = JSON.parse(localStorage.getItem("onboardingProgress") || "[]");
+      const progress = JSON.parse(
+        localStorage.getItem("onboardingProgress") || "[]",
+      );
       if (!progress.includes("bills")) {
         progress.push("bills");
         localStorage.setItem("onboardingProgress", JSON.stringify(progress));
@@ -104,52 +120,57 @@ export default function OnboardingBillsPage() {
   const handleSkip = async () => {
     try {
       setIsLoading(true);
-      
+
       // Complete onboarding without adding bills
       await completeOnboarding();
-      
+
       // Clear onboarding progress
       localStorage.removeItem("onboardingProgress");
-      
+
       // Redirect to completion page
       router.push("/onboarding/complete");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to complete onboarding");
+      setError(
+        err instanceof Error ? err.message : "Failed to complete onboarding",
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleBack = () => {
-    router.push("/onboarding/income");
+    router.push("/onboarding/categories");
   };
 
   const addBill = () => {
     append({
       name: "",
       balance: 0,
-      interestRate: 0,
+      interestRate: "",
       dueDate: new Date(),
     });
   };
 
   const watchedBills = watch("bills");
-  const hasValidBills = watchedBills?.some(bill => bill.name.trim()) || false;
+  const hasValidBills = watchedBills?.some((bill) => bill.name.trim()) || false;
 
   return (
     <div className="space-y-8">
-      <OnboardingProgress 
-        currentStep={4} 
-        totalSteps={4} 
+      <OnboardingProgress
+        currentStep={5}
+        totalSteps={5}
         stepTitles={STEP_TITLES}
       />
 
       <Card className="p-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Add Recurring Bills (Optional)</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Add Recurring Bills (Optional)
+          </h1>
           <p className="mt-2 text-gray-600">
-            Add your regular bills and debts like credit cards, loans, utilities, and subscriptions. 
-            This helps track your recurring expenses and debt payments.
+            Add your regular bills and debts like credit cards, loans,
+            utilities, and subscriptions. This helps track your recurring
+            expenses and debt payments.
           </p>
         </div>
 
@@ -162,7 +183,10 @@ export default function OnboardingBillsPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-6">
             {fields.map((field, index) => (
-              <div key={field.id} className="p-6 border border-gray-200 rounded-lg space-y-4">
+              <div
+                key={field.id}
+                className="p-6 border border-gray-200 rounded-lg space-y-4"
+              >
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium text-gray-900">
                     Bill/Debt {index + 1}
@@ -192,21 +216,34 @@ export default function OnboardingBillsPage() {
                     placeholder="0.00"
                     error={errors.bills?.[index]?.balance?.message}
                     value={watch(`bills.${index}.balance`)?.toString() || ""}
-                    onChange={(value) => setValue(`bills.${index}.balance`, parseFloat(value) || 0)}
+                    onChange={(value) =>
+                      setValue(`bills.${index}.balance`, parseFloat(value) || 0)
+                    }
                   />
 
                   <DecimalInput
                     label="Interest Rate (%) - Optional"
                     placeholder="0.00"
                     error={errors.bills?.[index]?.interestRate?.message}
-                    value={watch(`bills.${index}.interestRate`)?.toString() || ""}
-                    onChange={(value) => setValue(`bills.${index}.interestRate`, parseFloat(value) || 0)}
+                    value={watch(`bills.${index}.interestRate`) || ""}
+                    onChange={(value) =>
+                      setValue(`bills.${index}.interestRate`, value)
+                    }
                   />
 
                   <DatePicker
                     label="Due Date"
-                    value={watch(`bills.${index}.dueDate`)?.toISOString().split('T')[0] || ""}
-                    onChange={(e) => setValue(`bills.${index}.dueDate`, new Date(e.target.value))}
+                    value={
+                      watch(`bills.${index}.dueDate`)
+                        ?.toISOString()
+                        .split("T")[0] || ""
+                    }
+                    onChange={(e) =>
+                      setValue(
+                        `bills.${index}.dueDate`,
+                        new Date(e.target.value),
+                      )
+                    }
                     error={errors.bills?.[index]?.dueDate?.message}
                   />
                 </div>
@@ -243,7 +280,7 @@ export default function OnboardingBillsPage() {
               >
                 Skip and finish
               </Button>
-              
+
               <Button
                 type="submit"
                 disabled={isLoading || !hasValidBills}
