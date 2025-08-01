@@ -5,12 +5,14 @@ import Table from "@/components/Table/Table";
 import { ColumnDef } from "@/components/Table/types";
 import { Transaction } from "@/app/actions/transaction";
 import { format } from "date-fns";
+import Spinner from "@/components/Spinner";
 
 /**
  * Props for the RecentTransactions component
  */
 interface RecentTransactionsProps {
   transactions: Transaction[];
+  isLoading?: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ interface RecentTransactionsProps {
  */
 export default function RecentTransactions({
   transactions,
+  isLoading,
 }: RecentTransactionsProps) {
   // Define table columns with their configuration
   const columns: ColumnDef<Transaction>[] = [
@@ -83,7 +86,11 @@ export default function RecentTransactions({
   return (
     <Card variant="default" padding="md">
       <h2 className="text-xl font-semibold mb-4">Recent Transactions</h2>
-      {transactions.length === 0 ? (
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Spinner />
+        </div>
+      ) : transactions.length === 0 ? (
         // Show message when no transactions are available
         <p className="text-gray-500 text-center py-4">No transactions found</p>
       ) : (

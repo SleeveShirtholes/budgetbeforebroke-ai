@@ -1,4 +1,5 @@
 import Button from "./Button";
+import Spinner from "./Spinner";
 
 /**
  * Interface representing a budget category with spending and budget information
@@ -30,6 +31,8 @@ interface BudgetCategoriesProgressProps {
   onChartCategoryToggle?: (category: string) => void;
   /** Callback function to clear all chart category selections */
   onClearChartSelection?: () => void;
+  /** Whether the categories are currently loading */
+  isLoading?: boolean;
 }
 
 /**
@@ -58,6 +61,7 @@ export default function BudgetCategoriesProgress({
   selectedChartCategories,
   onChartCategoryToggle,
   onClearChartSelection,
+  isLoading,
 }: BudgetCategoriesProgressProps) {
   /**
    * Handles category click events for both transaction filtering and chart selection
@@ -112,66 +116,81 @@ export default function BudgetCategoriesProgress({
 
       {/* Categories list */}
       <div className="space-y-4">
-        {categories.map((category) => {
-          // Calculate percentage spent (capped at 100%)
-          const percentage = Math.min(
-            (category.spent / category.budget) * 100,
-            100,
-          );
-          // Calculate remaining budget (minimum 0)
-          const remaining = Math.max(category.budget - category.spent, 0);
-          // Determine if category is overspent
-          const isOverspent = category.spent > category.budget;
-          // Check if category is selected for transaction filtering
-          const isSelected = selectedCategories?.has(category.name);
-          // Check if category is selected for chart display
-          const isChartSelected =
-            chartViewMode === "byCategory" &&
-            selectedChartCategories?.has(category.name);
+        {isLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <Spinner />
+          </div>
+        ) : (
+          categories.map((category) => {
+            // Calculate percentage spent (capped at 100%)
+            // Handle case where budget is 0 to avoid NaN
+            const percentage =
+              category.budget === 0
+                ? category.spent === 0
+                  ? 0
+                  : 100 // If no budget, show 0% if no spending, 100% if there is spending
+                : Math.min((category.spent / category.budget) * 100, 100);
 
-          return (
-            <div
-              key={category.name}
-              className={`space-y-2 cursor-pointer transition-colors duration-200 ${
-                isSelected || isChartSelected
-                  ? "bg-primary-50 p-3 rounded-lg"
-                  : ""
-              }`}
-              onClick={() => handleCategoryClick(category.name)}
-            >
-              {/* Category header with name and spending/budget amounts */}
-              <div className="flex justify-between text-sm">
-                <span
-                  className={`font-medium ${isSelected || isChartSelected ? "text-primary-700" : "text-secondary-700"}`}
-                >
-                  {category.name}
-                </span>
-                <span className="text-secondary-600">
-                  ${category.spent.toFixed(2)} / ${category.budget.toFixed(2)}
-                </span>
-              </div>
+            // Calculate remaining budget (minimum 0)
+            const remaining = Math.max(category.budget - category.spent, 0);
+            // Determine if category is overspent
+            const isOverspent = category.spent > category.budget;
+            // Check if category is selected for transaction filtering
+            const isSelected = selectedCategories?.has(category.name);
+            // Check if category is selected for chart display
+            const isChartSelected =
+              chartViewMode === "byCategory" &&
+              selectedChartCategories?.has(category.name);
 
-              {/* Progress bar showing spending vs budget */}
-              <div className="relative h-3 bg-secondary-100 rounded-full overflow-hidden">
-                <div
-                  className="absolute h-full rounded-full transition-all duration-300 ease-in-out"
-                  style={{
-                    width: `${percentage}%`,
-                    backgroundColor: isOverspent
-                      ? "#EF4444" // Red for overspent categories
-                      : "var(--color-primary-500)", // Primary color for normal spending
-                  }}
-                />
-              </div>
+            return (
+              <div
+                key={category.name}
+                className={`space-y-2 cursor-pointer transition-colors duration-200 ${
+                  isSelected || isChartSelected
+                    ? "bg-primary-50 p-3 rounded-lg"
+                    : ""
+                }`}
+                onClick={() => handleCategoryClick(category.name)}
+              >
+                {/* Category header with name and spending/budget amounts */}
+                <div className="flex justify-between text-sm">
+                  <span
+                    className={`font-medium ${isSelected || isChartSelected ? "text-primary-700" : "text-secondary-700"}`}
+                  >
+                    {category.name}
+                  </span>
+                  <span className="text-secondary-600">
+                    ${category.spent.toFixed(2)} / ${category.budget.toFixed(2)}
+                  </span>
+                </div>
 
-              {/* Footer with percentage spent and remaining amount */}
-              <div className="flex justify-between text-xs text-secondary-500">
-                <span>{percentage.toFixed(1)}% spent</span>
-                <span>${remaining.toFixed(2)} remaining</span>
+                {/* Progress bar showing spending vs budget */}
+                <div className="relative h-3 bg-secondary-100 rounded-full overflow-hidden">
+                  <div
+                    className="absolute h-full rounded-full transition-all duration-300 ease-in-out"
+                    style={{
+                      width: `${percentage}%`,
+                      backgroundColor: isOverspent
+                        ? "#EF4444" // Red for overspent categories
+                        : "var(--color-primary-500)", // Primary color for normal spending
+                    }}
+                  />
+                </div>
+
+                {/* Footer with percentage spent and remaining amount */}
+                <div className="flex justify-between text-xs text-secondary-500">
+                  <span>
+                    {percentage % 1 === 0
+                      ? `${percentage}%`
+                      : `${percentage.toFixed(1)}%`}{" "}
+                    spent
+                  </span>
+                  <span>${remaining.toFixed(2)} remaining</span>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );

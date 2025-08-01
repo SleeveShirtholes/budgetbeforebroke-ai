@@ -1,6 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { act } from "react";
-import useSWR from "swr";
+/* eslint-disable @typescript-eslint/no-require-imports */
+import { render, screen, waitFor } from "@testing-library/react";
+
+import { ToastProvider } from "@/components/Toast";
+import { useBudgetAccount } from "@/stores/budgetAccountStore";
 import AnalyticsPage from "../page";
 
 // Mock SWR
@@ -9,194 +11,302 @@ jest.mock("swr", () => ({
   default: jest.fn(),
 }));
 
+// Mock the budget account store
+jest.mock("@/stores/budgetAccountStore", () => ({
+  useBudgetAccount: jest.fn(),
+}));
+
+// Mock the dashboard actions
+jest.mock("@/app/actions/dashboard", () => ({
+  getBudgetCategoriesWithSpendingForDateRange: jest.fn(),
+}));
+
 // Mock the transaction actions
 jest.mock("@/app/actions/transaction", () => ({
   getTransactions: jest.fn(),
 }));
 
-// Mock the components
-jest.mock("@/components/BudgetCategoriesProgress", () => {
-  return function MockBudgetCategoriesProgress() {
-    return (
-      <div data-testid="budget-categories-progress">
-        Budget Categories Progress
-      </div>
-    );
-  };
-});
-
-jest.mock("../components/DateRangeSelector", () => {
-  return function MockDateRangeSelector({
-    onDateRangeChange,
-  }: {
-    onDateRangeChange: (start: Date, end: Date) => void;
-  }) {
-    return (
-      <div data-testid="date-range-selector">
-        <button
-          onClick={() =>
-            onDateRangeChange(new Date("2024-01-01"), new Date("2024-01-31"))
-          }
-        >
-          Change Date Range
-        </button>
-      </div>
-    );
-  };
-});
-
-jest.mock("../components/KeyMetrics", () => {
-  return function MockKeyMetrics() {
-    return <div data-testid="key-metrics">Key Metrics</div>;
-  };
-});
-
-jest.mock("../components/SpendingChart", () => {
-  return function MockSpendingChart() {
-    return <div data-testid="spending-chart">Spending Chart</div>;
-  };
-});
-
-jest.mock("../components/RecentTransactions", () => {
-  return function MockRecentTransactions() {
-    return <div data-testid="recent-transactions">Recent Transactions</div>;
-  };
-});
+const mockSWR = require("swr").default;
+const mockUseBudgetAccount = useBudgetAccount as jest.MockedFunction<
+  typeof useBudgetAccount
+>;
 
 describe("AnalyticsPage", () => {
+  const mockAccount = {
+    id: "test-account-id",
+    accountNumber: "TEST-1234",
+    nickname: "Test Account",
+    users: [
+      {
+        id: "user1",
+        email: "test@example.com",
+        name: "Test User",
+        role: "owner" as const,
+        avatar: undefined,
+        accepted: true,
+      },
+    ],
+    invitations: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
   const mockTransactions = [
     {
       id: "1",
-      budgetAccountId: "account-1",
-      categoryId: "category-1",
-      createdByUserId: "user-1",
+      budgetAccountId: "test-account-id",
+      categoryId: "cat1",
+      createdByUserId: "user1",
       amount: 100,
-      description: "Salary",
-      date: new Date("2024-01-15"),
-      type: "income" as const,
-      status: "completed",
-      merchantName: "Employer",
-      plaidCategory: null,
-      pending: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      categoryName: "Salary",
-    },
-    {
-      id: "2",
-      budgetAccountId: "account-1",
-      categoryId: "category-2",
-      createdByUserId: "user-1",
-      amount: 50,
-      description: "Groceries",
-      date: new Date("2024-01-16"),
+      description: "Test transaction",
+      date: new Date("2025-06-15"),
       type: "expense" as const,
       status: "completed",
-      merchantName: "Grocery Store",
-      plaidCategory: null,
+      merchantName: "Test Merchant",
       pending: false,
       createdAt: new Date(),
       updatedAt: new Date(),
-      categoryName: "Groceries",
+      categoryName: "Food",
     },
   ];
 
-  const mockUseSWR = useSWR as jest.MockedFunction<typeof useSWR>;
+  const mockBudgetCategories = [
+    {
+      name: "Food",
+      spent: 100,
+      budget: 500,
+      color: "#4e008e",
+    },
+    {
+      name: "Transportation",
+      spent: 50,
+      budget: 200,
+      color: "#9933ff",
+    },
+  ];
 
   beforeEach(() => {
-    // Reset all mocks before each test
     jest.clearAllMocks();
-
-    // Mock SWR to return successful data
-    mockUseSWR.mockImplementation(() => ({
-      data: mockTransactions,
-      error: null,
-      isLoading: false,
-      mutate: jest.fn(),
-      isValidating: false,
-    }));
   });
 
-  it("renders all main components", () => {
-    render(<AnalyticsPage />);
-
-    expect(screen.getByTestId("date-range-selector")).toBeInTheDocument();
-    expect(screen.getByTestId("key-metrics")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("budget-categories-progress"),
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("spending-chart")).toBeInTheDocument();
-    expect(screen.getByTestId("recent-transactions")).toBeInTheDocument();
-  });
-
-  it("shows loading state when data is loading", () => {
-    mockUseSWR.mockImplementation(() => ({
+  it("shows loading state when accounts are loading", () => {
+    // Mock SWR to return loading state
+    mockSWR.mockReturnValue({
       data: undefined,
       error: null,
       isLoading: true,
-      mutate: jest.fn(),
-      isValidating: true,
-    }));
+    });
 
-    render(<AnalyticsPage />);
+    mockUseBudgetAccount.mockReturnValue({
+      selectedAccount: null,
+      accounts: [],
+      isLoading: true,
+      error: null,
+      setSelectedAccount: jest.fn(),
+      setAccounts: jest.fn(),
+      setIsLoading: jest.fn(),
+      setError: jest.fn(),
+    });
+
+    render(
+      <ToastProvider>
+        <AnalyticsPage />
+      </ToastProvider>,
+    );
+
     expect(screen.getByTestId("spinner")).toBeInTheDocument();
   });
 
-  it("shows error state when data fails to load", () => {
-    mockUseSWR.mockImplementation(() => ({
-      data: undefined,
-      error: new Error("Failed to load"),
-      isLoading: false,
-      mutate: jest.fn(),
-      isValidating: false,
-    }));
-
-    render(<AnalyticsPage />);
-    expect(
-      screen.getByText("Failed to load transactions. Please try again."),
-    ).toBeInTheDocument();
-  });
-
-  it("updates date range when selector is used", async () => {
-    render(<AnalyticsPage />);
-
-    const dateRangeButton = screen.getByText("Change Date Range");
-    await act(async () => {
-      fireEvent.click(dateRangeButton);
-    });
-
-    // Verify that the components re-render with new date range
-    await waitFor(() => {
-      expect(screen.getByTestId("key-metrics")).toBeInTheDocument();
-    });
-  });
-
-  it("calculates financial insights correctly", () => {
-    render(<AnalyticsPage />);
-
-    // The insights are calculated in the component and passed to child components
-    // We can verify this by checking that the components are rendered
-    expect(screen.getByTestId("key-metrics")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("budget-categories-progress"),
-    ).toBeInTheDocument();
-  });
-
-  it("handles empty transactions gracefully", () => {
-    mockUseSWR.mockImplementation(() => ({
+  it("shows message when no account is selected", () => {
+    // Mock SWR to return empty data
+    mockSWR.mockReturnValue({
       data: [],
       error: null,
       isLoading: false,
-      mutate: jest.fn(),
-      isValidating: false,
-    }));
+    });
 
-    render(<AnalyticsPage />);
+    mockUseBudgetAccount.mockReturnValue({
+      selectedAccount: null,
+      accounts: [],
+      isLoading: false,
+      error: null,
+      setSelectedAccount: jest.fn(),
+      setAccounts: jest.fn(),
+      setIsLoading: jest.fn(),
+      setError: jest.fn(),
+    });
 
-    // Verify that the components still render without crashing
-    expect(screen.getByTestId("key-metrics")).toBeInTheDocument();
+    render(
+      <ToastProvider>
+        <AnalyticsPage />
+      </ToastProvider>,
+    );
+
     expect(
-      screen.getByTestId("budget-categories-progress"),
+      screen.getByText("Please select a budget account to view analytics."),
     ).toBeInTheDocument();
+  });
+
+  it("shows error message when transactions fail to load", () => {
+    // Mock SWR to return error for first call, success for second
+    mockSWR
+      .mockReturnValueOnce({
+        data: undefined,
+        error: new Error("Failed to load transactions"),
+        isLoading: false,
+      })
+      .mockReturnValueOnce({
+        data: mockBudgetCategories,
+        error: null,
+        isLoading: false,
+      });
+
+    mockUseBudgetAccount.mockReturnValue({
+      selectedAccount: mockAccount,
+      accounts: [mockAccount],
+      isLoading: false,
+      error: null,
+      setSelectedAccount: jest.fn(),
+      setAccounts: jest.fn(),
+      setIsLoading: jest.fn(),
+      setError: jest.fn(),
+    });
+
+    render(
+      <ToastProvider>
+        <AnalyticsPage />
+      </ToastProvider>,
+    );
+
+    expect(
+      screen.getByText("Failed to load data. Please try again."),
+    ).toBeInTheDocument();
+  });
+
+  it("renders analytics dashboard with data when account is selected", async () => {
+    // Mock SWR to return success data
+    mockSWR
+      .mockReturnValueOnce({
+        data: mockTransactions,
+        error: null,
+        isLoading: false,
+      })
+      .mockReturnValueOnce({
+        data: mockBudgetCategories,
+        error: null,
+        isLoading: false,
+      });
+
+    mockUseBudgetAccount.mockReturnValue({
+      selectedAccount: mockAccount,
+      accounts: [mockAccount],
+      isLoading: false,
+      error: null,
+      setSelectedAccount: jest.fn(),
+      setAccounts: jest.fn(),
+      setIsLoading: jest.fn(),
+      setError: jest.fn(),
+    });
+
+    render(
+      <ToastProvider>
+        <AnalyticsPage />
+      </ToastProvider>,
+    );
+
+    // Wait for the component to render
+    await waitFor(() => {
+      expect(screen.getByText("Budget Categories")).toBeInTheDocument();
+    });
+
+    // Check that budget categories are displayed
+    expect(screen.getByText("Food")).toBeInTheDocument();
+    expect(screen.getByText("Transportation")).toBeInTheDocument();
+    expect(screen.getByText("$100.00 / $500.00")).toBeInTheDocument();
+    expect(screen.getByText("$50.00 / $200.00")).toBeInTheDocument();
+  });
+
+  it("fetches data with correct account ID and date range", () => {
+    // Mock SWR to return success data
+    mockSWR
+      .mockReturnValueOnce({
+        data: mockTransactions,
+        error: null,
+        isLoading: false,
+      })
+      .mockReturnValueOnce({
+        data: mockBudgetCategories,
+        error: null,
+        isLoading: false,
+      });
+
+    mockUseBudgetAccount.mockReturnValue({
+      selectedAccount: mockAccount,
+      accounts: [mockAccount],
+      isLoading: false,
+      error: null,
+      setSelectedAccount: jest.fn(),
+      setAccounts: jest.fn(),
+      setIsLoading: jest.fn(),
+      setError: jest.fn(),
+    });
+
+    render(
+      <ToastProvider>
+        <AnalyticsPage />
+      </ToastProvider>,
+    );
+
+    // Verify that SWR was called with the correct keys
+    expect(mockSWR).toHaveBeenCalledWith(
+      ["transactions", "test-account-id"],
+      expect.any(Function),
+    );
+    expect(mockSWR).toHaveBeenCalledWith(
+      [
+        "budget-categories",
+        "test-account-id",
+        expect.any(Date),
+        expect.any(Date),
+      ],
+      expect.any(Function),
+    );
+  });
+
+  it("shows loading states in individual components when data is loading", () => {
+    // Mock SWR to return loading state for transactions, success for categories
+    mockSWR
+      .mockReturnValueOnce({
+        data: undefined,
+        error: null,
+        isLoading: true,
+      })
+      .mockReturnValueOnce({
+        data: mockBudgetCategories,
+        error: null,
+        isLoading: false,
+      });
+
+    mockUseBudgetAccount.mockReturnValue({
+      selectedAccount: mockAccount,
+      accounts: [mockAccount],
+      isLoading: false,
+      error: null,
+      setSelectedAccount: jest.fn(),
+      setAccounts: jest.fn(),
+      setIsLoading: jest.fn(),
+      setError: jest.fn(),
+    });
+
+    render(
+      <ToastProvider>
+        <AnalyticsPage />
+      </ToastProvider>,
+    );
+
+    // The page should render (not show full page loading) but individual components should show loading states
+    // We should see multiple spinners for different components
+    const spinners = screen.getAllByTestId("spinner");
+    expect(spinners.length).toBeGreaterThan(0); // Should have spinners in individual components
   });
 });

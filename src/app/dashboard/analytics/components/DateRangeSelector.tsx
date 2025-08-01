@@ -1,4 +1,5 @@
 import PageInfo from "@/components/PageInfo";
+import Spinner from "@/components/Spinner";
 import { format } from "date-fns";
 
 /**
@@ -8,6 +9,7 @@ interface DateRangeSelectorProps {
   startDate: Date;
   endDate: Date;
   onDateRangeChange: (startDate: Date, endDate: Date) => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -23,6 +25,7 @@ export default function DateRangeSelector({
   startDate,
   endDate,
   onDateRangeChange,
+  isLoading,
 }: DateRangeSelectorProps) {
   const pageInfoContent = (
     <ul className="text-sm text-secondary-700 space-y-4 list-none leading-relaxed">
@@ -91,6 +94,7 @@ export default function DateRangeSelector({
           }
           className="border border-secondary-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
+        {isLoading && <Spinner size="sm" />}
       </div>
     </div>
   );
