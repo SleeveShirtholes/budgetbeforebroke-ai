@@ -2,9 +2,25 @@ import { render, screen, waitFor } from "@testing-library/react";
 
 import DashboardPage from "../page";
 
+// Mock Next.js router
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+  }),
+}));
+
 // Mock the server action
 jest.mock("@/app/actions/dashboard", () => ({
   getDashboardData: jest.fn(),
+}));
+
+// Mock the onboarding action
+jest.mock("@/app/actions/onboarding", () => ({
+  needsOnboarding: jest.fn(),
 }));
 
 // Mock SWR to avoid actual data fetching in tests
@@ -156,6 +172,35 @@ describe("DashboardPage", () => {
     });
   });
 
+  it("renders setup message when no budget categories exist", async () => {
+    const emptyBudgetData = {
+      ...mockDashboardData,
+      budgetCategories: [],
+    };
+
+    useSWRMock.mockReturnValue({
+      data: emptyBudgetData,
+      error: undefined,
+      isLoading: false,
+    });
+
+    render(
+      <TestWrapper>
+        <DashboardPage />
+      </TestWrapper>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Set Up Your Budget")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Create budget categories to track your spending and stay on top of your finances.",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Set Up Budget Categories")).toBeInTheDocument();
+    });
+  });
+
   it("renders the monthly spending chart component with data", async () => {
     useSWRMock.mockReturnValue({
       data: mockDashboardData,
@@ -198,5 +243,28 @@ describe("DashboardPage", () => {
         revalidateOnFocus: true,
       },
     );
+  });
+
+  it("handles missing budget account error without setState during render", () => {
+    useSWRMock.mockReturnValue({
+      data: undefined,
+      error: new Error("No default budget account found"),
+      isLoading: false,
+    });
+
+    // This should not throw the setState during render error
+    expect(() => {
+      render(
+        <TestWrapper>
+          <DashboardPage />
+        </TestWrapper>,
+      );
+    }).not.toThrow();
+
+    // Should show the loading state while redirecting
+    expect(screen.getByText("Setting up your account...")).toBeInTheDocument();
+    expect(
+      screen.getByText("Redirecting to complete setup..."),
+    ).toBeInTheDocument();
   });
 });

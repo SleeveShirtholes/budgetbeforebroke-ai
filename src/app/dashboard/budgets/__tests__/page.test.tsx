@@ -186,7 +186,7 @@ describe("Budget Page", () => {
 
     // Check that the form is still open
     expect(screen.getByTestId("category-form")).toBeInTheDocument();
-    // Debug output if the input is not found
+
     try {
       const allCustomSelects = screen.getAllByTestId("custom-select");
       const categorySelectInput = allCustomSelects.find(
@@ -197,7 +197,6 @@ describe("Budget Page", () => {
         categorySelectInput && (categorySelectInput as HTMLInputElement).value,
       ).toBe("Housing");
     } catch (e) {
-      console.log(screen.debug());
       throw e;
     }
     expect(screen.getByDisplayValue("500")).toBeInTheDocument();

@@ -1,4 +1,2 @@
 #!/usr/bin/env sh
-yarn build
-yarn test
-npx prettier --write .
+yarn prep

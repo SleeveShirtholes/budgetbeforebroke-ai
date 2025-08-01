@@ -5,12 +5,16 @@ import {
   ArrowTrendingUpIcon,
   BanknotesIcon,
 } from "@heroicons/react/24/outline";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import useSWR from "swr";
 
 import BudgetCategoriesProgress from "@/components/BudgetCategoriesProgress";
 import Card from "@/components/Card";
 import MonthlySpendingChart from "@/components/MonthlySpendingChart";
 import { getDashboardData, type DashboardData } from "@/app/actions/dashboard";
+import { needsOnboarding } from "@/app/actions/onboarding";
+import Button from "@/components/Button";
 
 // Format number as currency string
 const formatCurrency = (value: number): string => {
@@ -26,6 +30,24 @@ const fetchDashboardData = async (): Promise<DashboardData> => {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
+
+  // Check if user needs onboarding on component mount
+  useEffect(() => {
+    async function checkOnboardingStatus() {
+      try {
+        const needsSetup = await needsOnboarding();
+        if (needsSetup) {
+          router.replace("/onboarding");
+        }
+      } catch (error) {
+        console.error("Error checking onboarding status:", error);
+      }
+    }
+
+    checkOnboardingStatus();
+  }, [router]);
+
   // Use mutate from SWR to allow retrying the fetch without a full page reload
   const { data, error, isLoading, mutate } = useSWR(
     "dashboard-data",
@@ -36,7 +58,26 @@ export default function DashboardPage() {
     },
   );
 
+  // Handle missing budget account error with useEffect to avoid setState during render
+  useEffect(() => {
+    if (error && error.message?.includes("No default budget account found")) {
+      router.replace("/onboarding");
+    }
+  }, [error, router]);
+
   if (error) {
+    // If error is about missing budget account, show loading state while redirecting
+    if (error.message?.includes("No default budget account found")) {
+      return (
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold">Setting up your account...</h2>
+            <p className="text-gray-500">Redirecting to complete setup...</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <Card>
@@ -154,8 +195,46 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="order-2 lg:order-1">
-          <BudgetCategoriesProgress categories={budgetCategories} />
+        <div>
+          {budgetCategories.length > 0 ? (
+            <BudgetCategoriesProgress categories={budgetCategories} />
+          ) : (
+            <Card>
+              <div className="text-center py-8">
+                <div className="mb-4">
+                  <div className="mx-auto w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+                    <svg
+                      className="w-8 h-8 text-primary-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-2">
+                    Set Up Your Budget
+                  </h3>
+                  <p className="text-secondary-600 mb-6">
+                    Create budget categories to track your spending and stay on
+                    top of your finances.
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => router.push("/dashboard/budgets")}
+                  >
+                    Set Up Budget Categories
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
         <div className="lg:col-span-2 order-1 lg:order-2">
           <MonthlySpendingChart data={monthlySpendingData} />

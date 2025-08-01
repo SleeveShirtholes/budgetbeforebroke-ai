@@ -9,7 +9,7 @@ import {
   PointElement,
   Title,
   Tooltip,
-  TooltipItem,
+  Filler,
 } from "chart.js";
 
 import { Line } from "react-chartjs-2";
@@ -22,6 +22,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
+  Filler,
 );
 
 interface MonthlySpendingData {

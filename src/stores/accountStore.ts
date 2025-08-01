@@ -167,8 +167,8 @@ const useAccountStore = create<AccountState>((set) => ({
   resendInvite: (accountId, userId) => {
     // For demo, just log or show a toast
     // In real app, would call API
-
-    console.log(`Resent invite to user ${userId} on account ${accountId}`);
+    // TODO: Implement actual API call using accountId and userId
+    console.log(`Resending invite for account ${accountId} to user ${userId}`);
   },
 }));
 
