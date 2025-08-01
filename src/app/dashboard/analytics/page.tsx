@@ -9,14 +9,48 @@ import DateRangeSelector from "@/app/dashboard/analytics/components/DateRangeSel
 import KeyMetrics from "@/app/dashboard/analytics/components/KeyMetrics";
 import RecentTransactions from "./components/RecentTransactions";
 import SpendingChart from "@/app/dashboard/analytics/components/SpendingChart";
-import { getTransactions } from "@/app/actions/transaction";
+import { getTransactions, type Transaction } from "@/app/actions/transaction";
 import { getBudgetCategoriesWithSpendingForDateRange } from "@/app/actions/dashboard";
 import Spinner from "@/components/Spinner";
-import { TransactionCategory } from "@/types/transaction";
 import { useBudgetAccount } from "@/stores/budgetAccountStore";
+import { TransactionCategory } from "@/types/transaction";
 
 // Define possible chart view modes
 type ChartViewMode = "total" | "byCategory" | "incomeVsExpense";
+
+/**
+ * Utility function to filter transactions by date range
+ * Uses normalized date comparison to avoid timezone and time issues
+ */
+function filterTransactionsByDateRange(
+  transactions: Transaction[],
+  startDate: Date,
+  endDate: Date,
+) {
+  return transactions.filter((t) => {
+    const transactionDate = new Date(t.date);
+    const startOfTransactionDate = new Date(
+      transactionDate.getFullYear(),
+      transactionDate.getMonth(),
+      transactionDate.getDate(),
+    );
+    const startOfStartDate = new Date(
+      startDate.getFullYear(),
+      startDate.getMonth(),
+      startDate.getDate(),
+    );
+    const startOfEndDate = new Date(
+      endDate.getFullYear(),
+      endDate.getMonth(),
+      endDate.getDate(),
+    );
+
+    return (
+      startOfTransactionDate >= startOfStartDate &&
+      startOfTransactionDate <= startOfEndDate
+    );
+  });
+}
 
 /**
  * Helper function to convert string category names to TransactionCategory type
@@ -111,29 +145,11 @@ export default function AnalyticsPage() {
   // Calculate financial insights for the selected date range
   const insights = useMemo(() => {
     // Filter transactions within the selected date range
-    const timeframeTransactions = transactions.filter((t) => {
-      const transactionDate = new Date(t.date);
-      const startOfTransactionDate = new Date(
-        transactionDate.getFullYear(),
-        transactionDate.getMonth(),
-        transactionDate.getDate(),
-      );
-      const startOfStartDate = new Date(
-        dateRange.startDate.getFullYear(),
-        dateRange.startDate.getMonth(),
-        dateRange.startDate.getDate(),
-      );
-      const startOfEndDate = new Date(
-        dateRange.endDate.getFullYear(),
-        dateRange.endDate.getMonth(),
-        dateRange.endDate.getDate(),
-      );
-
-      return (
-        startOfTransactionDate >= startOfStartDate &&
-        startOfTransactionDate <= startOfEndDate
-      );
-    });
+    const timeframeTransactions = filterTransactionsByDateRange(
+      transactions,
+      dateRange.startDate,
+      dateRange.endDate,
+    );
 
     // Calculate total income
     const totalIncome = timeframeTransactions
@@ -158,29 +174,11 @@ export default function AnalyticsPage() {
 
   // Prepare chart data based on selected view mode
   const chartData = useMemo(() => {
-    const timeframeTransactions = transactions.filter((t) => {
-      const transactionDate = new Date(t.date);
-      const startOfTransactionDate = new Date(
-        transactionDate.getFullYear(),
-        transactionDate.getMonth(),
-        transactionDate.getDate(),
-      );
-      const startOfStartDate = new Date(
-        dateRange.startDate.getFullYear(),
-        dateRange.startDate.getMonth(),
-        dateRange.startDate.getDate(),
-      );
-      const startOfEndDate = new Date(
-        dateRange.endDate.getFullYear(),
-        dateRange.endDate.getMonth(),
-        dateRange.endDate.getDate(),
-      );
-
-      return (
-        startOfTransactionDate >= startOfStartDate &&
-        startOfTransactionDate <= startOfEndDate
-      );
-    });
+    const timeframeTransactions = filterTransactionsByDateRange(
+      transactions,
+      dateRange.startDate,
+      dateRange.endDate,
+    );
 
     // Generate array of days in the selected date range
     const days = eachDayOfInterval({
@@ -335,32 +333,16 @@ export default function AnalyticsPage() {
 
   // Filter transactions for the recent transactions list
   const filteredTransactions = useMemo(() => {
-    return transactions
-      .filter((t) => {
-        const transactionDate = new Date(t.date);
-        const startOfTransactionDate = new Date(
-          transactionDate.getFullYear(),
-          transactionDate.getMonth(),
-          transactionDate.getDate(),
-        );
-        const startOfStartDate = new Date(
-          dateRange.startDate.getFullYear(),
-          dateRange.startDate.getMonth(),
-          dateRange.startDate.getDate(),
-        );
-        const startOfEndDate = new Date(
-          dateRange.endDate.getFullYear(),
-          dateRange.endDate.getMonth(),
-          dateRange.endDate.getDate(),
-        );
-
-        return (
-          startOfTransactionDate >= startOfStartDate &&
-          startOfTransactionDate <= startOfEndDate &&
-          (!selectedCategories.size ||
-            selectedCategories.has(mapCategoryNameToType(t.categoryName)))
-        );
-      })
+    return filterTransactionsByDateRange(
+      transactions,
+      dateRange.startDate,
+      dateRange.endDate,
+    )
+      .filter(
+        (t) =>
+          !selectedCategories.size ||
+          selectedCategories.has(mapCategoryNameToType(t.categoryName)),
+      )
       .slice(0, 10);
   }, [transactions, selectedCategories, dateRange]);
 

@@ -2,6 +2,9 @@ import PageInfo from "@/components/PageInfo";
 import Spinner from "@/components/Spinner";
 import { format } from "date-fns";
 
+// Constant for noon UTC time suffix used in date string parsing
+const NOON_UTC_TIME_SUFFIX = "T12:00:00Z";
+
 /**
  * Props interface for the DateRangeSelector component
  */
@@ -22,7 +25,7 @@ function createValidDate(dateString: string): Date | null {
     return null;
   }
 
-  const date = new Date(dateString + "T12:00:00Z");
+  const date = new Date(dateString + NOON_UTC_TIME_SUFFIX);
   return isNaN(date.getTime()) ? null : date;
 }
 
