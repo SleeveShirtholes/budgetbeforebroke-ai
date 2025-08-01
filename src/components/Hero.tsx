@@ -18,7 +18,13 @@ export default function Hero() {
             platform.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4 sm:px-0">
-            <Button variant="primary" size="lg" href="/signup" fullWidth className="sm:w-auto">
+            <Button
+              variant="primary"
+              size="lg"
+              href="/signup"
+              fullWidth
+              className="sm:w-auto"
+            >
               Get Started Free
             </Button>
           </div>

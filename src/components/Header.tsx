@@ -219,7 +219,9 @@ export default function Header() {
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {userName}
                     </p>
-                    <p className="text-sm text-gray-500 truncate">{userEmail}</p>
+                    <p className="text-sm text-gray-500 truncate">
+                      {userEmail}
+                    </p>
                   </div>
                   <div className="py-2 px-1" role="menu">
                     <Link

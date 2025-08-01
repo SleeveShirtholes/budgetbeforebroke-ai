@@ -9,6 +9,7 @@ import {
   PointElement,
   Title,
   Tooltip,
+  TooltipItem,
   Filler,
 } from "chart.js";
 
@@ -98,7 +99,7 @@ export default function MonthlySpendingChart({
         displayColors: true,
         callbacks: {
           label: function (tooltipItem: TooltipItem<"line">) {
-            return `${tooltipItem.dataset.label || 'Data'}: $${tooltipItem.parsed.y.toFixed(2)}`;
+            return `${tooltipItem.dataset.label || "Data"}: $${tooltipItem.parsed.y.toFixed(2)}`;
           },
         },
       },
@@ -145,7 +146,7 @@ export default function MonthlySpendingChart({
     },
     interaction: {
       intersect: false,
-      mode: 'index' as const,
+      mode: "index" as const,
     },
   };
 

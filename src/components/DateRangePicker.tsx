@@ -23,7 +23,9 @@ export default function DateRangePicker({
         }
         className="border border-secondary-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-full sm:w-auto"
       />
-      <span className="text-secondary-600 text-sm text-center sm:text-left">to</span>
+      <span className="text-secondary-600 text-sm text-center sm:text-left">
+        to
+      </span>
       <input
         type="date"
         value={format(endDate, "yyyy-MM-dd")}

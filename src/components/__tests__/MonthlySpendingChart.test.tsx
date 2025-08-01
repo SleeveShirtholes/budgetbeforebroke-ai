@@ -33,7 +33,8 @@ describe("MonthlySpendingChart", () => {
       "bg-white",
       "rounded-xl",
       "shadow",
-      "p-6",
+      "p-4",
+      "sm:p-6",
       "border",
       "border-secondary-100",
     );

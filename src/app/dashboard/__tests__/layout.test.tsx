@@ -73,8 +73,10 @@ describe("Dashboard Layout", () => {
       "px-4",
       "sm:px-6",
       "lg:px-8",
-      "py-8",
-      "pt-22",
+      "py-6",
+      "sm:py-8",
+      "pt-20",
+      "sm:pt-22",
     );
 
     // Check for the flex container with breadcrumb and account selector
@@ -82,8 +84,11 @@ describe("Dashboard Layout", () => {
     expect(flexContainer).toHaveClass(
       "mb-6",
       "flex",
-      "items-center",
-      "justify-between",
+      "flex-col",
+      "sm:flex-row",
+      "sm:items-center",
+      "sm:justify-between",
+      "gap-4",
     );
 
     // Check for breadcrumb

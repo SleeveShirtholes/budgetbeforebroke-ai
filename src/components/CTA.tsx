@@ -10,7 +10,12 @@ export default function CTA() {
         <p className="text-base sm:text-lg lg:text-xl text-accent-700 mb-6 sm:mb-8 max-w-2xl mx-auto">
           Join thousands of users who are already budgeting smarter.
         </p>
-        <Button variant="primary" size="lg" href="/signup" className="w-full sm:w-auto">
+        <Button
+          variant="primary"
+          size="lg"
+          href="/signup"
+          className="w-full sm:w-auto"
+        >
           Start Your Free Trial
         </Button>
       </div>

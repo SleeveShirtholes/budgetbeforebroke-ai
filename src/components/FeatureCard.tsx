@@ -22,7 +22,9 @@ export default function FeatureCard({
       >
         {icon}
       </div>
-      <h3 className="text-lg sm:text-xl font-semibold text-primary-800 mb-2">{title}</h3>
+      <h3 className="text-lg sm:text-xl font-semibold text-primary-800 mb-2">
+        {title}
+      </h3>
       <p className="text-sm sm:text-base text-accent-700">{description}</p>
     </div>
   );
