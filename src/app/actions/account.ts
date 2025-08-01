@@ -228,6 +228,33 @@ export async function updateAccountName(id: string, name: string) {
 }
 
 /**
+ * Invites a user to join the current user's default budget account
+ * @param email - The email address of the user to invite
+ * @param role - The role to assign to the invited user
+ * @returns Promise<{ success: boolean }>
+ */
+export async function inviteToAccount(email: string, role: string = "member") {
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult?.session || !sessionResult?.user) {
+    throw new Error("Not authenticated");
+  }
+
+  // Get user's default account
+  const currentUser = await db.query.user.findFirst({
+    where: eq(user.id, sessionResult.user.id),
+  });
+
+  if (!currentUser?.defaultBudgetAccountId) {
+    throw new Error("No default budget account found");
+  }
+
+  return await inviteUser(currentUser.defaultBudgetAccountId, email, role);
+}
+
+/**
  * Invites a user to join an account
  * @param accountId - The account ID to invite the user to
  * @param email - The email address of the user to invite

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, lte, sql, desc } from "drizzle-orm";
 import {
   transactions,
   categories,
@@ -62,8 +62,24 @@ async function getDefaultBudgetAccountId(): Promise<string> {
  */
 function getCurrentMonthDateRange() {
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const startOfMonth = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    1,
+    0,
+    0,
+    0,
+    0,
+  );
+  const endOfMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    0,
+    23,
+    59,
+    59,
+    999,
+  );
   return { startOfMonth, endOfMonth };
 }
 
@@ -93,7 +109,43 @@ export async function getAccountBalance(budgetAccountId?: string) {
 export async function getMonthlyIncome(budgetAccountId?: string) {
   const accountId = budgetAccountId || (await getDefaultBudgetAccountId());
 
-  const { startOfMonth, endOfMonth } = getCurrentMonthDateRange();
+  // Get current budget to determine the month to use
+  const now = new Date();
+  const currentBudget = await db.query.budgets.findFirst({
+    where: and(
+      eq(budgets.budgetAccountId, accountId),
+      eq(budgets.year, now.getFullYear()),
+      eq(budgets.month, now.getMonth() + 1),
+    ),
+  });
+
+  // Use budget's month if available, otherwise fall back to current month
+  let startOfMonth, endOfMonth;
+  if (currentBudget) {
+    startOfMonth = new Date(
+      currentBudget.year,
+      currentBudget.month - 1,
+      1,
+      0,
+      0,
+      0,
+      0,
+    );
+    endOfMonth = new Date(
+      currentBudget.year,
+      currentBudget.month,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+  } else {
+    const { startOfMonth: currentStart, endOfMonth: currentEnd } =
+      getCurrentMonthDateRange();
+    startOfMonth = currentStart;
+    endOfMonth = currentEnd;
+  }
 
   const incomeResult = await db
     .select({
@@ -118,7 +170,43 @@ export async function getMonthlyIncome(budgetAccountId?: string) {
 export async function getMonthlyExpenses(budgetAccountId?: string) {
   const accountId = budgetAccountId || (await getDefaultBudgetAccountId());
 
-  const { startOfMonth, endOfMonth } = getCurrentMonthDateRange();
+  // Get current budget to determine the month to use
+  const now = new Date();
+  const currentBudget = await db.query.budgets.findFirst({
+    where: and(
+      eq(budgets.budgetAccountId, accountId),
+      eq(budgets.year, now.getFullYear()),
+      eq(budgets.month, now.getMonth() + 1),
+    ),
+  });
+
+  // Use budget's month if available, otherwise fall back to current month
+  let startOfMonth, endOfMonth;
+  if (currentBudget) {
+    startOfMonth = new Date(
+      currentBudget.year,
+      currentBudget.month - 1,
+      1,
+      0,
+      0,
+      0,
+      0,
+    );
+    endOfMonth = new Date(
+      currentBudget.year,
+      currentBudget.month,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+  } else {
+    const { startOfMonth: currentStart, endOfMonth: currentEnd } =
+      getCurrentMonthDateRange();
+    startOfMonth = currentStart;
+    endOfMonth = currentEnd;
+  }
 
   const expenseResult = await db
     .select({
@@ -145,55 +233,50 @@ export async function getMonthlyExpenses(budgetAccountId?: string) {
 export async function getMonthlySpendingData(budgetAccountId?: string) {
   const accountId = budgetAccountId || (await getDefaultBudgetAccountId());
 
-  // Calculate the start date (12 months ago, at the start of that month)
-  const now = new Date();
-  const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-  // Query: group by year and month, sum income and expenses
-  const results = await db
+  // Get all transactions for this account (no date filtering)
+  const allTransactions = await db
     .select({
-      year: sql<number>`EXTRACT(YEAR FROM ${transactions.date})`,
-      month: sql<number>`EXTRACT(MONTH FROM ${transactions.date})`,
-      totalIncome: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.amount} ELSE 0 END), 0)`,
-      totalExpenses: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.amount} ELSE 0 END), 0)`,
+      id: transactions.id,
+      amount: transactions.amount,
+      type: transactions.type,
+      date: transactions.date,
+      description: transactions.description,
     })
     .from(transactions)
-    .where(
-      and(
-        eq(transactions.budgetAccountId, accountId),
-        gte(transactions.date, startDate),
-        lte(transactions.date, endDate),
-      ),
-    )
-    .groupBy(
-      sql`EXTRACT(YEAR FROM ${transactions.date})`,
-      sql`EXTRACT(MONTH FROM ${transactions.date})`,
-    )
-    .orderBy(
-      sql`EXTRACT(YEAR FROM ${transactions.date}) ASC`,
-      sql`EXTRACT(MONTH FROM ${transactions.date}) ASC`,
-    );
+    .where(eq(transactions.budgetAccountId, accountId))
+    .orderBy(desc(transactions.date));
 
-  // Build a map for quick lookup
-  const dataMap = new Map<string, { income: number; expenses: number }>();
-  for (const row of results) {
-    const key = `${row.year}-${row.month}`;
-    dataMap.set(key, {
-      income: Number(row.totalIncome || 0),
-      expenses: Number(row.totalExpenses || 0),
-    });
-  }
+  // Group transactions by month
+  const monthlyTotals = new Map<string, { income: number; expenses: number }>();
 
-  // Prepare the last 12 months in order, filling missing months with zeroes
+  allTransactions.forEach((tx) => {
+    const date = new Date(tx.date);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+    if (!monthlyTotals.has(monthKey)) {
+      monthlyTotals.set(monthKey, { income: 0, expenses: 0 });
+    }
+
+    const current = monthlyTotals.get(monthKey)!;
+    if (tx.type === "income") {
+      current.income += Number(tx.amount);
+    } else if (tx.type === "expense") {
+      current.expenses += Number(tx.amount);
+    }
+  });
+
+  // Generate the last 12 months with data
+  const now = new Date();
   const monthlyData = [];
+
   for (let i = 11; i >= 0; i--) {
     const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1; // JS months are 0-based
-    const key = `${year}-${month}`;
-    const entry = dataMap.get(key);
-    const amount = entry ? entry.income - entry.expenses : 0;
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const monthData = monthlyTotals.get(monthKey);
+
+    // Show only expenses (spending) instead of net cash flow
+    const amount = monthData ? monthData.expenses : 0;
+
     monthlyData.push({
       month: date.toLocaleDateString("en-US", { month: "short" }),
       amount,
@@ -213,6 +296,7 @@ export async function getBudgetCategoriesWithSpending(
 
   // Get current budget
   const now = new Date();
+
   const currentBudget = await db.query.budgets.findFirst({
     where: and(
       eq(budgets.budgetAccountId, accountId),
@@ -225,8 +309,25 @@ export async function getBudgetCategoriesWithSpending(
     return [];
   }
 
-  // Get date range for current month
-  const { startOfMonth, endOfMonth } = getCurrentMonthDateRange();
+  // Get date range for the budget's month (not current system month)
+  const budgetStartOfMonth = new Date(
+    currentBudget.year,
+    currentBudget.month - 1,
+    1,
+    0,
+    0,
+    0,
+    0,
+  );
+  const budgetEndOfMonth = new Date(
+    currentBudget.year,
+    currentBudget.month,
+    0,
+    23,
+    59,
+    59,
+    999,
+  );
 
   // Single grouped query for all categories' spending
   const categoriesWithSpendingRaw = await db
@@ -243,8 +344,8 @@ export async function getBudgetCategoriesWithSpending(
         eq(transactions.categoryId, categories.id),
         eq(transactions.budgetAccountId, accountId),
         eq(transactions.type, "expense"),
-        gte(transactions.date, startOfMonth),
-        lte(transactions.date, endOfMonth),
+        gte(transactions.date, budgetStartOfMonth),
+        lte(transactions.date, budgetEndOfMonth),
       ),
     )
     .where(eq(budgetCategories.budgetId, currentBudget.id))
