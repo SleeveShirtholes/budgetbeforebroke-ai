@@ -393,10 +393,6 @@ export async function getBudgetCategoriesWithSpendingForDateRange(
     ),
   });
 
-  if (!currentBudget) {
-    return [];
-  }
-
   // Get all categories for the budget account
   const allCategories = await db
     .select({
@@ -406,6 +402,49 @@ export async function getBudgetCategoriesWithSpendingForDateRange(
     })
     .from(categories)
     .where(eq(categories.budgetAccountId, accountId));
+
+  // If no current budget exists, show all categories with zero budget
+  if (!currentBudget) {
+    // Get spending data for the date range
+    const spendingData = await db
+      .select({
+        categoryId: transactions.categoryId,
+        totalSpent: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.budgetAccountId, accountId),
+          eq(transactions.type, "expense"),
+          gte(transactions.date, startDate),
+          lte(transactions.date, endDate),
+          sql`${transactions.categoryId} IS NOT NULL`,
+        ),
+      )
+      .groupBy(transactions.categoryId);
+
+    // Create a map of category ID to spending
+    const spendingMap = new Map(
+      spendingData.map((s) => [s.categoryId, Number(s.totalSpent)]),
+    );
+
+    // Color scheme for budget categories (primary colors)
+    const colors = [
+      "rgb(78, 0, 142)", // primary-500
+      "rgb(153, 51, 255)", // primary-400
+      "rgb(179, 102, 255)", // primary-300
+      "rgb(209, 153, 255)", // primary-200
+      "rgb(230, 204, 255)", // primary-100
+    ];
+
+    // Return all categories with zero budget and actual spending
+    return allCategories.map((category, index) => ({
+      name: category.name,
+      spent: spendingMap.get(category.id) || 0,
+      budget: 0, // No budget set
+      color: category.color || colors[index % colors.length],
+    }));
+  }
 
   // Get budget amounts for each category
   const budgetAmounts = await db

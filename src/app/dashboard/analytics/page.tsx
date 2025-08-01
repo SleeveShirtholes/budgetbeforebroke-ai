@@ -111,11 +111,29 @@ export default function AnalyticsPage() {
   // Calculate financial insights for the selected date range
   const insights = useMemo(() => {
     // Filter transactions within the selected date range
-    const timeframeTransactions = transactions.filter(
-      (t) =>
-        new Date(t.date) >= dateRange.startDate &&
-        new Date(t.date) <= dateRange.endDate,
-    );
+    const timeframeTransactions = transactions.filter((t) => {
+      const transactionDate = new Date(t.date);
+      const startOfTransactionDate = new Date(
+        transactionDate.getFullYear(),
+        transactionDate.getMonth(),
+        transactionDate.getDate(),
+      );
+      const startOfStartDate = new Date(
+        dateRange.startDate.getFullYear(),
+        dateRange.startDate.getMonth(),
+        dateRange.startDate.getDate(),
+      );
+      const startOfEndDate = new Date(
+        dateRange.endDate.getFullYear(),
+        dateRange.endDate.getMonth(),
+        dateRange.endDate.getDate(),
+      );
+
+      return (
+        startOfTransactionDate >= startOfStartDate &&
+        startOfTransactionDate <= startOfEndDate
+      );
+    });
 
     // Calculate total income
     const totalIncome = timeframeTransactions
@@ -140,11 +158,29 @@ export default function AnalyticsPage() {
 
   // Prepare chart data based on selected view mode
   const chartData = useMemo(() => {
-    const timeframeTransactions = transactions.filter(
-      (t) =>
-        new Date(t.date) >= dateRange.startDate &&
-        new Date(t.date) <= dateRange.endDate,
-    );
+    const timeframeTransactions = transactions.filter((t) => {
+      const transactionDate = new Date(t.date);
+      const startOfTransactionDate = new Date(
+        transactionDate.getFullYear(),
+        transactionDate.getMonth(),
+        transactionDate.getDate(),
+      );
+      const startOfStartDate = new Date(
+        dateRange.startDate.getFullYear(),
+        dateRange.startDate.getMonth(),
+        dateRange.startDate.getDate(),
+      );
+      const startOfEndDate = new Date(
+        dateRange.endDate.getFullYear(),
+        dateRange.endDate.getMonth(),
+        dateRange.endDate.getDate(),
+      );
+
+      return (
+        startOfTransactionDate >= startOfStartDate &&
+        startOfTransactionDate <= startOfEndDate
+      );
+    });
 
     // Generate array of days in the selected date range
     const days = eachDayOfInterval({
@@ -270,13 +306,29 @@ export default function AnalyticsPage() {
             {} as Record<string, number>,
           );
 
-        return {
+        // Create chart data with all days in range, filling in zeros for days with no spending
+        const chartData = {
           data: days.map((day) => ({
             month: day,
             amount: dailySpending[day] || 0,
           })),
-          datasets: [],
+          datasets: [
+            {
+              label: "Daily Spending",
+              data: days.map((day) => dailySpending[day] || 0),
+              borderColor: "#4e008e", // primary-500
+              backgroundColor: "rgba(78, 0, 142, 0.1)", // primary-500 with opacity
+              tension: 0.4,
+              fill: true,
+              pointBackgroundColor: "#4e008e", // primary-500
+              pointBorderColor: "#4e008e", // primary-500
+              pointRadius: 4,
+              pointHoverRadius: 6,
+            },
+          ],
         };
+
+        return chartData;
       }
     }
   }, [transactions, dateRange, chartViewMode, selectedChartCategories]);
@@ -284,13 +336,31 @@ export default function AnalyticsPage() {
   // Filter transactions for the recent transactions list
   const filteredTransactions = useMemo(() => {
     return transactions
-      .filter(
-        (t) =>
-          new Date(t.date) >= dateRange.startDate &&
-          new Date(t.date) <= dateRange.endDate &&
+      .filter((t) => {
+        const transactionDate = new Date(t.date);
+        const startOfTransactionDate = new Date(
+          transactionDate.getFullYear(),
+          transactionDate.getMonth(),
+          transactionDate.getDate(),
+        );
+        const startOfStartDate = new Date(
+          dateRange.startDate.getFullYear(),
+          dateRange.startDate.getMonth(),
+          dateRange.startDate.getDate(),
+        );
+        const startOfEndDate = new Date(
+          dateRange.endDate.getFullYear(),
+          dateRange.endDate.getMonth(),
+          dateRange.endDate.getDate(),
+        );
+
+        return (
+          startOfTransactionDate >= startOfStartDate &&
+          startOfTransactionDate <= startOfEndDate &&
           (!selectedCategories.size ||
-            selectedCategories.has(mapCategoryNameToType(t.categoryName))),
-      )
+            selectedCategories.has(mapCategoryNameToType(t.categoryName)))
+        );
+      })
       .slice(0, 10);
   }, [transactions, selectedCategories, dateRange]);
 
@@ -316,9 +386,48 @@ export default function AnalyticsPage() {
   if (!selectedAccount) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-600">
-          Please select a budget account to view analytics.
-        </p>
+        <div className="max-w-md mx-auto">
+          <div className="mb-4">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No Budget Account Selected
+          </h3>
+          <p className="text-gray-600 mb-6">
+            To view your financial analytics, you need to select or create a
+            budget account.
+          </p>
+          <div className="space-y-3">
+            <a
+              href="/account"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              Manage Accounts
+            </a>
+            <div className="text-sm text-gray-500">
+              <p>Don&apos;t have an account yet?</p>
+              <a
+                href="/onboarding/account"
+                className="text-primary-600 hover:text-primary-500 font-medium"
+              >
+                Create your first budget account
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

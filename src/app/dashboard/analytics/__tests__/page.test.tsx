@@ -142,8 +142,11 @@ describe("AnalyticsPage", () => {
       </ToastProvider>,
     );
 
+    expect(screen.getByText("No Budget Account Selected")).toBeInTheDocument();
     expect(
-      screen.getByText("Please select a budget account to view analytics."),
+      screen.getByText(
+        "To view your financial analytics, you need to select or create a budget account.",
+      ),
     ).toBeInTheDocument();
   });
 

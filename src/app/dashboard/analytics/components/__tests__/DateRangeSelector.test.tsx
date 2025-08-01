@@ -61,6 +61,22 @@ describe("DateRangeSelector", () => {
     );
   });
 
+  it("handles invalid dates gracefully without calling onDateRangeChange", () => {
+    render(<DateRangeSelector {...defaultProps} />);
+
+    const startDateInput = screen.getByDisplayValue(
+      format(defaultProps.startDate, "yyyy-MM-dd"),
+    );
+
+    // Test with empty string
+    fireEvent.change(startDateInput, { target: { value: "" } });
+    expect(mockOnDateRangeChange).not.toHaveBeenCalled();
+
+    // Test with invalid date format
+    fireEvent.change(startDateInput, { target: { value: "invalid-date" } });
+    expect(mockOnDateRangeChange).not.toHaveBeenCalled();
+  });
+
   it("displays help tooltip on hover", () => {
     render(<DateRangeSelector {...defaultProps} />);
 

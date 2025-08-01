@@ -13,6 +13,20 @@ interface DateRangeSelectorProps {
 }
 
 /**
+ * Helper function to safely create a Date object from a date string
+ * @param dateString - The date string in YYYY-MM-DD format
+ * @returns A valid Date object or null if the string is invalid
+ */
+function createValidDate(dateString: string): Date | null {
+  if (!dateString || dateString.trim() === "") {
+    return null;
+  }
+
+  const date = new Date(dateString + "T12:00:00Z");
+  return isNaN(date.getTime()) ? null : date;
+}
+
+/**
  * A component that allows users to select a date range for viewing financial data.
  * Includes a help tooltip with usage instructions and date input fields.
  *
@@ -69,6 +83,26 @@ export default function DateRangeSelector({
     </ul>
   );
 
+  /**
+   * Handle start date change with validation
+   */
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStartDate = createValidDate(e.target.value);
+    if (newStartDate) {
+      onDateRangeChange(newStartDate, endDate);
+    }
+  };
+
+  /**
+   * Handle end date change with validation
+   */
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEndDate = createValidDate(e.target.value);
+    if (newEndDate) {
+      onDateRangeChange(startDate, newEndDate);
+    }
+  };
+
   return (
     <div className="flex items-center justify-end space-x-4">
       <PageInfo content={pageInfoContent} />
@@ -77,21 +111,14 @@ export default function DateRangeSelector({
         <input
           type="date"
           value={format(startDate, "yyyy-MM-dd")}
-          onChange={(e) =>
-            onDateRangeChange(new Date(e.target.value + "T12:00:00Z"), endDate)
-          }
+          onChange={handleStartDateChange}
           className="border border-secondary-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
         <span className="text-secondary-600">to</span>
         <input
           type="date"
           value={format(endDate, "yyyy-MM-dd")}
-          onChange={(e) =>
-            onDateRangeChange(
-              startDate,
-              new Date(e.target.value + "T12:00:00Z"),
-            )
-          }
+          onChange={handleEndDateChange}
           className="border border-secondary-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
         {isLoading && <Spinner size="sm" />}
