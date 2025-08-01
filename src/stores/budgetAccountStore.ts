@@ -83,9 +83,20 @@ export function useBudgetAccount() {
 
   // Effect to handle default account selection
   useEffect(() => {
-    if (!accountsRaw.length || !defaultAccountId) return;
+    if (!accountsRaw.length) {
+      return;
+    }
 
     const mappedAccounts = accountsRaw.map(mapAccountWithMembersToAccount);
+
+    // If no default account ID is set, use the first available account
+    if (!defaultAccountId) {
+      if (!selectedAccount && mappedAccounts.length > 0) {
+        setSelectedAccount(mappedAccounts[0]);
+      }
+      return;
+    }
+
     const defaultAccount = mappedAccounts.find(
       (a) => a.id === defaultAccountId,
     );
