@@ -6,33 +6,48 @@ import Card from "@/components/Card";
 import Button from "@/components/Button";
 import { CheckIcon } from "@heroicons/react/24/outline";
 
+// Define constants for step IDs to improve maintainability
+const STEP_IDS = {
+  ACCOUNT: "account",
+  INVITE: "invite",
+  INCOME: "income",
+  CATEGORIES: "categories",
+  BILLS: "bills",
+} as const;
+
+const REQUIRED_STEPS = [
+  STEP_IDS.ACCOUNT,
+  STEP_IDS.INCOME,
+  STEP_IDS.CATEGORIES,
+] as const;
+
 const ONBOARDING_STEPS = [
   {
-    id: "account",
+    id: STEP_IDS.ACCOUNT,
     title: "Create Budget Account",
     description: "Set up your first budget account",
     path: "/onboarding/account",
   },
   {
-    id: "invite",
+    id: STEP_IDS.INVITE,
     title: "Invite Others",
     description: "Add family members or partners (optional)",
     path: "/onboarding/invite",
   },
   {
-    id: "income",
+    id: STEP_IDS.INCOME,
     title: "Add Income",
     description: "Set up your income sources",
     path: "/onboarding/income",
   },
   {
-    id: "categories",
+    id: STEP_IDS.CATEGORIES,
     title: "Set Up Categories",
     description: "Choose your budget categories",
     path: "/onboarding/categories",
   },
   {
-    id: "bills",
+    id: STEP_IDS.BILLS,
     title: "Add Recurring Bills",
     description: "Track your regular expenses",
     path: "/onboarding/bills",
@@ -62,7 +77,7 @@ export default function OnboardingPage() {
   };
 
   const isStepCompleted = (stepId: string) => completedSteps.has(stepId);
-  const canSkip = completedSteps.has("account"); // Must complete account creation first
+  const canSkip = completedSteps.has(STEP_IDS.ACCOUNT); // Must complete account creation first
 
   return (
     <div className="space-y-8">
@@ -105,10 +120,9 @@ export default function OnboardingPage() {
         <div className="space-y-6">
           {ONBOARDING_STEPS.map((step, index) => {
             const isCompleted = isStepCompleted(step.id);
-            const isRequired =
-              step.id === "account" ||
-              step.id === "income" ||
-              step.id === "categories";
+            const isRequired = REQUIRED_STEPS.includes(
+              step.id as (typeof REQUIRED_STEPS)[number],
+            );
 
             return (
               <div
@@ -165,7 +179,7 @@ export default function OnboardingPage() {
           <div className="ml-auto">
             <Button
               onClick={() => router.push("/onboarding/account")}
-              disabled={isStepCompleted("account") && isStepCompleted("income")}
+              disabled={false}
             >
               {completedSteps.size === 0 ? "Get Started" : "Continue Setup"}
             </Button>

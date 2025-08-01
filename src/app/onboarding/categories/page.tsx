@@ -129,7 +129,7 @@ export default function CategoriesOnboardingPage() {
     setSelectedCategories(new Set([...selectedCategories, trimmedName]));
     setCustomCategoryName("");
     setShowCustomForm(false);
-    showToast("Custom category added!", { type: "success" });
+    showToast("Custom category added successfully!", { type: "success" });
   };
 
   /**

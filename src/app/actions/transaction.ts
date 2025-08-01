@@ -93,6 +93,34 @@ async function getDefaultBudgetAccountId(): Promise<string> {
 }
 
 /**
+ * Parses a transaction date string into a Date object
+ * Handles both YYYY-MM-DD format and ISO strings
+ * Creates date in UTC at midnight to avoid timezone issues
+ *
+ * @param dateString - The date string to parse (optional)
+ * @returns Date object, or current date if no string provided
+ */
+function parseTransactionDate(dateString?: string): Date {
+  if (!dateString) {
+    return new Date();
+  }
+
+  // Handle both YYYY-MM-DD format and ISO strings
+  let normalizedDateString: string;
+  if (dateString.includes("T")) {
+    // If it's an ISO string, extract just the date part
+    normalizedDateString = dateString.split("T")[0]; // Get just YYYY-MM-DD
+  } else {
+    // If it's already in YYYY-MM-DD format, use it directly
+    normalizedDateString = dateString;
+  }
+
+  const [year, month, day] = normalizedDateString.split("-").map(Number);
+  // Create date in UTC at midnight to avoid timezone issues
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+}
+
+/**
  * Gets all transactions for the specified budget account (or default if not provided)
  *
  * This function retrieves all transactions for a budget account, including
@@ -226,24 +254,8 @@ export async function createTransaction(data: CreateTransactionInput) {
   // Generate a unique transaction ID and insert the transaction
   const transactionId = randomUUID();
 
-  // Parse the date properly - handle both YYYY-MM-DD format and ISO strings
-  let transactionDate: Date;
-  if (data.date) {
-    // Handle both YYYY-MM-DD format and ISO strings
-    let dateString: string;
-    if (data.date.includes("T")) {
-      // If it's an ISO string, extract just the date part
-      dateString = data.date.split("T")[0]; // Get just YYYY-MM-DD
-    } else {
-      // If it's already in YYYY-MM-DD format, use it directly
-      dateString = data.date;
-    }
-    const [year, month, day] = dateString.split("-").map(Number);
-    // Create date in UTC at midnight to avoid timezone issues
-    transactionDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-  } else {
-    transactionDate = new Date();
-  }
+  // Parse the date using the helper function
+  const transactionDate = parseTransactionDate(data.date);
 
   await db.insert(transactions).values({
     id: transactionId,
@@ -340,18 +352,8 @@ export async function updateTransaction(data: UpdateTransactionInput) {
     updateData.description = data.description || null;
   }
   if (data.date !== undefined) {
-    // Parse the date properly - handle both YYYY-MM-DD format and ISO strings
-    let dateString: string;
-    if (data.date.includes("T")) {
-      // If it's an ISO string, extract just the date part
-      dateString = data.date.split("T")[0]; // Get just YYYY-MM-DD
-    } else {
-      // If it's already in YYYY-MM-DD format, use it directly
-      dateString = data.date;
-    }
-    const [year, month, day] = dateString.split("-").map(Number);
-    // Create date in UTC at midnight to avoid timezone issues
-    updateData.date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    // Parse the date using the helper function
+    updateData.date = parseTransactionDate(data.date);
   }
   if (data.type !== undefined) {
     updateData.type = data.type;

@@ -355,9 +355,12 @@ describe("CategoriesOnboardingPage", () => {
       fireEvent.click(screen.getByText("Add"));
 
       // Should show success toast
-      expect(mockShowToast).toHaveBeenCalledWith("Custom category added!", {
-        type: "success",
-      });
+      expect(mockShowToast).toHaveBeenCalledWith(
+        "Custom category added successfully!",
+        {
+          type: "success",
+        },
+      );
 
       // Should show custom category in list
       expect(screen.getByText("Gym Membership")).toBeInTheDocument();
@@ -457,9 +460,12 @@ describe("CategoriesOnboardingPage", () => {
       fireEvent.change(input, { target: { value: "Gym Membership" } });
       fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
 
-      expect(mockShowToast).toHaveBeenCalledWith("Custom category added!", {
-        type: "success",
-      });
+      expect(mockShowToast).toHaveBeenCalledWith(
+        "Custom category added successfully!",
+        {
+          type: "success",
+        },
+      );
     });
   });
 
