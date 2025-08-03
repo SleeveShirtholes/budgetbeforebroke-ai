@@ -37,6 +37,9 @@ const maxWidthClasses = {
   "7xl": "max-w-7xl",
 };
 
+const responsiveMaxWidthClasses =
+  "max-w-[calc(100vw-1rem)] sm:max-w-none md:max-w-md lg:max-w-lg xl:max-w-xl";
+
 export default function Modal({
   isOpen,
   onClose,
@@ -98,7 +101,7 @@ export default function Modal({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className={`relative w-full ${maxWidthClasses[maxWidth]} max-w-[calc(100vw-1rem)] sm:max-w-none md:max-w-md lg:max-w-lg xl:max-w-xl bg-white rounded-xl shadow-lg ring-1 ring-black/5 overflow-hidden`}
+                className={`relative w-full ${maxWidthClasses[maxWidth]} ${responsiveMaxWidthClasses} bg-white rounded-xl shadow-lg ring-1 ring-black/5 overflow-hidden`}
               >
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100">

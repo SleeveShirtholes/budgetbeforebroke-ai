@@ -124,6 +124,7 @@ export default function Header() {
             <Link
               href="/dashboard"
               className="text-xl sm:text-2xl font-bold text-primary-500 truncate"
+              aria-label="Budget Before Broke"
             >
               BBB
             </Link>

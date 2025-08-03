@@ -22,7 +22,7 @@ export default function PageInfo({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="relative">
+    <div className="relative group">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-1 text-secondary-400 hover:text-secondary-600 transition-colors cursor-pointer"
@@ -33,7 +33,7 @@ export default function PageInfo({
       </button>
 
       {/* Desktop: Hover-based tooltip */}
-      <div className="absolute right-0 top-full mt-2 z-10 hidden group-hover:block lg:block">
+      <div className="absolute right-0 top-full mt-2 z-10 hidden group-hover:block lg:group-hover:block">
         <Card className="w-96 bg-white border border-secondary-200 shadow-xl rounded-2xl p-6">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
