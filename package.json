@@ -14,7 +14,7 @@
     "db:studio": "drizzle-kit studio",
     "format": "prettier --write .",
     "prepare": "husky",
-    "prep": "yarn test && yarn build && yarn format"
+    "prep": "yarn format && yarn test && yarn build"
   },
   "dependencies": {
     "@auth/core": "^0.18.6",

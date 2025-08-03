@@ -54,7 +54,7 @@ describe("MobileTransactionList", () => {
     },
   ];
 
-  const mockActions = (row: (typeof mockData)[0]) => [ // eslint-disable-line @typescript-eslint/no-unused-vars
+  const mockActions = () => [
     {
       label: "Edit",
       icon: <PencilIcon className="w-4 h-4" />,
@@ -114,7 +114,7 @@ describe("MobileTransactionList", () => {
     const mockEditClick = jest.fn();
     const mockDeleteClick = jest.fn();
 
-    const customActions = (row: (typeof mockData)[0]) => [ // eslint-disable-line @typescript-eslint/no-unused-vars
+    const customActions = () => [
       {
         label: "Edit",
         icon: <PencilIcon className="w-4 h-4" />,
