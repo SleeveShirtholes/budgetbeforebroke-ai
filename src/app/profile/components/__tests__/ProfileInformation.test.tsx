@@ -87,15 +87,11 @@ describe("ProfileInformation", () => {
     const { container } = render(<ProfileInformation {...mockProps} />);
 
     // Check if all sections are present
-    const sections = container.querySelectorAll(".space-y-4 > div");
+    const sections = container.querySelectorAll(".space-y-6 > div");
     expect(sections).toHaveLength(3);
-
-    // Check if icons are present
-    const icons = container.querySelectorAll("svg");
-    expect(icons).toHaveLength(3);
 
     // Check if form structure is correct
     expect(container.querySelector("form")).toBeInTheDocument();
-    expect(container.querySelector(".space-y-4")).toBeInTheDocument();
+    expect(container.querySelector(".space-y-6")).toBeInTheDocument();
   });
 });

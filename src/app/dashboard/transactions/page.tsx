@@ -217,42 +217,42 @@ export default function Transactions() {
   return (
     <div className="space-y-6">
       {/* Insights Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-full">
-              <ArrowTrendingUpIcon className="h-6 w-6 text-green-600" />
+            <div className="p-2 sm:p-3 bg-green-100 rounded-full">
+              <ArrowTrendingUpIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-3 sm:ml-4">
               <p className="text-sm font-medium text-gray-600">Income</p>
-              <p className="text-2xl font-semibold text-green-600">
+              <p className="text-xl sm:text-2xl font-semibold text-green-600">
                 ${totalIncome.toLocaleString()}
               </p>
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <div className="p-3 bg-red-100 rounded-full">
-              <ArrowTrendingDownIcon className="h-6 w-6 text-red-600" />
+            <div className="p-2 sm:p-3 bg-red-100 rounded-full">
+              <ArrowTrendingDownIcon className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-3 sm:ml-4">
               <p className="text-sm font-medium text-gray-600">Expenses</p>
-              <p className="text-2xl font-semibold text-red-600">
+              <p className="text-xl sm:text-2xl font-semibold text-red-600">
                 ${totalExpenses.toLocaleString()}
               </p>
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow sm:col-span-2 lg:col-span-1">
           <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-full">
-              <BanknotesIcon className="h-6 w-6 text-blue-600" />
+            <div className="p-2 sm:p-3 bg-blue-100 rounded-full">
+              <BanknotesIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
             </div>
-            <div className="ml-4">
+            <div className="ml-3 sm:ml-4">
               <p className="text-sm font-medium text-gray-600">Net Savings</p>
               <p
-                className={`text-2xl font-semibold ${
+                className={`text-xl sm:text-2xl font-semibold ${
                   netSavings >= 0 ? "text-green-600" : "text-red-600"
                 }`}
               >
@@ -265,10 +265,15 @@ export default function Transactions() {
 
       {/* Transactions Table */}
       <div className="bg-white rounded-lg shadow">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
             <h2 className="text-xl font-semibold">Transactions</h2>
-            <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+            <Button
+              variant="primary"
+              onClick={() => setIsModalOpen(true)}
+              fullWidth
+              className="sm:w-auto"
+            >
               Add Transaction
             </Button>
           </div>
@@ -286,26 +291,30 @@ export default function Transactions() {
         onClose={() => setIsModalOpen(false)}
         title="Add Transaction"
         maxWidth="md"
-        footerButtons={[
-          <Button
-            key="cancel"
-            variant="secondary"
-            type="button"
-            onClick={() => setIsModalOpen(false)}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>,
-          <Button
-            key="save"
-            variant="primary"
-            type="submit"
-            form="transaction-form"
-            isLoading={isSubmitting}
-          >
-            Save
-          </Button>,
-        ]}
+        footerButtons={
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              disabled={isSubmitting}
+              fullWidth
+              className="sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              form="transaction-form"
+              isLoading={isSubmitting}
+              fullWidth
+              className="sm:w-auto"
+            >
+              Save
+            </Button>
+          </div>
+        }
       >
         <TransactionForm
           onSubmit={handleCreateTransaction}

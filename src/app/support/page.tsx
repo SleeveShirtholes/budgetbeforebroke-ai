@@ -306,8 +306,6 @@ export default function Support() {
               onStatusChange={handleStatusChange}
               onAddComment={handleAddComment}
               supportStatusOptions={supportStatusOptions}
-              // Show the ID in the details panel
-              showId={true}
             />
           )}
         />

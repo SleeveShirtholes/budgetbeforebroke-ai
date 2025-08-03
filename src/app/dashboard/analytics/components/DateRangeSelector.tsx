@@ -1,4 +1,3 @@
-import PageInfo from "@/components/PageInfo";
 import Spinner from "@/components/Spinner";
 import { format } from "date-fns";
 
@@ -44,48 +43,6 @@ export default function DateRangeSelector({
   onDateRangeChange,
   isLoading,
 }: DateRangeSelectorProps) {
-  const pageInfoContent = (
-    <ul className="text-sm text-secondary-700 space-y-4 list-none leading-relaxed">
-      <li>
-        <span className="font-semibold text-secondary-900">
-          Select a date range
-        </span>{" "}
-        to view your financial data for a specific period.
-      </li>
-      <li>
-        <span className="font-semibold text-secondary-900">
-          Click on any category
-        </span>{" "}
-        in the Budget Categories list to filter both the graph and transactions.
-      </li>
-      <li>
-        <span className="font-semibold text-secondary-900">
-          Use the view selector
-        </span>{" "}
-        to switch between different chart views:
-        <ul className="ml-6 mt-2 space-y-2 list-disc text-secondary-700">
-          <li>
-            <span className="font-semibold">Total Spending:</span> Shows your
-            overall spending over time
-          </li>
-          <li>
-            <span className="font-semibold">By Category:</span> Compare spending
-            across different categories
-          </li>
-          <li>
-            <span className="font-semibold">Income vs Expenses:</span> Track
-            your income against expenses
-          </li>
-        </ul>
-      </li>
-      <li>
-        In the{" "}
-        <span className="font-semibold text-secondary-900">By Category</span>{" "}
-        view, you can select multiple categories to compare them.
-      </li>
-    </ul>
-  );
-
   /**
    * Handle start date change with validation
    */
@@ -107,23 +64,33 @@ export default function DateRangeSelector({
   };
 
   return (
-    <div className="flex items-center justify-end space-x-4">
-      <PageInfo content={pageInfoContent} />
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
       {/* Date range input fields */}
-      <div className="flex items-center space-x-2">
-        <input
-          type="date"
-          value={format(startDate, "yyyy-MM-dd")}
-          onChange={handleStartDateChange}
-          className="border border-secondary-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-        />
-        <span className="text-secondary-600">to</span>
-        <input
-          type="date"
-          value={format(endDate, "yyyy-MM-dd")}
-          onChange={handleEndDateChange}
-          className="border border-secondary-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-        />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label className="text-sm font-medium text-secondary-700 sm:hidden">
+            Start Date
+          </label>
+          <input
+            type="date"
+            value={format(startDate, "yyyy-MM-dd")}
+            onChange={handleStartDateChange}
+            className="border border-secondary-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 w-full sm:w-auto"
+          />
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <label className="text-sm font-medium text-secondary-700 sm:hidden">
+            End Date
+          </label>
+          <input
+            type="date"
+            value={format(endDate, "yyyy-MM-dd")}
+            onChange={handleEndDateChange}
+            className="border border-secondary-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 w-full sm:w-auto"
+          />
+        </div>
+
         {isLoading && <Spinner size="sm" />}
       </div>
     </div>

@@ -29,10 +29,6 @@ analytics:
       href: /dashboard/analytics
       icon: ChartBarSquareIcon
       description: Get insights into your spending patterns
-    - label: Reports
-      href: /dashboard/analytics/reports
-      icon: PresentationChartLineIcon
-      description: View detailed financial reports
 
 account:
   label: Account Management

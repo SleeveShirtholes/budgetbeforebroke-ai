@@ -62,8 +62,8 @@ describe("SignInMethods", () => {
   it("renders empty state correctly", () => {
     (useSWR as jest.Mock).mockReturnValue({ data: [] });
     render(<SignInMethods />);
-    // Should show the Connect Google Account button
-    expect(screen.getByText("Connect Google Account")).toBeInTheDocument();
+    // Should show the Connect Google button
+    expect(screen.getByText("Connect Google")).toBeInTheDocument();
   });
 
   it("renders with correct styling classes", () => {

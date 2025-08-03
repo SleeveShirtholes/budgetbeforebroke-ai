@@ -263,19 +263,19 @@ function RecurringPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <Card variant="default" padding="lg">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
+          <div className="w-full lg:w-auto">
             <SearchInput
               value={search}
               onChange={setSearch}
               placeholder="Search recurring..."
-              className="w-full sm:w-80"
+              className="w-full lg:w-80"
             />
           </div>
           <Button
             onClick={() => openModal()}
             variant="primary"
-            className="w-full sm:w-auto"
+            className="w-full lg:w-auto"
             disabled={isSubmitting}
           >
             <PlusIcon className="h-5 w-5 mr-2" />

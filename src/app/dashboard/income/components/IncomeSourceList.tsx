@@ -78,7 +78,7 @@ export function IncomeSourceList({
           incomeSources.map((source) => (
             <div
               key={source.id}
-              className="py-4 flex items-center justify-between"
+              className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
             >
               {/* Income source details section */}
               <div>
@@ -101,12 +101,14 @@ export function IncomeSourceList({
               </div>
 
               {/* Action buttons for this income source */}
-              <div className="flex space-x-2">
+              <div className="flex gap-2 self-end sm:self-auto">
                 {/* Edit button */}
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={() => onEdit(source)}
+                  fullWidth
+                  className="sm:w-auto"
                 >
                   Edit
                 </Button>
@@ -116,6 +118,8 @@ export function IncomeSourceList({
                   variant="danger"
                   size="sm"
                   onClick={() => onDelete(source.id)}
+                  fullWidth
+                  className="sm:w-auto"
                 >
                   Delete
                 </Button>

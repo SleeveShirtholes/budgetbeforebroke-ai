@@ -23,7 +23,7 @@ export default function SignInMethodCard({
   onDelete,
 }: SignInMethodCardProps) {
   return (
-    <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white rounded-lg border border-gray-200 gap-3">
       <div>
         <h3 className="font-medium text-secondary-900">
           {method.provider}{" "}
@@ -38,7 +38,7 @@ export default function SignInMethodCard({
         variant="text"
         size="sm"
         onClick={onDelete}
-        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+        className="text-red-600 hover:text-red-700 hover:bg-red-50 self-end sm:self-auto"
       >
         <TrashIcon className="w-5 h-5" />
         <span className="sr-only">Delete {method.provider} account</span>

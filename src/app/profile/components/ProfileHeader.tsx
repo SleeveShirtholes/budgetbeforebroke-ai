@@ -47,9 +47,9 @@ export default function ProfileHeader({
   };
 
   return (
-    <div className="flex items-center space-x-6">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-6">
       {/* Avatar container with hover effects */}
-      <div className="relative group">
+      <div className="relative group self-center sm:self-auto">
         <Avatar
           src={avatar}
           name={name}
@@ -74,7 +74,7 @@ export default function ProfileHeader({
         />
       </div>
       {/* User information display */}
-      <div>
+      <div className="text-center sm:text-left">
         <h1 className="text-3xl font-bold text-secondary-900">{name}</h1>
         <p className="text-secondary-600">{email}</p>
       </div>

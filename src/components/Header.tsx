@@ -125,7 +125,7 @@ export default function Header() {
               href="/dashboard"
               className="text-xl sm:text-2xl font-bold text-primary-500 truncate"
             >
-              BudgetBeforeBroke
+              BBB
             </Link>
             {/* Desktop Navigation */}
             <nav className="hidden lg:ml-10 lg:flex lg:space-x-8">
@@ -258,7 +258,7 @@ export default function Header() {
         {isMobileMenuOpen && (
           <div
             ref={mobileMenuRef}
-            className="lg:hidden border-t border-accent-200 py-4 bg-white/95 backdrop-blur-sm"
+            className="lg:hidden border-t border-accent-200 bg-white/95 backdrop-blur-sm max-h-[calc(100vh-4rem)] overflow-y-auto"
           >
             <nav className="space-y-4">
               {(

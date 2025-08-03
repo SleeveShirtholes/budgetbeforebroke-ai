@@ -93,7 +93,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Profile Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
         <ProfileHeader
           name={profileData?.name || session?.user?.name || "User"}
           email={
@@ -104,66 +104,69 @@ export default function ProfilePage() {
           }
           onAvatarChange={() => {}}
         />
-        <PageInfo
-          title="Profile Page Guide"
-          content={
-            <div className="text-sm text-secondary-700 space-y-4">
-              <div>
-                <h4 className="font-semibold text-secondary-900 mb-2">
-                  Profile Photo
-                </h4>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>Click on your current avatar</li>
-                  <li>Select a new image from your device</li>
-                  <li>The photo will be automatically updated</li>
-                </ol>
-                <p className="text-secondary-600 text-xs mt-2">
-                  Supported formats: JPG, PNG, GIF
-                </p>
-              </div>
+        <div className="hidden lg:block">
+          <PageInfo
+            title="Profile Page Guide"
+            content={
+              <div className="text-sm text-secondary-700 space-y-4">
+                <div>
+                  <h4 className="font-semibold text-secondary-900 mb-2">
+                    Profile Photo
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>Click on your current avatar</li>
+                    <li>Select a new image from your device</li>
+                    <li>The photo will be automatically updated</li>
+                  </ol>
+                  <p className="text-secondary-600 text-xs mt-2">
+                    Supported formats: JPG, PNG, GIF
+                  </p>
+                </div>
 
-              <div>
-                <h4 className="font-semibold text-secondary-900 mb-2">
-                  Profile Information
-                </h4>
-                <p>Update your basic information:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>
-                    Click &quot;Edit&quot; to modify your name and phone number
-                  </li>
-                  <li>Use &quot;Save Changes&quot; to confirm updates</li>
-                  <li>Click &quot;Cancel&quot; to discard changes</li>
-                </ul>
-              </div>
+                <div>
+                  <h4 className="font-semibold text-secondary-900 mb-2">
+                    Profile Information
+                  </h4>
+                  <p>Update your basic information:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>
+                      Click &quot;Edit&quot; to modify your name and phone
+                      number
+                    </li>
+                    <li>Use &quot;Save Changes&quot; to confirm updates</li>
+                    <li>Click &quot;Cancel&quot; to discard changes</li>
+                  </ul>
+                </div>
 
-              <div>
-                <h4 className="font-semibold text-secondary-900 mb-2">
-                  Sign-in Methods
-                </h4>
-                <p>Manage your account access:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>View your connected sign-in methods</li>
-                  <li>
-                    Click &quot;Manage&quot; to modify authentication settings
-                  </li>
-                  <li>Add or remove sign-in providers</li>
-                </ul>
-              </div>
+                <div>
+                  <h4 className="font-semibold text-secondary-900 mb-2">
+                    Sign-in Methods
+                  </h4>
+                  <p>Manage your account access:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>View your connected sign-in methods</li>
+                    <li>
+                      Click &quot;Manage&quot; to modify authentication settings
+                    </li>
+                    <li>Add or remove sign-in providers</li>
+                  </ul>
+                </div>
 
-              <div>
-                <h4 className="font-semibold text-secondary-900 mb-2">
-                  Account Security
-                </h4>
-                <p>Enhance your account security:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Enable two-factor authentication</li>
-                  <li>Change your password regularly</li>
-                  <li>Review your account activity</li>
-                </ul>
+                <div>
+                  <h4 className="font-semibold text-secondary-900 mb-2">
+                    Account Security
+                  </h4>
+                  <p>Enhance your account security:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Enable two-factor authentication</li>
+                    <li>Change your password regularly</li>
+                    <li>Review your account activity</li>
+                  </ul>
+                </div>
               </div>
-            </div>
-          }
-        />
+            }
+          />
+        </div>
       </div>
 
       {/* Profile Information */}

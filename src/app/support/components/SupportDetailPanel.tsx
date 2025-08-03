@@ -21,10 +21,6 @@ interface SupportDetailPanelProps {
   onStatusChange: (id: string, newStatus: SupportStatus) => void;
   onAddComment: (id: string, comment: string) => void;
   supportStatusOptions: SelectOption[];
-  /**
-   * If true, show the request ID in the details panel metadata grid.
-   */
-  showId?: boolean;
 }
 
 const SupportDetailPanel: React.FC<SupportDetailPanelProps> = ({
@@ -34,7 +30,6 @@ const SupportDetailPanel: React.FC<SupportDetailPanelProps> = ({
   onStatusChange,
   onAddComment,
   supportStatusOptions,
-  showId = false,
 }) => {
   const [commentLoading, setCommentLoading] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
@@ -87,12 +82,6 @@ const SupportDetailPanel: React.FC<SupportDetailPanelProps> = ({
       </div>
       {/* Metadata Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 mb-6">
-        {showId && (
-          <div>
-            <span className="text-gray-500">ID:</span>{" "}
-            <span className="font-mono text-gray-800">{row.id}</span>
-          </div>
-        )}
         <div>
           <span className="text-gray-500">Category:</span>{" "}
           <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-semibold">

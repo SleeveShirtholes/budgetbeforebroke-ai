@@ -75,33 +75,39 @@ export default function AccountDetails({
   return (
     <Card>
       <div className="p-4">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <h2 className="text-xl font-semibold">{account.nickname}</h2>
-              {isDefault && (
-                <span className="inline-block px-3 py-1 text-xs font-semibold bg-primary-100 text-primary-700 rounded-full">
-                  Default Account
-                </span>
-              )}
-              {!isDefault && onSetDefault && (
-                <button
-                  className="px-3 py-1 text-xs font-semibold bg-gray-200 hover:bg-primary-200 text-gray-700 rounded-full transition"
-                  onClick={onSetDefault}
-                  disabled={isLoadingDefault}
-                  style={{ marginLeft: 4 }}
-                >
-                  Set as Default
-                </button>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {isDefault && (
+                  <span className="inline-block px-3 py-1 text-xs font-semibold bg-primary-100 text-primary-700 rounded-full">
+                    Default Account
+                  </span>
+                )}
+                {!isDefault && onSetDefault && (
+                  <button
+                    className="px-3 py-1 text-xs font-semibold bg-gray-200 hover:bg-primary-200 text-gray-700 rounded-full transition"
+                    onClick={onSetDefault}
+                    disabled={isLoadingDefault}
+                  >
+                    Set as Default
+                  </button>
+                )}
+              </div>
             </div>
-            <p className="text-gray-500">
+            <p className="text-gray-500 mt-2 sm:mt-0">
               <span className="font-bold">Account #: </span>
               {account.accountNumber}
             </p>
           </div>
           {isOwner && (
-            <Button variant="primary" onClick={onEditNickname}>
+            <Button
+              variant="primary"
+              onClick={onEditNickname}
+              fullWidth
+              className="sm:w-auto"
+            >
               <PencilIcon className="w-4 h-4 mr-2" />
               Edit Nickname
             </Button>
@@ -115,7 +121,7 @@ export default function AccountDetails({
             {acceptedUsers.map((user) => (
               <div
                 key={user.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg gap-3"
               >
                 <div className="flex items-center space-x-3 min-w-0">
                   <Avatar
@@ -131,16 +137,16 @@ export default function AccountDetails({
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
                   {isOwner ? (
-                    <div className="w-32">
+                    <div className="w-full sm:w-32">
                       <CustomSelect
                         value={user.role}
                         onChange={(value) =>
                           onUpdateUserRole(user.id, value as "owner" | "member")
                         }
                         options={roleOptions}
-                        fullWidth={false}
+                        fullWidth
                       />
                     </div>
                   ) : (
@@ -160,7 +166,7 @@ export default function AccountDetails({
                   {isOwner && (
                     <button
                       onClick={() => onRemoveUser(user.id)}
-                      className="ml-1 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200 p-1.5 h-8 w-8 flex-shrink-0 self-center"
+                      className="flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200 p-1.5 h-8 w-8 flex-shrink-0 self-center"
                       aria-label={`Remove ${user.name}`}
                       type="button"
                     >
@@ -180,7 +186,7 @@ export default function AccountDetails({
                 {pendingInvites.map((invite) => (
                   <div
                     key={invite.id}
-                    className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-yellow-50 rounded-lg gap-3"
                   >
                     <div className="flex items-center space-x-3 min-w-0">
                       <Avatar
@@ -197,7 +203,7 @@ export default function AccountDetails({
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                         Pending
                       </span>
@@ -225,7 +231,12 @@ export default function AccountDetails({
           )}
 
           {isOwner && (
-            <Button variant="primary" onClick={onInviteUser} className="mt-4">
+            <Button
+              variant="primary"
+              onClick={onInviteUser}
+              className="mt-4"
+              fullWidth
+            >
               <UserPlusIcon className="w-4 h-4 mr-2" />
               Invite User
             </Button>

@@ -117,13 +117,15 @@ export function IncomeSourceForm({
       onClose={onClose}
       title={editingSource ? "Edit Income Source" : "Add Income Source"}
       footerButtons={
-        <div className="flex justify-end space-x-2">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
           {/* Cancel button - disabled during submission */}
           <Button
             type="button"
             variant="secondary"
             onClick={onClose}
             disabled={isSubmitting}
+            fullWidth
+            className="sm:w-auto"
           >
             Cancel
           </Button>
@@ -135,6 +137,8 @@ export function IncomeSourceForm({
             form="income-source-form"
             isLoading={isSubmitting}
             disabled={isSubmitting}
+            fullWidth
+            className="sm:w-auto"
           >
             {editingSource ? "Update" : "Add"} Income Source
           </Button>

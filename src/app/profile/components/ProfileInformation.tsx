@@ -2,7 +2,6 @@
 
 import { AsYouType, isValidPhoneNumber } from "libphonenumber-js";
 import { Controller, useForm } from "react-hook-form";
-import { EnvelopeIcon, PhoneIcon, UserIcon } from "@heroicons/react/24/outline";
 
 import Button from "@/components/Button";
 import React from "react";
@@ -73,78 +72,75 @@ export default function ProfileInformation({
         onSubmit(data);
       })}
     >
-      <div className="space-y-4">
-        <div className="flex items-center space-x-3">
-          <UserIcon className="h-5 w-5 text-secondary-500" />
-          <div className="flex-grow">
-            <TextField
-              label="Full Name"
-              type="text"
-              {...register("name")}
-              placeholder="Enter your full name"
-              disabled={!isEditing || isLoading}
-              className={!isEditing ? "bg-secondary-50 cursor-not-allowed" : ""}
-              error={errors.name?.message || ""}
-              helperText={errors.name?.message}
-            />
-          </div>
+      <div className="space-y-6">
+        <div>
+          <TextField
+            label="Full Name"
+            type="text"
+            {...register("name")}
+            placeholder="Enter your full name"
+            disabled={!isEditing || isLoading}
+            className={!isEditing ? "bg-secondary-50 cursor-not-allowed" : ""}
+            error={errors.name?.message || ""}
+            helperText={errors.name?.message}
+          />
         </div>
-        <div className="flex items-center space-x-3">
-          <EnvelopeIcon className="h-5 w-5 text-secondary-500" />
-          <div>
-            <p className="text-sm text-secondary-600">Email Address</p>
-            <p className="text-secondary-900">{email}</p>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-secondary-700 mb-2">
+            Email Address
+          </label>
+          <p className="text-secondary-900 bg-secondary-50 px-3 py-2 rounded-md border border-secondary-200">
+            {email}
+          </p>
         </div>
-        <div className="flex items-center space-x-3">
-          <PhoneIcon className="h-5 w-5 text-secondary-500" />
-          <div className="flex-grow">
-            <Controller
-              name="phoneNumber"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  label="Phone Number"
-                  type="tel"
-                  value={field.value}
-                  onChange={(e) => {
-                    const formatter = new AsYouType("US");
-                    const formatted = formatter.input(e.target.value);
-                    field.onChange(formatted);
-                  }}
-                  placeholder="Enter phone number"
-                  disabled={!isEditing || isLoading}
-                  className={
-                    !isEditing ? "bg-secondary-50 cursor-not-allowed" : ""
-                  }
-                  error={errors.phoneNumber?.message || ""}
-                  helperText={errors.phoneNumber?.message}
-                />
-              )}
-            />
-          </div>
+        <div>
+          <Controller
+            name="phoneNumber"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                label="Phone Number"
+                type="tel"
+                value={field.value}
+                onChange={(e) => {
+                  const formatter = new AsYouType("US");
+                  const formatted = formatter.input(e.target.value);
+                  field.onChange(formatted);
+                }}
+                placeholder="Enter phone number"
+                disabled={!isEditing || isLoading}
+                className={
+                  !isEditing ? "bg-secondary-50 cursor-not-allowed" : ""
+                }
+                error={errors.phoneNumber?.message || ""}
+                helperText={errors.phoneNumber?.message}
+              />
+            )}
+          />
         </div>
       </div>
       {isEditing && (
-        <div className="mt-6 flex flex-col items-end space-y-2">
-          <div className="flex space-x-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onCancel}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isLoading || !isDirty || !isValid}
-              isLoading={isLoading}
-            >
-              Save Changes
-            </Button>
-          </div>
+        <div className="mt-8 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onCancel}
+            disabled={isLoading}
+            fullWidth
+            className="sm:w-auto"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={isLoading || !isDirty || !isValid}
+            isLoading={isLoading}
+            fullWidth
+            className="sm:w-auto"
+          >
+            Save Changes
+          </Button>
         </div>
       )}
     </form>

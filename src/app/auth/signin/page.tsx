@@ -124,8 +124,8 @@ function SignInContent() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Card variant="default" padding="lg" className="w-[600px]">
+    <div className="flex min-h-screen items-center justify-center p-4 sm:p-6 lg:p-8">
+      <Card variant="default" padding="lg" className="w-full max-w-[600px]">
         <div className="mb-6">
           <h2 className="text-2xl font-bold">Sign In</h2>
           <p className="text-sm text-gray-500">
@@ -162,7 +162,7 @@ function SignInContent() {
                       d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
                     />
                   </svg>
-                  Continue with Passkey
+                  Passkey
                 </>
               )}
             </Button>
@@ -192,7 +192,7 @@ function SignInContent() {
                 fill="#EA4335"
               />
             </svg>
-            Continue with Google
+            Google
           </Button>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
