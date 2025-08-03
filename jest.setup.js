@@ -71,3 +71,79 @@ if (typeof global.crypto === "undefined") {
 } else if (!global.crypto.randomUUID) {
   global.crypto.randomUUID = () => "00000000-0000-0000-0000-000000000000";
 }
+
+// Mock canvas for Chart.js
+const mockCanvasContext = {
+  fillRect: jest.fn(),
+  clearRect: jest.fn(),
+  getImageData: jest.fn(() => ({ data: new Array(4) })),
+  putImageData: jest.fn(),
+  createImageData: jest.fn(() => []),
+  setTransform: jest.fn(),
+  drawImage: jest.fn(),
+  save: jest.fn(),
+  fillText: jest.fn(),
+  restore: jest.fn(),
+  beginPath: jest.fn(),
+  moveTo: jest.fn(),
+  lineTo: jest.fn(),
+  closePath: jest.fn(),
+  stroke: jest.fn(),
+  translate: jest.fn(),
+  scale: jest.fn(),
+  rotate: jest.fn(),
+  arc: jest.fn(),
+  fill: jest.fn(),
+  measureText: jest.fn(() => ({ width: 0 })),
+  transform: jest.fn(),
+  rect: jest.fn(),
+  clip: jest.fn(),
+  // Additional methods that Chart.js might need
+  setLineDash: jest.fn(),
+  setLineWidth: jest.fn(),
+  setStrokeStyle: jest.fn(),
+  setFillStyle: jest.fn(),
+  setFont: jest.fn(),
+  setTextAlign: jest.fn(),
+  setTextBaseline: jest.fn(),
+  setGlobalAlpha: jest.fn(),
+  setGlobalCompositeOperation: jest.fn(),
+  setShadowColor: jest.fn(),
+  setShadowBlur: jest.fn(),
+  setShadowOffsetX: jest.fn(),
+  setShadowOffsetY: jest.fn(),
+  setLineCap: jest.fn(),
+  setLineJoin: jest.fn(),
+  setMiterLimit: jest.fn(),
+  setLineDashOffset: jest.fn(),
+  setImageSmoothingEnabled: jest.fn(),
+  setImageSmoothingQuality: jest.fn(),
+};
+
+// Mock HTMLCanvasElement
+Object.defineProperty(global.HTMLCanvasElement.prototype, "getContext", {
+  value: jest.fn(() => mockCanvasContext),
+});
+
+Object.defineProperty(global.HTMLCanvasElement.prototype, "toBlob", {
+  value: jest.fn(),
+});
+
+Object.defineProperty(
+  global.HTMLCanvasElement.prototype,
+  "getBoundingClientRect",
+  {
+    value: jest.fn(() => ({ width: 100, height: 100, top: 0, left: 0 })),
+  },
+);
+
+// Mock canvas width and height
+Object.defineProperty(global.HTMLCanvasElement.prototype, "width", {
+  get: () => 100,
+  set: jest.fn(),
+});
+
+Object.defineProperty(global.HTMLCanvasElement.prototype, "height", {
+  get: () => 100,
+  set: jest.fn(),
+});

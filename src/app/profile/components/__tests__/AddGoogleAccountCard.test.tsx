@@ -14,14 +14,14 @@ describe("AddGoogleAccountCard", () => {
     expect(screen.getByText("Google")).toBeInTheDocument();
     expect(screen.getByText("Not connected")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /connect google account/i }),
+      screen.getByRole("button", { name: /connect google/i }),
     ).toBeInTheDocument();
   });
 
   it("calls onAdd when connect button is clicked", () => {
     render(<AddGoogleAccountCard isLoading={false} onAdd={mockOnAdd} />);
     const connectButton = screen.getByRole("button", {
-      name: /connect google account/i,
+      name: /connect google/i,
     });
     fireEvent.click(connectButton);
     expect(mockOnAdd).toHaveBeenCalledTimes(1);
@@ -30,7 +30,7 @@ describe("AddGoogleAccountCard", () => {
   it("disables the connect button when isLoading is true", () => {
     render(<AddGoogleAccountCard isLoading={true} onAdd={mockOnAdd} />);
     const connectButton = screen.getByRole("button", {
-      name: /connect google account/i,
+      name: /connect google/i,
     });
     expect(connectButton).toBeDisabled();
   });

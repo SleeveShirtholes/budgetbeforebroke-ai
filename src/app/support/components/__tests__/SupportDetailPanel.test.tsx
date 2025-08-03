@@ -166,14 +166,8 @@ describe("SupportDetailPanel", () => {
     });
   });
 
-  it("shows request ID when showId prop is true", () => {
-    render(<SupportDetailPanel {...defaultProps} showId={true} />);
-    expect(screen.getByText("ID:")).toBeInTheDocument();
-    expect(screen.getByText("test-request-1")).toBeInTheDocument();
-  });
-
-  it("does not show request ID when showId prop is false", () => {
-    render(<SupportDetailPanel {...defaultProps} showId={false} />);
+  it("does not show request ID by default", () => {
+    render(<SupportDetailPanel {...defaultProps} />);
     expect(screen.queryByText("ID:")).not.toBeInTheDocument();
     expect(screen.queryByText("test-request-1")).not.toBeInTheDocument();
   });

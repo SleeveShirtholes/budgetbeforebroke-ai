@@ -200,7 +200,7 @@ describe("CategoriesPage", () => {
     });
   });
 
-  it("opens add modal when Add Custom Category button is clicked", async () => {
+  it("opens add modal when Add Category button is clicked", async () => {
     mockSwrReturnValue = {
       data: mockCategories,
       error: undefined,
@@ -208,7 +208,7 @@ describe("CategoriesPage", () => {
     };
     renderWithProviders(<CategoriesPage />);
 
-    const addButton = screen.getByText("Add Custom Category");
+    const addButton = screen.getByText("Add Category");
     await userEvent.click(addButton);
 
     expect(screen.getByTestId("category-modal")).toBeInTheDocument();
@@ -223,7 +223,7 @@ describe("CategoriesPage", () => {
     renderWithProviders(<CategoriesPage />);
 
     // Open add modal
-    const addButton = screen.getByText("Add Custom Category");
+    const addButton = screen.getByText("Add Category");
     await userEvent.click(addButton);
 
     // Save new category

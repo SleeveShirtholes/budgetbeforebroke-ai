@@ -7,7 +7,7 @@ import Navigation from "../Navigation";
 describe("Navigation Component", () => {
   it("renders the logo text", () => {
     render(<Navigation />);
-    expect(screen.getByText("BudgetBeforeBroke")).toBeInTheDocument();
+    expect(screen.getByText("BBB")).toBeInTheDocument();
   });
 
   it("renders sign in and sign up buttons", () => {

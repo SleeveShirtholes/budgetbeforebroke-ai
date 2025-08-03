@@ -58,45 +58,47 @@ export const CategoryList = ({
       {categories.map((category) => (
         <div
           key={category.id}
-          className="flex items-center justify-between p-4 bg-white border border-secondary-100 rounded-lg"
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-white border border-secondary-100 rounded-lg gap-3"
         >
           <div className="flex items-center">
             <span className="font-medium text-secondary-900">
               <HighlightedText text={category.name} searchQuery={searchQuery} />
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2">
             <span className="font-semibold text-primary-600">
               ${formatCurrency(category.amount)}
             </span>
-            <Button
-              variant="text"
-              size="sm"
-              onClick={() => onEdit(category)}
-              aria-label="Edit category"
-            >
-              <PencilIcon className="w-5 h-5" />
-            </Button>
-            {deleteConfirmId === category.id ? (
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => onDelete(category.id)}
-                isLoading={isDeleting}
-              >
-                Confirm?
-              </Button>
-            ) : (
+            <div className="flex items-center gap-1">
               <Button
                 variant="text"
                 size="sm"
-                onClick={() => setDeleteConfirmId(category.id)}
-                aria-label="Delete category"
-                disabled={isDeleting}
+                onClick={() => onEdit(category)}
+                aria-label="Edit category"
               >
-                <TrashIcon className="w-5 h-5" />
+                <PencilIcon className="w-5 h-5" />
               </Button>
-            )}
+              {deleteConfirmId === category.id ? (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => onDelete(category.id)}
+                  isLoading={isDeleting}
+                >
+                  Confirm?
+                </Button>
+              ) : (
+                <Button
+                  variant="text"
+                  size="sm"
+                  onClick={() => setDeleteConfirmId(category.id)}
+                  aria-label="Delete category"
+                  disabled={isDeleting}
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       ))}

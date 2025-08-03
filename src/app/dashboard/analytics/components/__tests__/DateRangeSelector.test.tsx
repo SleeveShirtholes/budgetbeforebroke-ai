@@ -77,16 +77,19 @@ describe("DateRangeSelector", () => {
     expect(mockOnDateRangeChange).not.toHaveBeenCalled();
   });
 
-  it("displays help tooltip on hover", () => {
+  it("renders date inputs without help tooltip", () => {
     render(<DateRangeSelector {...defaultProps} />);
 
-    const helpButton = screen.getByText("Page Info");
-    fireEvent.mouseEnter(helpButton);
+    // PageInfo component was removed, so we just check that date inputs are present
+    const startDateInput = screen.getByDisplayValue(
+      format(defaultProps.startDate, "yyyy-MM-dd"),
+    );
+    const endDateInput = screen.getByDisplayValue(
+      format(defaultProps.endDate, "yyyy-MM-dd"),
+    );
 
-    expect(screen.getByText("How to use this page:")).toBeInTheDocument();
-    expect(screen.getByText("Select a date range")).toBeInTheDocument();
-    expect(screen.getByText("Click on any category")).toBeInTheDocument();
-    expect(screen.getByText("Use the view selector")).toBeInTheDocument();
+    expect(startDateInput).toBeInTheDocument();
+    expect(endDateInput).toBeInTheDocument();
   });
 
   it("maintains correct date format in inputs", () => {

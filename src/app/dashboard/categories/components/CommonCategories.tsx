@@ -18,7 +18,7 @@ export default function CommonCategories({
   return (
     <div className="mb-6">
       <h2 className="text-lg font-semibold mb-3">Common Categories</h2>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 sm:gap-3">
         {TRANSACTION_CATEGORIES.map((category) => {
           const isEnabled = existingCategories.includes(category);
           return (
@@ -31,7 +31,7 @@ export default function CommonCategories({
                   onAddCategory(category);
                 }
               }}
-              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+              className={`inline-flex items-center px-3 py-2 sm:px-3 sm:py-1 rounded-full text-sm font-medium transition-colors ${
                 isEnabled
                   ? "bg-primary-100 text-primary-800 hover:bg-primary-200"
                   : "bg-gray-100 text-gray-800 hover:bg-gray-200"

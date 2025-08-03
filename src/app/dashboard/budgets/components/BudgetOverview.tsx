@@ -79,8 +79,8 @@ export function BudgetOverview({
 
   return (
     <Card>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-        <div className="flex items-center gap-4 flex-1">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="flex items-center gap-4">
           <span className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-50">
             <BanknotesIcon
               className="w-7 h-7 text-primary-600"
@@ -130,7 +130,7 @@ export function BudgetOverview({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-4 flex-1">
+        <div className="flex items-center gap-4">
           <span className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-50">
             <ChartBarIcon
               className="w-7 h-7 text-primary-600"
@@ -147,7 +147,7 @@ export function BudgetOverview({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4 flex-1">
+        <div className="flex items-center gap-4">
           <span
             className={`flex items-center justify-center w-12 h-12 rounded-full ${getRemainingIconBg(remainingBudget)}`}
           >

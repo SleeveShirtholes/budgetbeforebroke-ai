@@ -71,7 +71,7 @@ const Tabs: React.FC<TabsProps> = ({
             role="tab"
             aria-selected={isActive}
             tabIndex={isActive ? 0 : -1}
-            className={`px-4 py-2 text-sm font-medium rounded-md focus:outline-none transition-colors
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md focus:outline-none transition-colors
               ${isActive ? "bg-primary-600 text-white shadow" : "bg-transparent text-primary-700 hover:bg-primary-50"}
             `}
             onClick={() => onChange(option.value)}

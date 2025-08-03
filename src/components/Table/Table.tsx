@@ -12,6 +12,9 @@ import TableBody from "./TableBody";
 import TableHeader from "./TableHeader";
 import TablePagination from "./TablePagination";
 import TableSearch from "./TableSearch";
+import MobileTransactionList from "./MobileTransactionList";
+import MobileCategoryList from "./MobileCategoryList";
+import MobileSupportList from "./MobileSupportList";
 
 /**
  * A flexible and feature-rich table component that supports sorting, filtering, pagination,
@@ -250,11 +253,12 @@ export default function Table<T extends Record<string, unknown>>({
 
   return (
     <div className="flex flex-col w-full">
-      <div className="flex justify-between items-center mb-4">
-        <div className="w-full sm:w-64">
+      {/* Header controls - responsive layout */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-4">
+        <div className="w-full lg:w-64">
           <TableSearch value={searchQuery} onChange={handleSearchChange} />
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-end space-x-2">
           {/* Clear sorting button */}
           <button
             onClick={clearAllSorting}
@@ -287,8 +291,8 @@ export default function Table<T extends Record<string, unknown>>({
 
       {/* Active filters display */}
       {activeFiltersCount > 0 && (
-        <div className="flex items-center mb-2 text-sm">
-          <span className="text-gray-700 mr-2">Active filters:</span>
+        <div className="flex flex-col lg:flex-row lg:items-center mb-2 text-sm gap-2">
+          <span className="text-gray-700 flex-shrink-0">Active filters:</span>
           <div className="flex flex-wrap gap-1">
             {Object.entries(filters).map(([columnKey, filterValue]) => {
               const column = columns.find((col) => col.key === columnKey);
@@ -320,42 +324,80 @@ export default function Table<T extends Record<string, unknown>>({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-        <table className={`min-w-full divide-y divide-gray-200 ${className}`}>
-          <TableHeader<T>
-            columns={columns}
-            sorting={sorting}
-            onSort={setSorting}
-            actions={!!actions}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            hasDetailPanel={!!detailPanel}
-          />
-          <TableBody<T>
+      {/* Mobile-friendly card layout for small screens */}
+      <div className="lg:hidden">
+        {/* Check if this is category data by looking for category-specific columns */}
+        {columns.some(
+          (col) =>
+            col.key === "name" &&
+            columns.some((c) => c.key === "transactionCount"),
+        ) ? (
+          <MobileCategoryList<T>
             data={displayData}
             columns={columns}
-            expandedRows={expandedRows}
-            toggleRowExpansion={toggleRowExpansion}
-            detailPanel={detailPanel}
             actions={actions}
-            searchQuery={searchQuery}
           />
-        </table>
+        ) : columns.some(
+            (col) =>
+              col.key === "title" && columns.some((c) => c.key === "upvotes"),
+          ) ? (
+          <MobileSupportList<T>
+            data={displayData}
+            columns={columns}
+            actions={actions}
+            detailPanel={detailPanel}
+          />
+        ) : (
+          <MobileTransactionList<T>
+            data={displayData}
+            columns={columns}
+            actions={actions}
+          />
+        )}
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
-        <div className="text-sm text-gray-600">
+      {/* Desktop table layout */}
+      <div className="hidden lg:block overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+        <div className="min-w-full">
+          <table className={`w-full divide-y divide-gray-200 ${className}`}>
+            <TableHeader<T>
+              columns={columns}
+              sorting={sorting}
+              onSort={setSorting}
+              actions={!!actions}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              hasDetailPanel={!!detailPanel}
+            />
+            <TableBody<T>
+              data={displayData}
+              columns={columns}
+              expandedRows={expandedRows}
+              toggleRowExpansion={toggleRowExpansion}
+              detailPanel={detailPanel}
+              actions={actions}
+              searchQuery={searchQuery}
+            />
+          </table>
+        </div>
+      </div>
+
+      {/* Footer with responsive layout */}
+      <div className="mt-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+        <div className="text-sm text-gray-600 text-center lg:text-left">
           Showing {displayData.length} of {sortedData.length} rows
         </div>
 
         {showPagination && totalPages > 1 && (
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            showPagination={showPagination}
-            togglePagination={togglePagination}
-          />
+          <div className="flex justify-center lg:justify-end">
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              showPagination={showPagination}
+              togglePagination={togglePagination}
+            />
+          </div>
         )}
       </div>
     </div>

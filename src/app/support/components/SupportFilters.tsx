@@ -42,13 +42,20 @@ const SupportFilters: React.FC<SupportFiltersProps> = ({
   onIssueViewChange,
   onCreateRequest,
 }) => (
-  <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-    <Tabs
-      options={mainTabOptions}
-      value={issueView}
-      onChange={(val) => onIssueViewChange(val as "my" | "public")}
-    />
-    <Button variant="primary" onClick={onCreateRequest}>
+  <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="flex justify-center md:justify-start">
+      <Tabs
+        options={mainTabOptions}
+        value={issueView}
+        onChange={(val) => onIssueViewChange(val as "my" | "public")}
+      />
+    </div>
+    <Button
+      variant="primary"
+      onClick={onCreateRequest}
+      fullWidth
+      className="md:w-auto"
+    >
       Create New Support Request
     </Button>
   </div>

@@ -119,7 +119,7 @@ export default function IncomePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h1 className="text-2xl font-semibold text-secondary-900">
           Income Sources
         </h1>
@@ -127,6 +127,8 @@ export default function IncomePage() {
           variant="primary"
           size="md"
           onClick={() => setIsAddingSource(true)}
+          fullWidth
+          className="sm:w-auto"
         >
           <PlusIcon className="w-5 h-5 mr-2" />
           Add Income Source

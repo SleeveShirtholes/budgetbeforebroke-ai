@@ -144,51 +144,51 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <Card>
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-secondary-600">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm sm:text-base font-semibold text-secondary-600">
                 Total Balance
               </h3>
-              <p className="mt-2 text-2xl font-semibold text-secondary-900">
+              <p className="mt-2 text-xl sm:text-2xl font-semibold text-secondary-900 truncate">
                 ${formatCurrency(totalBalance)}
               </p>
             </div>
-            <div className="p-3 bg-primary-50 rounded-lg">
-              <BanknotesIcon className="w-6 h-6 text-primary-600" />
+            <div className="p-2 sm:p-3 bg-primary-50 rounded-lg flex-shrink-0">
+              <BanknotesIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
             </div>
           </div>
         </Card>
 
         <Card>
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-secondary-600">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm sm:text-base font-semibold text-secondary-600">
                 Monthly Income
               </h3>
-              <p className="mt-2 text-2xl font-semibold text-green-600">
+              <p className="mt-2 text-xl sm:text-2xl font-semibold text-green-600 truncate">
                 ${formatCurrency(monthlyIncome)}
               </p>
             </div>
-            <div className="p-3 bg-green-50 rounded-lg">
-              <ArrowTrendingUpIcon className="w-6 h-6 text-green-600" />
+            <div className="p-2 sm:p-3 bg-green-50 rounded-lg flex-shrink-0">
+              <ArrowTrendingUpIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
             </div>
           </div>
         </Card>
 
         <Card>
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-secondary-600">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm sm:text-base font-semibold text-secondary-600">
                 Monthly Expenses
               </h3>
-              <p className="mt-2 text-2xl font-semibold text-red-600">
+              <p className="mt-2 text-xl sm:text-2xl font-semibold text-red-600 truncate">
                 ${formatCurrency(monthlyExpenses)}
               </p>
             </div>
-            <div className="p-3 bg-red-50 rounded-lg">
-              <ArrowTrendingDownIcon className="w-6 h-6 text-red-600" />
+            <div className="p-2 sm:p-3 bg-red-50 rounded-lg flex-shrink-0">
+              <ArrowTrendingDownIcon className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
             </div>
           </div>
         </Card>
@@ -236,7 +236,7 @@ export default function DashboardPage() {
             </Card>
           )}
         </div>
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 order-1 lg:order-2">
           <MonthlySpendingChart data={monthlySpendingData} />
         </div>
       </div>

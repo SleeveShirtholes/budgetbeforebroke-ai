@@ -206,7 +206,7 @@ export default function CategoriesPage() {
   return (
     <div className="p-6">
       <Card>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold">Categories</h1>
             <p className="text-gray-600 mt-2">
@@ -217,10 +217,11 @@ export default function CategoriesPage() {
           <Button
             variant="primary"
             onClick={() => setIsAddModalOpen(true)}
-            className="ml-4"
+            fullWidth
+            className="sm:w-auto"
           >
             <PlusIcon className="w-5 h-5 mr-2" />
-            Add Custom Category
+            Add Category
           </Button>
         </div>
         <CommonCategories

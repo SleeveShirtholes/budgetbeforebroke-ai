@@ -116,8 +116,8 @@ function SignUpForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Card variant="default" padding="lg" className="w-[600px]">
+    <div className="flex min-h-screen items-center justify-center p-4 sm:p-6 lg:p-8">
+      <Card variant="default" padding="lg" className="w-full max-w-[600px]">
         <div className="mb-6">
           <h2 className="text-2xl font-bold">Sign Up</h2>
           <p className="text-sm text-gray-500">Create your account</p>
@@ -154,7 +154,7 @@ function SignUpForm() {
                 fill="#EA4335"
               />
             </svg>
-            Continue with Google
+            Google
           </Button>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -198,9 +198,6 @@ function SignUpForm() {
               />
             </div>
             <div className="grid gap-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
               <PasswordField
                 id="password"
                 name="password"
@@ -260,9 +257,6 @@ function SignUpForm() {
               )}
             </div>
             <div className="grid gap-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium">
-                Confirm Password
-              </label>
               <PasswordField
                 id="confirmPassword"
                 name="confirmPassword"

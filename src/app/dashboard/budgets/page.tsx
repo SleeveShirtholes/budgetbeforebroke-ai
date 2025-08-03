@@ -268,11 +268,11 @@ export default function Budget() {
   return (
     <div className="space-y-6">
       {/* Header Section */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h1 className="text-2xl font-semibold text-secondary-900">
           Budget for {displayMonth}
         </h1>
-        <div className="min-w-[200px]">
+        <div className="w-full sm:min-w-[200px] sm:w-auto">
           <CustomSelect
             value={selectedMonth}
             onChange={(value: string) => setSelectedMonth(value)}
@@ -296,7 +296,7 @@ export default function Budget() {
 
       {/* Budget Categories Section */}
       <Card>
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <h2 className="text-xl font-semibold text-secondary-900">
             Budget Categories
           </h2>

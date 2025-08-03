@@ -18,7 +18,7 @@ export default function AddGoogleAccountCard({
   return (
     <div
       role="listitem"
-      className="flex items-center justify-between p-4 bg-secondary-50 rounded-lg"
+      className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-secondary-50 rounded-lg gap-3"
     >
       <div className="flex items-center space-x-3">
         <svg className="h-5 w-5 text-secondary-500" viewBox="0 0 24 24">
@@ -49,8 +49,10 @@ export default function AddGoogleAccountCard({
         onClick={onAdd}
         isLoading={isLoading}
         disabled={isLoading}
+        fullWidth
+        className="sm:w-auto"
       >
-        Connect Google Account
+        Connect Google
       </Button>
     </div>
   );

@@ -14,7 +14,7 @@ const mockDebt: RecurringDebt = {
     {
       id: "1",
       date: "2024-03-01",
-      amount: "100",
+      amount: 100,
       note: "First payment",
     },
   ],
@@ -139,9 +139,9 @@ describe("DebtCard", () => {
     await userEvent.click(card);
 
     expect(screen.getByText("First payment")).toBeInTheDocument();
-    expect(screen.getByText("$100")).toBeInTheDocument();
+    expect(screen.getByText("$100.00")).toBeInTheDocument();
     expect(
-      screen.getByText(new Date("2024-03-01").toLocaleDateString()),
+      screen.getAllByText(new Date("2024-03-01").toLocaleDateString())[0],
     ).toBeInTheDocument();
   });
 
@@ -163,6 +163,6 @@ describe("DebtCard", () => {
 
     await userEvent.click(card);
 
-    expect(screen.getByText("No payments yet.")).toBeInTheDocument();
+    expect(screen.getByText("No payments yet")).toBeInTheDocument();
   });
 });

@@ -17,7 +17,7 @@ export default function DebtDetails({ debt, search }: DebtDetailsProps) {
       <div className="text-lg font-bold text-primary-600 mb-1">
         <HighlightedText text={debt.name} highlight={search} />
       </div>
-      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-gray-700">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-gray-700">
         <div className="flex flex-col items-start">
           <span className="text-xs uppercase tracking-wide text-gray-400">
             Balance
@@ -29,7 +29,6 @@ export default function DebtDetails({ debt, search }: DebtDetailsProps) {
             />
           </span>
         </div>
-        <div className="hidden sm:block h-8 border-l border-gray-200 mx-2"></div>
         <div className="flex flex-col items-start">
           <span className="text-xs uppercase tracking-wide text-gray-400">
             Interest Rate
@@ -41,7 +40,6 @@ export default function DebtDetails({ debt, search }: DebtDetailsProps) {
             />
           </span>
         </div>
-        <div className="hidden sm:block h-8 border-l border-gray-200 mx-2"></div>
         <div className="flex flex-col items-start">
           <span className="text-xs uppercase tracking-wide text-gray-400">
             Due Date
