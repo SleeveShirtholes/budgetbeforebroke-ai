@@ -9,6 +9,10 @@ budgets:
       href: /dashboard/income
       icon: CurrencyDollarIcon
       description: Manage your income sources
+    - label: Paycheck Planning
+      href: /dashboard/paycheck-planning
+      icon: CalendarDaysIcon
+      description: Plan your paycheck allocation and debt payments
 
 transactions:
   label: Transactions
