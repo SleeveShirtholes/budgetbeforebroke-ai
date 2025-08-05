@@ -52,7 +52,7 @@ export default function AddDebtModal({
         // For now, create as one-time debt with note about being recurring
         // In a full implementation, you'd want to create a proper recurring transaction
         await createDebt({
-          name: `${data.name} (${data.frequency || 'monthly'})`,
+          name: `${data.name} (${data.frequency || "monthly"})`,
           balance: data.amount,
           interestRate: 0,
           dueDate: data.dueDate,
@@ -66,7 +66,7 @@ export default function AddDebtModal({
           dueDate: data.dueDate,
         });
       }
-      
+
       reset();
       onDebtAdded();
     } catch (err) {
@@ -111,7 +111,11 @@ export default function AddDebtModal({
         </div>
       }
     >
-      <form id="add-debt-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form
+        id="add-debt-form"
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-4"
+      >
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-sm text-red-800">{error}</p>
@@ -119,7 +123,10 @@ export default function AddDebtModal({
         )}
 
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="name"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Name *
           </label>
           <input
@@ -135,15 +142,18 @@ export default function AddDebtModal({
         </div>
 
         <div>
-          <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="amount"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Amount *
           </label>
           <div className="relative">
             <span className="absolute left-3 top-2 text-gray-500">$</span>
             <input
-              {...register("amount", { 
+              {...register("amount", {
                 required: "Amount is required",
-                min: { value: 0.01, message: "Amount must be greater than 0" }
+                min: { value: 0.01, message: "Amount must be greater than 0" },
               })}
               type="number"
               step="0.01"
@@ -158,7 +168,10 @@ export default function AddDebtModal({
         </div>
 
         <div>
-          <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="dueDate"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Due Date *
           </label>
           <input
@@ -168,7 +181,9 @@ export default function AddDebtModal({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
           {errors.dueDate && (
-            <p className="mt-1 text-sm text-red-600">{errors.dueDate.message}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {errors.dueDate.message}
+            </p>
           )}
         </div>
 
@@ -179,14 +194,20 @@ export default function AddDebtModal({
             id="isRecurring"
             className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
           />
-          <label htmlFor="isRecurring" className="ml-2 block text-sm text-gray-700">
+          <label
+            htmlFor="isRecurring"
+            className="ml-2 block text-sm text-gray-700"
+          >
             This is a recurring payment
           </label>
         </div>
 
         {isRecurring && (
           <div>
-            <label htmlFor="frequency" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="frequency"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Frequency
             </label>
             <select
@@ -202,7 +223,10 @@ export default function AddDebtModal({
         )}
 
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="description"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Description (Optional)
           </label>
           <textarea

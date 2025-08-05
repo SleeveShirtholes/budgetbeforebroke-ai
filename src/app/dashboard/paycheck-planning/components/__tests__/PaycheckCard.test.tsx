@@ -1,6 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import PaycheckCard from "../PaycheckCard";
-import type { PaycheckAllocation, PaycheckInfo } from "@/app/actions/paycheck-planning";
+import type {
+  PaycheckAllocation,
+  PaycheckInfo,
+} from "@/app/actions/paycheck-planning";
 
 describe("PaycheckCard", () => {
   const mockPaycheck: PaycheckInfo = {
@@ -34,7 +37,9 @@ describe("PaycheckCard", () => {
   };
 
   it("renders paycheck information correctly", () => {
-    render(<PaycheckCard allocation={mockAllocation} paycheck={mockPaycheck} />);
+    render(
+      <PaycheckCard allocation={mockAllocation} paycheck={mockPaycheck} />,
+    );
 
     expect(screen.getByText("Salary")).toBeInTheDocument();
     expect(screen.getByText("Jan 15, 2024")).toBeInTheDocument();
@@ -43,20 +48,24 @@ describe("PaycheckCard", () => {
   });
 
   it("renders allocated debts correctly", () => {
-    render(<PaycheckCard allocation={mockAllocation} paycheck={mockPaycheck} />);
+    render(
+      <PaycheckCard allocation={mockAllocation} paycheck={mockPaycheck} />,
+    );
 
     expect(screen.getByText("Allocated Payments")).toBeInTheDocument();
     expect(screen.getByText("Rent")).toBeInTheDocument();
     expect(screen.getByText("Due Jan 01")).toBeInTheDocument();
     expect(screen.getByText("$1,200")).toBeInTheDocument();
-    
+
     expect(screen.getByText("Car Payment")).toBeInTheDocument();
     expect(screen.getByText("Due Jan 10")).toBeInTheDocument();
     expect(screen.getByText("$400")).toBeInTheDocument();
   });
 
   it("shows positive remaining balance correctly", () => {
-    render(<PaycheckCard allocation={mockAllocation} paycheck={mockPaycheck} />);
+    render(
+      <PaycheckCard allocation={mockAllocation} paycheck={mockPaycheck} />,
+    );
 
     expect(screen.getByText("Remaining Balance")).toBeInTheDocument();
     expect(screen.getByText("$1,400")).toBeInTheDocument();
@@ -68,7 +77,12 @@ describe("PaycheckCard", () => {
       remainingAmount: -500,
     };
 
-    render(<PaycheckCard allocation={insufficientAllocation} paycheck={mockPaycheck} />);
+    render(
+      <PaycheckCard
+        allocation={insufficientAllocation}
+        paycheck={mockPaycheck}
+      />,
+    );
 
     expect(screen.getByText("Insufficient Funds")).toBeInTheDocument();
     expect(screen.getByText("-$500")).toBeInTheDocument();
@@ -80,7 +94,12 @@ describe("PaycheckCard", () => {
       remainingAmount: 0,
     };
 
-    render(<PaycheckCard allocation={fullyAllocatedAllocation} paycheck={mockPaycheck} />);
+    render(
+      <PaycheckCard
+        allocation={fullyAllocatedAllocation}
+        paycheck={mockPaycheck}
+      />,
+    );
 
     expect(screen.getByText("Fully Allocated")).toBeInTheDocument();
     expect(screen.getByText("$0")).toBeInTheDocument();
@@ -100,7 +119,9 @@ describe("PaycheckCard", () => {
       remainingAmount: 3000,
     };
 
-    render(<PaycheckCard allocation={emptyAllocation} paycheck={mockPaycheck} />);
+    render(
+      <PaycheckCard allocation={emptyAllocation} paycheck={mockPaycheck} />,
+    );
 
     expect(screen.queryByText("Allocated Payments")).not.toBeInTheDocument();
     expect(screen.getByText("Allocated to 0 payments")).toBeInTheDocument();
@@ -108,15 +129,19 @@ describe("PaycheckCard", () => {
   });
 
   it("displays summary information correctly", () => {
-    render(<PaycheckCard allocation={mockAllocation} paycheck={mockPaycheck} />);
+    render(
+      <PaycheckCard allocation={mockAllocation} paycheck={mockPaycheck} />,
+    );
 
     expect(screen.getByText("Allocated to 2 payments")).toBeInTheDocument();
     expect(screen.getByText("$1,600 total")).toBeInTheDocument();
   });
 
   it("applies correct styling for different states", () => {
-    const { rerender } = render(<PaycheckCard allocation={mockAllocation} paycheck={mockPaycheck} />);
-    
+    const { rerender } = render(
+      <PaycheckCard allocation={mockAllocation} paycheck={mockPaycheck} />,
+    );
+
     // Positive balance - should have green styling
     expect(screen.getByText("$1,400")).toHaveClass("text-green-900");
 
@@ -125,8 +150,13 @@ describe("PaycheckCard", () => {
       remainingAmount: -500,
     };
 
-    rerender(<PaycheckCard allocation={insufficientAllocation} paycheck={mockPaycheck} />);
-    
+    rerender(
+      <PaycheckCard
+        allocation={insufficientAllocation}
+        paycheck={mockPaycheck}
+      />,
+    );
+
     // Negative balance - should have red styling
     expect(screen.getByText("-$500")).toHaveClass("text-red-900");
   });

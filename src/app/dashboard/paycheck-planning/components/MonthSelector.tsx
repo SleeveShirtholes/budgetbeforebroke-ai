@@ -23,13 +23,13 @@ export default function MonthSelector({
       >
         <ChevronLeftIcon className="h-4 w-4" />
       </Button>
-      
+
       <div className="px-4 py-2 bg-white border border-gray-200 rounded-lg">
         <span className="text-sm font-medium text-gray-900">
-          {format(selectedDate, 'MMMM yyyy')}
+          {format(selectedDate, "MMMM yyyy")}
         </span>
       </div>
-      
+
       <Button
         variant="outline"
         size="sm"

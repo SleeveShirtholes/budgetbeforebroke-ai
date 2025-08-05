@@ -14,7 +14,7 @@ const PAYCHECK_ALLOCATIONS_KEY = "/api/paycheck-allocations";
 export function usePaycheckPlanning(
   budgetAccountId?: string,
   year?: number,
-  month?: number
+  month?: number,
 ) {
   const {
     data: planningData,
@@ -22,14 +22,14 @@ export function usePaycheckPlanning(
     isLoading,
     mutate: mutatePlanningData,
   } = useSWR(
-    budgetAccountId && year && month 
-      ? [PAYCHECK_PLANNING_KEY, budgetAccountId, year, month] 
+    budgetAccountId && year && month
+      ? [PAYCHECK_PLANNING_KEY, budgetAccountId, year, month]
       : null,
     () => getPaycheckPlanningData(budgetAccountId!, year!, month!),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
-    }
+    },
   );
 
   return {
@@ -46,7 +46,7 @@ export function usePaycheckPlanning(
 export function usePaycheckAllocations(
   budgetAccountId?: string,
   year?: number,
-  month?: number
+  month?: number,
 ) {
   const {
     data: allocations,
@@ -54,14 +54,14 @@ export function usePaycheckAllocations(
     isLoading,
     mutate: mutateAllocations,
   } = useSWR(
-    budgetAccountId && year && month 
-      ? [PAYCHECK_ALLOCATIONS_KEY, budgetAccountId, year, month] 
+    budgetAccountId && year && month
+      ? [PAYCHECK_ALLOCATIONS_KEY, budgetAccountId, year, month]
       : null,
     () => getPaycheckAllocations(budgetAccountId!, year!, month!),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
-    }
+    },
   );
 
   return {

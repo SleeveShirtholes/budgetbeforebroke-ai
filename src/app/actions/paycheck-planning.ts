@@ -1,16 +1,25 @@
 "use server";
 
 import { and, eq, gte, lte, inArray } from "drizzle-orm";
-import { 
-  budgetAccountMembers, 
-  incomeSources, 
+import {
+  budgetAccountMembers,
+  incomeSources,
   recurringTransactions,
-  debts
+  debts,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { db } from "@/db/config";
 import { headers } from "next/headers";
-import { addDays, addWeeks, addMonths, startOfMonth, endOfMonth, format, isBefore, isAfter } from "date-fns";
+import {
+  addDays,
+  addWeeks,
+  addMonths,
+  startOfMonth,
+  endOfMonth,
+  format,
+  isBefore,
+  isAfter,
+} from "date-fns";
 
 export interface PaycheckInfo {
   id: string;
@@ -67,15 +76,15 @@ function calculatePaycheckDates(
     frequency: "weekly" | "bi-weekly" | "monthly";
   },
   year: number,
-  month: number
+  month: number,
 ): Date[] {
   const dates: Date[] = [];
   const monthStart = startOfMonth(new Date(year, month - 1));
   const monthEnd = endOfMonth(new Date(year, month - 1));
   const startDate = new Date(incomeSource.startDate);
-  
+
   let currentDate = new Date(startDate);
-  
+
   // Find the first paycheck date in or after the month
   while (isBefore(currentDate, monthStart)) {
     switch (incomeSource.frequency) {
@@ -90,11 +99,11 @@ function calculatePaycheckDates(
         break;
     }
   }
-  
+
   // Add all paycheck dates within the month
   while (!isAfter(currentDate, monthEnd)) {
     dates.push(new Date(currentDate));
-    
+
     switch (incomeSource.frequency) {
       case "weekly":
         currentDate = addWeeks(currentDate, 1);
@@ -107,7 +116,7 @@ function calculatePaycheckDates(
         break;
     }
   }
-  
+
   return dates;
 }
 
@@ -117,7 +126,7 @@ function calculatePaycheckDates(
 export async function getPaycheckPlanningData(
   budgetAccountId: string,
   year: number,
-  month: number
+  month: number,
 ): Promise<PaycheckPlanningData> {
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
@@ -131,7 +140,7 @@ export async function getPaycheckPlanningData(
   const membership = await db.query.budgetAccountMembers.findFirst({
     where: and(
       eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id)
+      eq(budgetAccountMembers.userId, sessionResult.user.id),
     ),
   });
 
@@ -144,25 +153,25 @@ export async function getPaycheckPlanningData(
     where: eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
   });
 
-  const memberUserIds = members.map(m => m.userId);
+  const memberUserIds = members.map((m) => m.userId);
 
   // Get active income sources for all members
   const incomes = await db.query.incomeSources.findMany({
     where: and(
       inArray(incomeSources.userId, memberUserIds),
-      eq(incomeSources.isActive, true)
+      eq(incomeSources.isActive, true),
     ),
   });
 
   // Calculate paychecks for the month
   const paychecks: PaycheckInfo[] = [];
-  
+
   for (const income of incomes) {
     const payDates = calculatePaycheckDates(income, year, month);
-    
+
     for (const payDate of payDates) {
       paychecks.push({
-        id: `${income.id}-${format(payDate, 'yyyy-MM-dd')}`,
+        id: `${income.id}-${format(payDate, "yyyy-MM-dd")}`,
         name: income.name,
         amount: Number(income.amount),
         date: payDate,
@@ -194,13 +203,13 @@ export async function getPaycheckPlanningData(
     where: and(
       eq(debts.budgetAccountId, budgetAccountId),
       gte(debts.dueDate, monthStart),
-      lte(debts.dueDate, monthEnd)
+      lte(debts.dueDate, monthEnd),
     ),
   });
 
   // Convert to common format
   const allDebts: DebtInfo[] = [
-    ...recurringDebts.map(debt => ({
+    ...recurringDebts.map((debt) => ({
       id: debt.id,
       name: debt.description || "Recurring Payment",
       amount: Number(debt.amount),
@@ -209,7 +218,7 @@ export async function getPaycheckPlanningData(
       description: debt.description || undefined,
       isRecurring: true,
     })),
-    ...oneTimeDebts.map(debt => ({
+    ...oneTimeDebts.map((debt) => ({
       id: debt.id,
       name: debt.name,
       amount: Number(debt.balance), // Use balance as amount for one-time debts
@@ -233,50 +242,62 @@ export async function getPaycheckPlanningData(
 /**
  * Calculate the next due date for a recurring transaction within a month
  */
-function calculateNextDueDate(recurringTransaction: { startDate: Date }, monthStart: Date): Date {
+function calculateNextDueDate(
+  recurringTransaction: { startDate: Date },
+  monthStart: Date,
+): Date {
   // For simplicity, assume monthly frequency and use the day from start date
   const startDate = new Date(recurringTransaction.startDate);
   const dayOfMonth = startDate.getDate();
-  
-  const dueDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), dayOfMonth);
-  
+
+  const dueDate = new Date(
+    monthStart.getFullYear(),
+    monthStart.getMonth(),
+    dayOfMonth,
+  );
+
   // If the due date is before the month start, move to next occurrence
   if (isBefore(dueDate, monthStart)) {
     return addMonths(dueDate, 1);
   }
-  
+
   return dueDate;
 }
 
 /**
  * Generate warnings for potential payment issues
  */
-function generateWarnings(paychecks: PaycheckInfo[], debts: DebtInfo[]): PaycheckWarning[] {
+function generateWarnings(
+  paychecks: PaycheckInfo[],
+  debts: DebtInfo[],
+): PaycheckWarning[] {
   const warnings: PaycheckWarning[] = [];
-  
+
   // Sort debts by due date
-  const sortedDebts = [...debts].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  
+  const sortedDebts = [...debts].sort(
+    (a, b) => a.dueDate.getTime() - b.dueDate.getTime(),
+  );
+
   // Calculate allocations to check for issues
   const allocations = calculateOptimalAllocations(paychecks, sortedDebts);
-  
+
   for (const allocation of allocations) {
     // Check for insufficient funds
     if (allocation.remainingAmount < 0) {
       warnings.push({
         type: "insufficient_funds",
-        message: `Paycheck on ${format(allocation.paycheckDate, 'MMM dd')} has insufficient funds. Short by $${Math.abs(allocation.remainingAmount).toFixed(2)}`,
+        message: `Paycheck on ${format(allocation.paycheckDate, "MMM dd")} has insufficient funds. Short by $${Math.abs(allocation.remainingAmount).toFixed(2)}`,
         paycheckId: allocation.paycheckId,
         severity: "high",
       });
     }
-    
+
     // Check for debts that might be paid late
     for (const debt of allocation.allocatedDebts) {
       if (isAfter(allocation.paycheckDate, debt.dueDate)) {
         warnings.push({
           type: "late_payment",
-          message: `${debt.debtName} payment will be late. Due ${format(debt.dueDate, 'MMM dd')}, paid ${format(allocation.paycheckDate, 'MMM dd')}`,
+          message: `${debt.debtName} payment will be late. Due ${format(debt.dueDate, "MMM dd")}, paid ${format(allocation.paycheckDate, "MMM dd")}`,
           debtId: debt.debtId,
           paycheckId: allocation.paycheckId,
           severity: "medium",
@@ -284,23 +305,23 @@ function generateWarnings(paychecks: PaycheckInfo[], debts: DebtInfo[]): Paychec
       }
     }
   }
-  
+
   // Check for unpaid debts
   const allocatedDebtIds = new Set(
-    allocations.flatMap(a => a.allocatedDebts.map(d => d.debtId))
+    allocations.flatMap((a) => a.allocatedDebts.map((d) => d.debtId)),
   );
-  
+
   for (const debt of sortedDebts) {
     if (!allocatedDebtIds.has(debt.id)) {
       warnings.push({
         type: "debt_unpaid",
-        message: `${debt.name} (due ${format(debt.dueDate, 'MMM dd')}) cannot be paid with available paychecks`,
+        message: `${debt.name} (due ${format(debt.dueDate, "MMM dd")}) cannot be paid with available paychecks`,
         debtId: debt.id,
         severity: "high",
       });
     }
   }
-  
+
   return warnings;
 }
 
@@ -309,11 +330,13 @@ function generateWarnings(paychecks: PaycheckInfo[], debts: DebtInfo[]): Paychec
  */
 function calculateOptimalAllocations(
   paychecks: PaycheckInfo[],
-  debts: DebtInfo[]
+  debts: DebtInfo[],
 ): PaycheckAllocation[] {
   const allocations: PaycheckAllocation[] = [];
-  const remainingDebts = [...debts].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  
+  const remainingDebts = [...debts].sort(
+    (a, b) => a.dueDate.getTime() - b.dueDate.getTime(),
+  );
+
   for (const paycheck of paychecks) {
     const allocation: PaycheckAllocation = {
       paycheckId: paycheck.id,
@@ -322,31 +345,32 @@ function calculateOptimalAllocations(
       allocatedDebts: [],
       remainingAmount: paycheck.amount,
     };
-    
+
     // Allocate debts that are due before or on the paycheck date
     for (let i = remainingDebts.length - 1; i >= 0; i--) {
       const debt = remainingDebts[i];
-      
+
       // Only allocate if debt is due before or shortly after this paycheck
       // and we have enough funds
-      if (!isAfter(debt.dueDate, addDays(paycheck.date, 7)) && 
-          allocation.remainingAmount >= debt.amount) {
-        
+      if (
+        !isAfter(debt.dueDate, addDays(paycheck.date, 7)) &&
+        allocation.remainingAmount >= debt.amount
+      ) {
         allocation.allocatedDebts.push({
           debtId: debt.id,
           debtName: debt.name,
           amount: debt.amount,
           dueDate: debt.dueDate,
         });
-        
+
         allocation.remainingAmount -= debt.amount;
         remainingDebts.splice(i, 1);
       }
     }
-    
+
     allocations.push(allocation);
   }
-  
+
   return allocations;
 }
 
@@ -356,7 +380,7 @@ function calculateOptimalAllocations(
 export async function getPaycheckAllocations(
   budgetAccountId: string,
   year: number,
-  month: number
+  month: number,
 ): Promise<PaycheckAllocation[]> {
   const data = await getPaycheckPlanningData(budgetAccountId, year, month);
   return calculateOptimalAllocations(data.paychecks, data.debts);

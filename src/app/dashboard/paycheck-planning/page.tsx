@@ -2,13 +2,21 @@
 
 import { useState } from "react";
 import { format, addMonths, subMonths } from "date-fns";
-import { ExclamationTriangleIcon, CheckCircleIcon, CurrencyDollarIcon, CalendarDaysIcon } from "@heroicons/react/24/outline";
+import {
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  CurrencyDollarIcon,
+  CalendarDaysIcon,
+} from "@heroicons/react/24/outline";
 
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Spinner from "@/components/Spinner";
 import { useBudgetAccount } from "@/stores/budgetAccountStore";
-import { usePaycheckPlanning, usePaycheckAllocations } from "@/hooks/usePaycheckPlanning";
+import {
+  usePaycheckPlanning,
+  usePaycheckAllocations,
+} from "@/hooks/usePaycheckPlanning";
 
 import PaycheckCard from "./components/PaycheckCard";
 import DebtManagement from "./components/DebtManagement";
@@ -51,11 +59,11 @@ export default function PaycheckPlanningPage() {
 
   // Navigation handlers
   const goToPreviousMonth = () => {
-    setSelectedDate(prev => subMonths(prev, 1));
+    setSelectedDate((prev) => subMonths(prev, 1));
   };
 
   const goToNextMonth = () => {
-    setSelectedDate(prev => addMonths(prev, 1));
+    setSelectedDate((prev) => addMonths(prev, 1));
   };
 
   // Loading states
@@ -77,10 +85,12 @@ export default function PaycheckPlanningPage() {
             Error Loading Data
           </h3>
           <p className="text-gray-600 mb-4">
-            {planningError?.message || allocationsError?.message || "Failed to load paycheck planning data"}
+            {planningError?.message ||
+              allocationsError?.message ||
+              "Failed to load paycheck planning data"}
           </p>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={() => {
               mutatePlanningData();
             }}
@@ -110,21 +120,30 @@ export default function PaycheckPlanningPage() {
   }
 
   const { paychecks = [], debts = [], warnings = [] } = planningData || {};
-  const totalIncome = paychecks.reduce((sum, paycheck) => sum + paycheck.amount, 0);
+  const totalIncome = paychecks.reduce(
+    (sum, paycheck) => sum + paycheck.amount,
+    0,
+  );
   const totalDebts = debts.reduce((sum, debt) => sum + debt.amount, 0);
-  const totalRemaining = allocations?.reduce((sum, allocation) => sum + Math.max(0, allocation.remainingAmount), 0) || 0;
+  const totalRemaining =
+    allocations?.reduce(
+      (sum, allocation) => sum + Math.max(0, allocation.remainingAmount),
+      0,
+    ) || 0;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Paycheck Planning</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Paycheck Planning
+          </h1>
           <p className="text-gray-600 mt-1">
             Plan your paycheck allocation and manage debt payments
           </p>
         </div>
-        
+
         <MonthSelector
           selectedDate={selectedDate}
           onPreviousMonth={goToPreviousMonth}
@@ -145,7 +164,7 @@ export default function PaycheckPlanningPage() {
                 ${totalIncome.toLocaleString()}
               </p>
               <p className="text-sm text-gray-500">
-                {paychecks.length} paycheck{paychecks.length !== 1 ? 's' : ''}
+                {paychecks.length} paycheck{paychecks.length !== 1 ? "s" : ""}
               </p>
             </div>
           </div>
@@ -162,7 +181,7 @@ export default function PaycheckPlanningPage() {
                 ${totalDebts.toLocaleString()}
               </p>
               <p className="text-sm text-gray-500">
-                {debts.length} payment{debts.length !== 1 ? 's' : ''}
+                {debts.length} payment{debts.length !== 1 ? "s" : ""}
               </p>
             </div>
           </div>
@@ -185,9 +204,7 @@ export default function PaycheckPlanningPage() {
       </div>
 
       {/* Warnings Panel */}
-      {warnings.length > 0 && (
-        <WarningsPanel warnings={warnings} />
-      )}
+      {warnings.length > 0 && <WarningsPanel warnings={warnings} />}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -195,7 +212,7 @@ export default function PaycheckPlanningPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">
-              Paychecks for {format(selectedDate, 'MMMM yyyy')}
+              Paychecks for {format(selectedDate, "MMMM yyyy")}
             </h2>
           </div>
 
@@ -207,7 +224,8 @@ export default function PaycheckPlanningPage() {
                   No Paychecks Found
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  No paychecks are scheduled for {format(selectedDate, 'MMMM yyyy')}.
+                  No paychecks are scheduled for{" "}
+                  {format(selectedDate, "MMMM yyyy")}.
                 </p>
                 <Button variant="primary" href="/dashboard/income">
                   Add Income Source
@@ -220,7 +238,9 @@ export default function PaycheckPlanningPage() {
                 <PaycheckCard
                   key={allocation.paycheckId}
                   allocation={allocation}
-                  paycheck={paychecks.find(p => p.id === allocation.paycheckId)}
+                  paycheck={paychecks.find(
+                    (p) => p.id === allocation.paycheckId,
+                  )}
                 />
               ))}
             </div>

@@ -45,11 +45,17 @@ jest.mock("../components/MonthSelector", () => {
 
 describe("PaycheckPlanningPage", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { useBudgetAccount: mockUseBudgetAccount } = require("@/stores/budgetAccountStore");
+  const {
+    useBudgetAccount: mockUseBudgetAccount,
+  } = require("@/stores/budgetAccountStore");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { usePaycheckPlanning: mockUsePaycheckPlanning } = require("@/hooks/usePaycheckPlanning");
+  const {
+    usePaycheckPlanning: mockUsePaycheckPlanning,
+  } = require("@/hooks/usePaycheckPlanning");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { usePaycheckAllocations: mockUsePaycheckAllocations } = require("@/hooks/usePaycheckPlanning");
+  const {
+    usePaycheckAllocations: mockUsePaycheckAllocations,
+  } = require("@/hooks/usePaycheckPlanning");
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -101,7 +107,11 @@ describe("PaycheckPlanningPage", () => {
     render(<PaycheckPlanningPage />);
 
     expect(screen.getByText("No Budget Account Selected")).toBeInTheDocument();
-    expect(screen.getByText("Please select a budget account to view paycheck planning.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Please select a budget account to view paycheck planning.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("renders error state correctly", () => {
@@ -192,8 +202,12 @@ describe("PaycheckPlanningPage", () => {
     render(<PaycheckPlanningPage />);
 
     expect(screen.getByText("Paycheck Planning")).toBeInTheDocument();
-    expect(screen.getByText("Plan your paycheck allocation and manage debt payments")).toBeInTheDocument();
-    
+    expect(
+      screen.getByText(
+        "Plan your paycheck allocation and manage debt payments",
+      ),
+    ).toBeInTheDocument();
+
     // Check summary cards
     expect(screen.getByText("Total Income")).toBeInTheDocument();
     expect(screen.getByText("$3,000")).toBeInTheDocument();
@@ -236,7 +250,9 @@ describe("PaycheckPlanningPage", () => {
     render(<PaycheckPlanningPage />);
 
     expect(screen.getByText("No Paychecks Found")).toBeInTheDocument();
-    expect(screen.getByText(/No paychecks are scheduled for/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/No paychecks are scheduled for/),
+    ).toBeInTheDocument();
   });
 
   it("renders warnings panel when warnings exist", () => {

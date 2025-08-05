@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { PlusIcon, PencilIcon, TrashIcon, CalendarDaysIcon, CurrencyDollarIcon } from "@heroicons/react/24/outline";
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  CalendarDaysIcon,
+  CurrencyDollarIcon,
+} from "@heroicons/react/24/outline";
 
 import Button from "@/components/Button";
 import Card from "@/components/Card";
@@ -28,7 +34,9 @@ export default function DebtManagement({
   const [deletingDebt, setDeletingDebt] = useState<DebtInfo | null>(null);
 
   // Sort debts by due date
-  const sortedDebts = [...debts].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  const sortedDebts = [...debts].sort(
+    (a, b) => a.dueDate.getTime() - b.dueDate.getTime(),
+  );
 
   const handleAddDebt = () => {
     setIsAddModalOpen(true);
@@ -63,9 +71,7 @@ export default function DebtManagement({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
-          Debt Payments
-        </h2>
+        <h2 className="text-xl font-semibold text-gray-900">Debt Payments</h2>
         <Button
           variant="primary"
           size="sm"
@@ -85,7 +91,8 @@ export default function DebtManagement({
               No Debts Found
             </h3>
             <p className="text-gray-600 mb-4">
-              Add recurring debts and bills to see how they fit with your paychecks.
+              Add recurring debts and bills to see how they fit with your
+              paychecks.
             </p>
             <Button variant="primary" onClick={handleAddDebt}>
               Add Your First Debt
@@ -99,12 +106,16 @@ export default function DebtManagement({
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${
-                      debt.isRecurring ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}>
-                      <CurrencyDollarIcon className={`h-5 w-5 ${
-                        debt.isRecurring ? 'text-blue-600' : 'text-gray-600'
-                      }`} />
+                    <div
+                      className={`p-2 rounded-lg ${
+                        debt.isRecurring ? "bg-blue-100" : "bg-gray-100"
+                      }`}
+                    >
+                      <CurrencyDollarIcon
+                        className={`h-5 w-5 ${
+                          debt.isRecurring ? "text-blue-600" : "text-gray-600"
+                        }`}
+                      />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900">
@@ -113,16 +124,18 @@ export default function DebtManagement({
                       <div className="flex items-center space-x-4 text-sm text-gray-600">
                         <div className="flex items-center space-x-1">
                           <CalendarDaysIcon className="h-4 w-4" />
-                          <span>Due {format(debt.dueDate, 'MMM dd')}</span>
+                          <span>Due {format(debt.dueDate, "MMM dd")}</span>
                         </div>
                         <span>•</span>
                         <span className="capitalize">
-                          {debt.isRecurring ? debt.frequency : 'One-time'}
+                          {debt.isRecurring ? debt.frequency : "One-time"}
                         </span>
                         {debt.description && debt.description !== debt.name && (
                           <>
                             <span>•</span>
-                            <span className="text-gray-500">{debt.description}</span>
+                            <span className="text-gray-500">
+                              {debt.description}
+                            </span>
                           </>
                         )}
                       </div>
@@ -136,7 +149,7 @@ export default function DebtManagement({
                       ${debt.amount.toLocaleString()}
                     </p>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
                     <Button
                       variant="outline"
@@ -170,15 +183,20 @@ export default function DebtManagement({
           <div className="flex items-center justify-between text-sm">
             <div className="space-y-1">
               <p className="text-gray-600">
-                {sortedDebts.filter(d => d.isRecurring).length} recurring, {sortedDebts.filter(d => !d.isRecurring).length} one-time
+                {sortedDebts.filter((d) => d.isRecurring).length} recurring,{" "}
+                {sortedDebts.filter((d) => !d.isRecurring).length} one-time
               </p>
               <p className="text-gray-600">
-                Next payment due: {format(sortedDebts[0]?.dueDate, 'MMM dd, yyyy')}
+                Next payment due:{" "}
+                {format(sortedDebts[0]?.dueDate, "MMM dd, yyyy")}
               </p>
             </div>
             <div className="text-right">
               <p className="text-lg font-bold text-gray-900">
-                ${sortedDebts.reduce((sum, debt) => sum + debt.amount, 0).toLocaleString()}
+                $
+                {sortedDebts
+                  .reduce((sum, debt) => sum + debt.amount, 0)
+                  .toLocaleString()}
               </p>
               <p className="text-sm text-gray-600">Total this month</p>
             </div>

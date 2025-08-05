@@ -42,7 +42,7 @@ export default function EditDebtModal({
       reset({
         name: debt.name,
         amount: debt.amount,
-        dueDate: format(debt.dueDate, 'yyyy-MM-dd'),
+        dueDate: format(debt.dueDate, "yyyy-MM-dd"),
         description: debt.description || "",
       });
     }
@@ -65,9 +65,11 @@ export default function EditDebtModal({
       } else {
         // For recurring transactions, we'd need a different update function
         // For now, show a message that recurring debts can't be edited here
-        throw new Error("Recurring debts must be edited from the Recurring Transactions page");
+        throw new Error(
+          "Recurring debts must be edited from the Recurring Transactions page",
+        );
       }
-      
+
       onDebtUpdated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update debt");
@@ -110,7 +112,11 @@ export default function EditDebtModal({
         </div>
       }
     >
-      <form id="edit-debt-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form
+        id="edit-debt-form"
+        onSubmit={handleSubmit(onSubmit)}
+        className="space-y-4"
+      >
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-sm text-red-800">{error}</p>
@@ -120,13 +126,17 @@ export default function EditDebtModal({
         {debt.isRecurring && (
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              This is a recurring payment. To edit recurring payments, please use the Recurring Transactions page.
+              This is a recurring payment. To edit recurring payments, please
+              use the Recurring Transactions page.
             </p>
           </div>
         )}
 
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="name"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Name *
           </label>
           <input
@@ -143,15 +153,18 @@ export default function EditDebtModal({
         </div>
 
         <div>
-          <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="amount"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Amount *
           </label>
           <div className="relative">
             <span className="absolute left-3 top-2 text-gray-500">$</span>
             <input
-              {...register("amount", { 
+              {...register("amount", {
                 required: "Amount is required",
-                min: { value: 0.01, message: "Amount must be greater than 0" }
+                min: { value: 0.01, message: "Amount must be greater than 0" },
               })}
               type="number"
               step="0.01"
@@ -167,7 +180,10 @@ export default function EditDebtModal({
         </div>
 
         <div>
-          <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="dueDate"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Due Date *
           </label>
           <input
@@ -178,12 +194,17 @@ export default function EditDebtModal({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
           {errors.dueDate && (
-            <p className="mt-1 text-sm text-red-600">{errors.dueDate.message}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {errors.dueDate.message}
+            </p>
           )}
         </div>
 
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="description"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Description (Optional)
           </label>
           <textarea

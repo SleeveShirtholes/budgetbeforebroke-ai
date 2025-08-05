@@ -31,7 +31,9 @@ export default function DeleteDebtModal({
         onDebtDeleted();
       } else {
         // For recurring transactions, we'd need a different delete function
-        throw new Error("Recurring debts must be deleted from the Recurring Transactions page");
+        throw new Error(
+          "Recurring debts must be deleted from the Recurring Transactions page",
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete debt");
@@ -91,7 +93,8 @@ export default function DeleteDebtModal({
                   Recurring Payment
                 </p>
                 <p className="text-sm text-blue-700 mt-1">
-                  This is a recurring payment. To delete recurring payments, please use the Recurring Transactions page.
+                  This is a recurring payment. To delete recurring payments,
+                  please use the Recurring Transactions page.
                 </p>
               </div>
             </div>
