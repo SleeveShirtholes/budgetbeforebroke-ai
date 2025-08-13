@@ -381,16 +381,6 @@ export default function PaycheckPlanningPage() {
 
   const { paychecks = [], debts = [], warnings = [] } = planningData || {};
 
-  // Debug logging to help identify the issue
-  console.log("Paycheck Planning Debug:", {
-    planningData,
-    paychecks: paychecks.length,
-    debts: debts.length,
-    allocations: allocations?.length || 0,
-    selectedAccount: selectedAccount?.id,
-    selectedDate: selectedDate.toISOString(),
-  });
-
   const totalIncome = paychecks.reduce(
     (sum, paycheck) => sum + paycheck.amount,
     0,

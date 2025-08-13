@@ -78,19 +78,6 @@ export default function PaymentModal({
   }, [isOpen]);
 
   const onSubmit = async (data: PaymentFormData) => {
-    console.log("onSubmit called with data:", data);
-    console.log("Form validation errors:", errors);
-    console.log("Form is valid:", Object.keys(errors).length === 0);
-    console.log("Form data values:", {
-      paymentAmount: data.paymentAmount,
-      paymentDate: data.paymentDate,
-    });
-    console.log("Form element:", document.getElementById("payment-form"));
-    console.log(
-      "Form onsubmit attribute:",
-      document.getElementById("payment-form")?.onsubmit,
-    );
-
     setIsLoading(true);
     setError(null);
 
@@ -106,7 +93,6 @@ export default function PaymentModal({
         throw new Error("Payment amount must be greater than 0");
       }
 
-      console.log("Calling onConfirm with:", amount, data.paymentDate);
       await onConfirm(amount, data.paymentDate);
     } catch (err) {
       const errorMessage =

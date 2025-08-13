@@ -232,27 +232,6 @@ export async function getPaycheckPlanningData(
     }
   });
 
-  // Debug logging
-  console.log("Database Query Results:", {
-    budgetAccountId,
-    year,
-    month,
-    recurringDebtsCount: recurringDebts.length,
-    oneTimeDebtsCount: oneTimeDebts.length,
-    recurringDebts: recurringDebts.map((d) => ({
-      id: d.id,
-      description: d.description,
-      amount: d.amount,
-      status: d.status,
-    })),
-    oneTimeDebts: oneTimeDebts.map((d) => ({
-      id: d.id,
-      name: d.name,
-      paymentAmount: d.paymentAmount,
-      dueDate: d.dueDate,
-    })),
-  });
-
   // Process recurring debts with proper due date calculation
   const recurringDebtsWithDueDates = recurringDebts.map((debt) => {
     // For recurring debts, calculate due date based on frequency and start date
@@ -423,41 +402,6 @@ export async function getPaycheckPlanningData(
     ...recurringDebtsWithDueDates,
     ...resolvedOneTimeDebts,
   ];
-
-  // Debug logging for final debt list
-  console.log("Final Debt List:", {
-    totalDebts: allDebts.length,
-    recurringDebts: recurringDebtsWithDueDates.length,
-    oneTimeDebts: resolvedOneTimeDebts.length,
-    allDebts: allDebts.map((d) => ({
-      id: d.id,
-      name: d.name,
-      amount: d.amount,
-      dueDate: d.dueDate,
-      isRecurring: d.isRecurring,
-    })),
-  });
-
-  // Additional debug logging for Car Loan specifically
-  const carLoan = allDebts.find((d) => d.name.includes("Car Loan"));
-  if (carLoan) {
-    console.log("Car Loan Debug Info:", {
-      id: carLoan.id,
-      name: carLoan.name,
-      dueDate: carLoan.dueDate,
-      isRecurring: carLoan.isRecurring,
-      originalDebtDueDate: oneTimeDebts.find((d) => d.id === carLoan.id)
-        ?.dueDate,
-      monthlyPlanning: await db.query.monthlyDebtPlanning.findFirst({
-        where: and(
-          eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
-          eq(monthlyDebtPlanning.debtId, carLoan.id),
-          eq(monthlyDebtPlanning.year, year),
-          eq(monthlyDebtPlanning.month, month),
-        ),
-      }),
-    });
-  }
 
   // Generate warnings
   const warnings = generateWarnings(paychecks, allDebts);
