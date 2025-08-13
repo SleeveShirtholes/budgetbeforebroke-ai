@@ -8,8 +8,8 @@ interface AddEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (
-    data: Omit<DebtFormData, "balance" | "interestRate"> & {
-      balance: number;
+    data: Omit<DebtFormData, "paymentAmount" | "interestRate"> & {
+      paymentAmount: number;
       interestRate: number;
     },
   ) => void;

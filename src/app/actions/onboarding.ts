@@ -62,7 +62,7 @@ export type OnboardingData = {
     name: string;
     amount: number;
     frequency: "weekly" | "bi-weekly" | "monthly";
-    startDate: Date;
+    startDate: string;
   };
 };
 

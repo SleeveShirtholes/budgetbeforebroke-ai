@@ -64,24 +64,56 @@ describe("Modal Component", () => {
   });
 
   it("renders footer buttons when provided", () => {
-    const footerButtons = (
-      <>
-        <button>Cancel</button>
-        <button>Save</button>
-      </>
+    render(
+      <Modal
+        isOpen={true}
+        onClose={mockOnClose}
+        title="Test Modal"
+        footerButtons={<button>Test Button</button>}
+      />,
     );
 
-    render(<Modal {...defaultProps} footerButtons={footerButtons} />);
+    expect(screen.getByText("Test Button")).toBeInTheDocument();
+  });
 
-    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
+  it("has proper flexbox layout for viewport constraints", () => {
+    render(
+      <Modal
+        isOpen={true}
+        onClose={mockOnClose}
+        title="Test Modal"
+        footerButtons={<button>Test Button</button>}
+      >
+        <div>Test content</div>
+      </Modal>,
+    );
+
+    const modalContent = screen.getByTestId("modal-content");
+
+    // Check that the modal has flexbox layout
+    expect(modalContent).toHaveClass("flex", "flex-col");
+
+    // Check that the modal has proper max height constraints
+    expect(modalContent).toHaveClass("max-h-[calc(100vh-4rem)]");
+
+    // Check that content area is flexible
+    const contentArea = modalContent.querySelector("div:nth-child(2)");
+    expect(contentArea).toHaveClass("flex-1", "overflow-y-auto");
+
+    // Check that footer is not shrinkable
+    const footer = modalContent.querySelector("div:nth-child(3)");
+    expect(footer).toHaveClass("flex-shrink-0");
   });
 
   it("manages body overflow style", () => {
-    const { unmount } = render(<Modal {...defaultProps} />);
+    const { unmount } = render(
+      <Modal isOpen={true} onClose={mockOnClose} title="Test Modal" />,
+    );
+
     expect(document.body.style.overflow).toBe("hidden");
 
     unmount();
+
     expect(document.body.style.overflow).toBe("unset");
   });
 });

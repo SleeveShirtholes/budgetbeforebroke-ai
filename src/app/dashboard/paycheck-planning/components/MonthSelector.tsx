@@ -20,6 +20,7 @@ export default function MonthSelector({
         size="sm"
         onClick={onPreviousMonth}
         className="flex items-center"
+        aria-label="Previous month"
       >
         <ChevronLeftIcon className="h-4 w-4" />
       </Button>
@@ -35,6 +36,7 @@ export default function MonthSelector({
         size="sm"
         onClick={onNextMonth}
         className="flex items-center"
+        aria-label="Next month"
       >
         <ChevronRightIcon className="h-4 w-4" />
       </Button>

@@ -61,8 +61,8 @@ export default function IncomePage() {
           data.name,
           Number(data.amount),
           data.frequency,
-          new Date(data.startDate),
-          data.endDate ? new Date(data.endDate) : undefined,
+          data.startDate,
+          data.endDate || undefined,
           data.notes,
         );
         showToast("Income source added successfully", { type: "success" });

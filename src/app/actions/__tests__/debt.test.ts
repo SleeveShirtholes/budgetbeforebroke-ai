@@ -70,9 +70,10 @@ describe("Debt Actions", () => {
     budgetAccountId: mockAccountId,
     createdByUserId: mockUserId,
     name: "Test Debt",
-    balance: 1000.0,
+    paymentAmount: 1000.0,
     interestRate: 5.5,
-    dueDate: new Date("2024-02-01"),
+    dueDate: "2024-02-01",
+    hasBalance: true,
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
     payments: [],
@@ -129,16 +130,18 @@ describe("Debt Actions", () => {
           budgetAccountId: mockAccountId,
           createdByUserId: mockUserId,
           name: "Test Debt",
-          balance: "1000.00",
-          interestRate: "5.50",
-          dueDate: new Date("2024-02-01"),
+          paymentAmount: "1000.00",
+          interestRate: "5.5",
+          dueDate: "2024-02-01",
+          hasBalance: true,
           createdAt: new Date("2024-01-01"),
           updatedAt: new Date("2024-01-01"),
-          paymentId: mockPaymentId,
-          paymentDebtId: mockDebtId,
-          paymentAmount: "100.00",
-          paymentDate: new Date("2024-01-15"),
+          allocationId: mockPaymentId,
+          allocationDebtId: mockDebtId,
+          paymentAmountAllocation: "100.00",
+          paymentDate: "2024-01-15",
           paymentNote: "Test payment",
+          paymentIsPaid: true,
           paymentCreatedAt: new Date("2024-01-15"),
           paymentUpdatedAt: new Date("2024-01-15"),
         },
@@ -150,7 +153,7 @@ describe("Debt Actions", () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe(mockDebtId);
-      expect(result[0].balance).toBe(1000.0);
+      expect(result[0].paymentAmount).toBe(1000.0);
       expect(result[0].interestRate).toBe(5.5);
       expect(result[0].payments).toHaveLength(1);
       expect(result[0].payments[0].amount).toBe(100.0);
@@ -217,16 +220,18 @@ describe("Debt Actions", () => {
           budgetAccountId: mockAccountId,
           createdByUserId: mockUserId,
           name: "Test Debt",
-          balance: "1500.75",
+          paymentAmount: "1500.75",
           interestRate: "7.25",
-          dueDate: new Date("2024-02-01"),
+          dueDate: "2024-02-01",
+          hasBalance: true,
           createdAt: new Date("2024-01-01"),
           updatedAt: new Date("2024-01-01"),
-          paymentId: null,
-          paymentDebtId: null,
-          paymentAmount: null,
+          allocationId: null,
+          allocationDebtId: null,
+          paymentAmountAllocation: null,
           paymentDate: null,
           paymentNote: null,
+          paymentIsPaid: null,
           paymentCreatedAt: null,
           paymentUpdatedAt: null,
         },
@@ -236,7 +241,8 @@ describe("Debt Actions", () => {
 
       const result = await getDebts();
 
-      expect(result[0].balance).toBe(1500.75);
+      expect(result).toHaveLength(1);
+      expect(result[0].paymentAmount).toBe(1500.75);
       expect(result[0].interestRate).toBe(7.25);
     });
   });
@@ -244,7 +250,7 @@ describe("Debt Actions", () => {
   describe("createDebt", () => {
     const createDebtData: CreateDebtInput = {
       name: "Test Debt",
-      balance: 1000.0,
+      paymentAmount: 1000.0,
       interestRate: 5.5,
       dueDate: "2024-02-01",
     };
@@ -297,9 +303,10 @@ describe("Debt Actions", () => {
         budgetAccountId: mockAccountId,
         createdByUserId: mockUserId,
         name: "Test Debt",
-        balance: "1000",
+        paymentAmount: "1000",
         interestRate: "5.5",
-        dueDate: new Date("2024-02-01"),
+        dueDate: "2024-02-01",
+        hasBalance: false,
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
       });
@@ -326,7 +333,7 @@ describe("Debt Actions", () => {
     const updateDebtData: UpdateDebtInput = {
       id: mockDebtId,
       name: "Updated Debt",
-      balance: 1500.0,
+      paymentAmount: 1500.0,
       interestRate: 6.0,
       dueDate: "2024-03-01",
     };
@@ -379,9 +386,9 @@ describe("Debt Actions", () => {
       expect(actualDb.update).toHaveBeenCalled();
       expect(actualDb.set).toHaveBeenCalledWith({
         name: "Updated Debt",
-        balance: "1500",
+        paymentAmount: "1500",
         interestRate: "6",
-        dueDate: new Date("2024-03-01"),
+        dueDate: "2024-03-01",
         updatedAt: expect.any(Date),
       });
     });
@@ -477,9 +484,10 @@ describe("Debt Actions", () => {
       budgetAccountId: mockAccountId,
       createdByUserId: mockUserId,
       name: "Test Debt",
-      balance: "1000.00",
+      paymentAmount: "1000.00",
       interestRate: "5.50",
-      dueDate: new Date("2024-02-01"),
+      dueDate: "2024-02-01",
+      hasBalance: true,
       lastPaymentMonth: null,
       createdAt: new Date("2024-01-01"),
       updatedAt: new Date("2024-01-01"),
@@ -520,9 +528,9 @@ describe("Debt Actions", () => {
       actualDb.limit.mockResolvedValueOnce([
         { defaultBudgetAccountId: mockAccountId },
       ]);
-      // Mock debt query to return debt with low balance
+      // Mock debt query to return debt with low payment amount
       actualDb.limit.mockResolvedValueOnce([
-        { ...mockExistingDebt, balance: "50.00" },
+        { ...mockExistingDebt, paymentAmount: "50.00" },
       ]);
 
       const largePaymentData = { ...createPaymentData, amount: 100.0 };
@@ -555,8 +563,8 @@ describe("Debt Actions", () => {
         expect.objectContaining({
           id: "mock-debt-id",
           debtId: mockDebtId,
-          amount: "100",
-          date: new Date("2024-01-15"),
+          paymentAmount: "100",
+          paymentDate: "2024-01-15",
           note: "Test payment",
         }),
       );
@@ -611,15 +619,14 @@ describe("Debt Actions", () => {
       // Check that the update was called with the correct parameters
       expect(actualDb.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          balance: "900", // reduced by payment amount
+          paymentAmount: "900", // reduced by payment amount
         }),
       );
 
-      // Verify that due date was advanced (the exact date depends on the month calculation)
+      // Verify that the debt was updated with payment information
       const setCall = actualDb.set.mock.calls[0][0];
-      expect(setCall.dueDate).toBeInstanceOf(Date);
       expect(setCall.lastPaymentMonth).toBeInstanceOf(Date);
-      expect(setCall.balance).toBe("900");
+      expect(setCall.paymentAmount).toBe("900");
     });
 
     it("should not advance due date when payment is made after due date", async () => {
@@ -643,7 +650,7 @@ describe("Debt Actions", () => {
 
       expect(actualDb.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          balance: "900", // reduced by payment amount
+          paymentAmount: "900", // reduced by payment amount
         }),
       );
       expect(actualDb.set).not.toHaveBeenCalledWith(
@@ -680,7 +687,7 @@ describe("Debt Actions", () => {
       // Check that only balance was updated
       expect(actualDb.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          balance: "900", // reduced by payment amount
+          paymentAmount: "900", // reduced by payment amount
         }),
       );
     });

@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 
-import { formatDate } from "@/utils/date";
+import { formatDateSafely } from "@/utils/date";
 import useSWR from "swr";
 import AccountInformation from "../AccountInformation";
 
@@ -35,10 +35,12 @@ describe("AccountInformation", () => {
 
     // Check if the values are rendered correctly (formatted)
     expect(
-      screen.getByText(formatDate(mockData.accountCreated)),
+      screen.getByText(
+        formatDateSafely(mockData.accountCreated, "MMM dd, yyyy"),
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(formatDate(mockData.lastLogin)),
+      screen.getByText(formatDateSafely(mockData.lastLogin, "MMM dd, yyyy")),
     ).toBeInTheDocument();
   });
 
