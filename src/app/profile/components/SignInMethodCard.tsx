@@ -3,7 +3,7 @@
 import Button from "@/components/Button";
 import { SignInMethod } from "../types/signInMethods";
 import { TrashIcon } from "@heroicons/react/24/outline";
-import { formatDate } from "@/utils/date";
+import { formatDateSafely } from "@/utils/date";
 
 interface SignInMethodCardProps {
   method: SignInMethod;
@@ -31,7 +31,9 @@ export default function SignInMethodCard({
         </h3>
         <p className="text-sm text-secondary-600">
           Last used:{" "}
-          {method.lastUsed === "Never" ? "Never" : formatDate(method.lastUsed)}
+          {method.lastUsed === "Never"
+            ? "Never"
+            : formatDateSafely(method.lastUsed, "MMM dd, yyyy")}
         </p>
       </div>
       <Button

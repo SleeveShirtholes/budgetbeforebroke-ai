@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   decimal,
   integer,
   text,
@@ -9,6 +10,10 @@ import {
 import { relations, sql } from "drizzle-orm";
 
 import { pgTable } from "drizzle-orm/pg-core";
+
+// Use a simple UUID generator instead of crypto
+const generateId = () =>
+  Math.random().toString(36).substring(2) + Date.now().toString(36);
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -408,8 +413,8 @@ export const incomeSources = pgTable("income_source", {
   frequency: text("frequency", {
     enum: ["weekly", "bi-weekly", "monthly"],
   }).notNull(),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date"),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
   isActive: boolean("is_active").notNull().default(true),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -426,26 +431,31 @@ export const debts = pgTable("debt", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  balance: decimal("balance", { precision: 10, scale: 2 }).notNull(),
+  paymentAmount: decimal("payment_amount", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
   interestRate: decimal("interest_rate", { precision: 5, scale: 2 }).notNull(),
-  dueDate: timestamp("due_date").notNull(),
+  dueDate: date("due_date").notNull(),
+  hasBalance: boolean("has_balance").notNull().default(false), // Indicates if this debt has a running balance (like credit cards)
   lastPaymentMonth: timestamp("last_payment_month"), // Tracks the last month a payment was made for due date advancement
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Debt Payment Management
-export const debtPayments = pgTable("debt_payment", {
-  id: text("id").primaryKey(),
-  debtId: text("debt_id")
-    .notNull()
-    .references(() => debts.id, { onDelete: "cascade" }),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  date: timestamp("date").notNull(),
-  note: text("note"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+// Debt Payment Management - Now integrated into debtAllocations
+// export const debtPayments = pgTable("debt_payment", {
+//   id: text("id").primaryKey(),
+//   debtId: text("debt_id")
+//     .notNull()
+//     .references(() => debts.id, { onDelete: "cascade" }),
+//   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+//   date: date("date").notNull(),
+//   note: text("note"),
+//   isPaid: boolean("is_paid").notNull().default(false),
+//   createdAt: timestamp("created_at").notNull().defaultNow(),
+//   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+// });
 
 // Define relations for debts
 export const debtsRelations = relations(debts, ({ one, many }) => ({
@@ -457,16 +467,99 @@ export const debtsRelations = relations(debts, ({ one, many }) => ({
     fields: [debts.createdByUserId],
     references: [user.id],
   }),
-  payments: many(debtPayments),
+  // payments: many(debtPayments), // Remove this relation
+  allocations: many(debtAllocations), // Add this relation instead
 }));
 
-// Define relations for debt payments
-export const debtPaymentsRelations = relations(debtPayments, ({ one }) => ({
-  debt: one(debts, {
-    fields: [debtPayments.debtId],
-    references: [debts.id],
+// Remove debt payments relations since we're integrating it
+// export const debtPaymentsRelations = relations(debtPayments, ({ one }) => ({
+//   debt: one(debts, {
+//     fields: [debtPayments.debtId],
+//     references: [debts.id],
+//   }),
+// }));
+
+export const debtAllocations = pgTable("debt_allocations", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  budgetAccountId: text("budget_account_id")
+    .notNull()
+    .references(() => budgetAccounts.id, { onDelete: "cascade" }),
+  debtId: text("debt_id")
+    .notNull()
+    .references(() => debts.id, { onDelete: "cascade" }),
+  paycheckId: text("paycheck_id").notNull(),
+  // Enhanced with payment information
+  paymentAmount: decimal("payment_amount", { precision: 10, scale: 2 }),
+  paymentDate: date("payment_date"),
+  isPaid: boolean("is_paid").notNull().default(false),
+  paidAt: timestamp("paid_at"),
+  note: text("note"),
+  allocatedAt: timestamp("allocated_at").notNull().defaultNow(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Add relations for debtAllocations
+export const debtAllocationsRelations = relations(
+  debtAllocations,
+  ({ one }) => ({
+    budgetAccount: one(budgetAccounts, {
+      fields: [debtAllocations.budgetAccountId],
+      references: [budgetAccounts.id],
+    }),
+    debt: one(debts, {
+      fields: [debtAllocations.debtId],
+      references: [debts.id],
+    }),
+    user: one(user, {
+      fields: [debtAllocations.userId],
+      references: [user.id],
+    }),
   }),
-}));
+);
+
+/**
+ * Monthly Debt Planning Table
+ * Stores the planned due dates for each debt for each month
+ * This allows us to maintain historical due dates while planning future months
+ */
+export const monthlyDebtPlanning = pgTable("monthly_debt_planning", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  budgetAccountId: text("budget_account_id")
+    .notNull()
+    .references(() => budgetAccounts.id, { onDelete: "cascade" }),
+  debtId: text("debt_id")
+    .notNull()
+    .references(() => debts.id, { onDelete: "cascade" }),
+  year: integer("year").notNull(),
+  month: integer("month").notNull(), // 1-12
+  dueDate: date("due_date").notNull(), // The due date for this specific month
+  isActive: boolean("is_active").notNull().default(true), // Whether this month's planning is active
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Add unique constraint to ensure one record per debt per month
+export const monthlyDebtPlanningRelations = relations(
+  monthlyDebtPlanning,
+  ({ one }) => ({
+    budgetAccount: one(budgetAccounts, {
+      fields: [monthlyDebtPlanning.budgetAccountId],
+      references: [budgetAccounts.id],
+    }),
+    debt: one(debts, {
+      fields: [monthlyDebtPlanning.debtId],
+      references: [debts.id],
+    }),
+  }),
+);
 
 /**
  * Support Requests Table
@@ -528,6 +621,41 @@ export const supportCommentsRelations = relations(
       fields: [supportComments.userId],
       references: [user.id],
       // User name can be accessed via join with user table
+    }),
+  }),
+);
+
+/**
+ * Dismissed Warnings Table
+ * Stores warnings that users have dismissed to avoid showing them again.
+ */
+export const dismissedWarnings = pgTable("dismissed_warnings", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  budgetAccountId: text("budget_account_id")
+    .notNull()
+    .references(() => budgetAccounts.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  warningType: text("warning_type").notNull(), // e.g., "late_payment", "insufficient_funds"
+  warningKey: text("warning_key").notNull(), // Unique identifier for the specific warning
+  dismissedAt: timestamp("dismissed_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Dismissed warnings relations
+export const dismissedWarningsRelations = relations(
+  dismissedWarnings,
+  ({ one }) => ({
+    budgetAccount: one(budgetAccounts, {
+      fields: [dismissedWarnings.budgetAccountId],
+      references: [budgetAccounts.id],
+    }),
+    user: one(user, {
+      fields: [dismissedWarnings.userId],
+      references: [user.id],
     }),
   }),
 );

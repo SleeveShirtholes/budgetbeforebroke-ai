@@ -67,7 +67,7 @@ function RecurringPage() {
       const query = search.toLowerCase();
       return (
         debt.name.toLowerCase().includes(query) ||
-        debt.balance.toString().includes(query) ||
+        debt.paymentAmount.toString().includes(query) ||
         debt.interestRate.toString().includes(query) ||
         new Date(debt.dueDate)
           .toLocaleDateString()
@@ -92,8 +92,8 @@ function RecurringPage() {
   };
 
   const handleSubmit = async (
-    data: Omit<DebtFormData, "balance" | "interestRate"> & {
-      balance: number;
+    data: Omit<DebtFormData, "paymentAmount" | "interestRate"> & {
+      paymentAmount: number;
       interestRate: number;
     },
   ) => {

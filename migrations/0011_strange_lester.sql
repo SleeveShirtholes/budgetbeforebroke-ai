@@ -1,0 +1,1 @@
+ALTER TABLE "debt" ALTER COLUMN "due_date" SET DATA TYPE date;

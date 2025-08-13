@@ -1,10 +1,14 @@
 budgets:
-  label: Budgets
+  label: Budget Tools
   items:
-    - label: All Budgets
+    - label: Budgets
       href: /dashboard/budgets
       icon: BanknotesIcon
       description: View all your budgets
+    - label: Paycheck Planning
+      href: /dashboard/paycheck-planning
+      icon: CalendarDaysIcon
+      description: Plan your paycheck allocation and debt payments
     - label: Income Sources
       href: /dashboard/income
       icon: CurrencyDollarIcon

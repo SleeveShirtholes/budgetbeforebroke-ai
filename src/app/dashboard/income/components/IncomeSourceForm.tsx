@@ -1,4 +1,5 @@
 import { Controller, useForm } from "react-hook-form";
+import { useEffect } from "react";
 
 import type { IncomeSource } from "@/app/actions/income";
 import Button from "@/components/Button";
@@ -93,6 +94,7 @@ export function IncomeSourceForm({
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors },
   } = useForm<IncomeSourceFormData>({
     // Set default values based on editing mode or current date
@@ -110,6 +112,34 @@ export function IncomeSourceForm({
     },
     resolver: zodResolver(incomeSourceSchema),
   });
+
+  // Reset form values when editingSource changes
+  useEffect(() => {
+    if (editingSource) {
+      reset({
+        name: editingSource.name,
+        amount: editingSource.amount.toString(),
+        frequency: editingSource.frequency,
+        startDate: editingSource.startDate
+          ? format(editingSource.startDate, "yyyy-MM-dd")
+          : format(new Date(), "yyyy-MM-dd"),
+        endDate: editingSource.endDate
+          ? format(editingSource.endDate, "yyyy-MM-dd")
+          : undefined,
+        notes: editingSource.notes,
+      });
+    } else {
+      // Reset to empty form for adding new income source
+      reset({
+        name: "",
+        amount: "",
+        frequency: "monthly",
+        startDate: format(new Date(), "yyyy-MM-dd"),
+        endDate: undefined,
+        notes: "",
+      });
+    }
+  }, [editingSource, reset]);
 
   return (
     <Modal

@@ -20,9 +20,10 @@ const billsSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1, "Bill name is required"),
-        balance: z.number().min(0, "Balance must be 0 or greater"),
+        paymentAmount: z.number().min(0, "Payment amount must be 0 or greater"),
         interestRate: z.string().optional(),
         dueDate: z.date(),
+        hasBalance: z.boolean(),
       }),
     )
     .optional(),
@@ -56,9 +57,10 @@ export default function OnboardingBillsPage() {
       bills: [
         {
           name: "",
-          balance: 0,
+          paymentAmount: 0,
           interestRate: "",
           dueDate: new Date(),
+          hasBalance: false,
         },
       ],
     },
@@ -82,11 +84,12 @@ export default function OnboardingBillsPage() {
           const promises = validBills.map((bill) =>
             createDebt({
               name: bill.name,
-              balance: bill.balance,
+              paymentAmount: bill.paymentAmount,
               interestRate: bill.interestRate
                 ? parseFloat(bill.interestRate)
                 : 0,
               dueDate: bill.dueDate.toISOString().split("T")[0],
+              hasBalance: bill.hasBalance,
             }),
           );
           await Promise.all(promises);
@@ -145,9 +148,10 @@ export default function OnboardingBillsPage() {
   const addBill = () => {
     append({
       name: "",
-      balance: 0,
+      paymentAmount: 0,
       interestRate: "",
       dueDate: new Date(),
+      hasBalance: false,
     });
   };
 
@@ -212,12 +216,17 @@ export default function OnboardingBillsPage() {
                   />
 
                   <DecimalInput
-                    label="Current Balance/Amount"
+                    label="Payment Amount"
                     placeholder="0.00"
-                    error={errors.bills?.[index]?.balance?.message}
-                    value={watch(`bills.${index}.balance`)?.toString() || ""}
+                    error={errors.bills?.[index]?.paymentAmount?.message}
+                    value={
+                      watch(`bills.${index}.paymentAmount`)?.toString() || ""
+                    }
                     onChange={(value) =>
-                      setValue(`bills.${index}.balance`, parseFloat(value) || 0)
+                      setValue(
+                        `bills.${index}.paymentAmount`,
+                        parseFloat(value) || 0,
+                      )
                     }
                   />
 

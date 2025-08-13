@@ -21,9 +21,7 @@ describe("SignInMethodCard", () => {
 
     expect(screen.getByText("Email Password")).toBeInTheDocument();
     expect(screen.getByText(/Last used:/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Last used:.*March 20th, 2024/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Last used:.*Mar 20, 2024/)).toBeInTheDocument();
   });
 
   it("calls onDelete when delete button is clicked", () => {

@@ -19,7 +19,7 @@ export interface DebtPayment {
   id: string;
   debtId: string;
   amount: number;
-  date: Date;
+  date: string;
   note: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -30,9 +30,10 @@ export interface Debt {
   budgetAccountId: string;
   createdByUserId: string;
   name: string;
-  balance: number;
+  paymentAmount: number;
   interestRate: number;
-  dueDate: Date;
+  dueDate: string;
+  hasBalance: boolean;
   lastPaymentMonth?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -42,15 +43,16 @@ export interface Debt {
 // Form input types
 export interface CreateDebtInput {
   name: string;
-  balance: number;
+  paymentAmount: number;
   interestRate: number;
   dueDate: string;
+  hasBalance?: boolean;
 }
 
 export interface UpdateDebtInput {
   id: string;
   name: string;
-  balance: number;
+  paymentAmount: number;
   interestRate: number;
   dueDate: string;
 }

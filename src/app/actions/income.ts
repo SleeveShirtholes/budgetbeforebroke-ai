@@ -26,8 +26,8 @@ type DbIncomeSource = {
   name: string;
   amount: string;
   frequency: "weekly" | "bi-weekly" | "monthly";
-  startDate: Date;
-  endDate: Date | null;
+  startDate: string;
+  endDate: string | null;
   isActive: boolean;
   notes: string | null;
   createdAt: Date;
@@ -41,8 +41,8 @@ export async function createIncomeSource(
   name: string,
   amount: number,
   frequency: "weekly" | "bi-weekly" | "monthly",
-  startDate: Date,
-  endDate?: Date,
+  startDate: string,
+  endDate?: string,
   notes?: string,
 ) {
   const sessionResult = await auth.api.getSession({
@@ -61,7 +61,7 @@ export async function createIncomeSource(
     amount: amount.toString(),
     frequency,
     startDate,
-    endDate,
+    endDate: endDate || null,
     notes,
     isActive: true,
   });
@@ -72,8 +72,8 @@ export async function createIncomeSource(
     name,
     amount,
     frequency,
-    startDate,
-    endDate,
+    startDate: new Date(startDate),
+    endDate: endDate ? new Date(endDate) : undefined,
     isActive: true,
     notes,
   };
@@ -106,13 +106,56 @@ export async function updateIncomeSource(
     throw new Error("Income source not found or not authorized");
   }
 
+  // Convert dates to proper format if they exist
+  const updateData: Partial<{
+    name: string;
+    amount: string;
+    frequency: "weekly" | "bi-weekly" | "monthly";
+    startDate: string;
+    endDate: string | null;
+    notes: string | null;
+    isActive: boolean;
+    updatedAt: Date;
+  }> = {
+    updatedAt: new Date(),
+  };
+
+  // Handle amount conversion
+  if (data.amount !== undefined) {
+    updateData.amount = data.amount.toString();
+  }
+
+  // Handle date conversions
+  if (data.startDate !== undefined) {
+    updateData.startDate = data.startDate.toISOString().slice(0, 10);
+  }
+
+  if (data.endDate !== undefined) {
+    updateData.endDate = data.endDate
+      ? data.endDate.toISOString().slice(0, 10)
+      : null;
+  }
+
+  // Handle other fields
+  if (data.name !== undefined) {
+    updateData.name = data.name;
+  }
+
+  if (data.frequency !== undefined) {
+    updateData.frequency = data.frequency;
+  }
+
+  if (data.notes !== undefined) {
+    updateData.notes = data.notes;
+  }
+
+  if (data.isActive !== undefined) {
+    updateData.isActive = data.isActive;
+  }
+
   await db
     .update(incomeSources)
-    .set({
-      ...data,
-      amount: data.amount?.toString(),
-      updatedAt: new Date(),
-    })
+    .set(updateData)
     .where(eq(incomeSources.id, id));
 
   return {
@@ -169,6 +212,8 @@ export async function getIncomeSources() {
   return sources.map((source) => ({
     ...source,
     amount: Number(source.amount),
+    startDate: new Date(source.startDate),
+    endDate: source.endDate ? new Date(source.endDate) : undefined,
   }));
 }
 

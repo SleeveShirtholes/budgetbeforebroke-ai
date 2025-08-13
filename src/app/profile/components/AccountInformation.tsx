@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate } from "@/utils/date";
+import { formatDateSafely } from "@/utils/date";
 import { getAccountInformation } from "../actions";
 import useSWR from "swr";
 
@@ -52,13 +52,15 @@ export default function AccountInformation() {
         <div>
           <p className="text-sm text-secondary-600">Account Created</p>
           <p className="text-secondary-900">
-            {formatDate(data.accountCreated)}
+            {formatDateSafely(data.accountCreated, "MMM dd, yyyy")}
           </p>
         </div>
         {/* Last login date section */}
         <div>
           <p className="text-sm text-secondary-600">Last Login</p>
-          <p className="text-secondary-900">{formatDate(data.lastLogin)}</p>
+          <p className="text-secondary-900">
+            {formatDateSafely(data.lastLogin, "MMM dd, yyyy")}
+          </p>
         </div>
       </div>
     </div>

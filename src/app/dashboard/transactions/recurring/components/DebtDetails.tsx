@@ -24,7 +24,7 @@ export default function DebtDetails({ debt, search }: DebtDetailsProps) {
           </span>
           <span className="text-base font-semibold text-gray-900">
             <HighlightedText
-              text={`$${debt.balance.toLocaleString()}`}
+              text={`$${debt.paymentAmount.toLocaleString()}`}
               highlight={search}
             />
           </span>
