@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Send confirmation email to the user
+    let confirmationEmailSent = true;
     try {
       await sendContactConfirmation({
         to: validatedData.email,
@@ -69,10 +70,12 @@ export async function POST(request: NextRequest) {
       });
     } catch (emailError) {
       console.error("Failed to send confirmation email:", emailError);
+      confirmationEmailSent = false;
       // Don't fail the entire request if email fails, just log it
     }
 
     // Send notification email to support team
+    let supportNotificationSent = true;
     try {
       await sendSupportNotification({
         submissionId: submission.id,
@@ -86,15 +89,26 @@ export async function POST(request: NextRequest) {
       });
     } catch (notificationError) {
       console.error("Failed to send support notification:", notificationError);
+      supportNotificationSent = false;
       // Don't fail the entire request if notification fails, just log it
     }
+
+    // Prepare response message based on email status
+    let responseMessage =
+      "Thank you for your message! We'll get back to you within 24 hours.";
+    if (!confirmationEmailSent) {
+      responseMessage +=
+        " Note: We couldn't send a confirmation email, but your message was received.";
+    }
+    responseMessage += " Check your email for a confirmation.";
 
     return NextResponse.json(
       {
         success: true,
-        message:
-          "Thank you for your message! We'll get back to you within 24 hours. Check your email for a confirmation.",
+        message: responseMessage,
         submissionId: submission.id,
+        confirmationEmailSent,
+        supportNotificationSent,
       },
       { status: 200 },
     );

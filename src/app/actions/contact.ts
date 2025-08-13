@@ -4,6 +4,7 @@ import { db } from "@/db/config";
 import { contactSubmissions, emailConversations } from "@/db/schema";
 import { z } from "zod";
 import { eq, desc, isNull } from "drizzle-orm";
+import { generateConversationId } from "@/lib/utils";
 
 const contactFormSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name is too long"),
@@ -144,7 +145,7 @@ export async function sendFollowUpEmailToUser(
     // If no conversation ID exists, create one and update the submission
     let conversationId = submission.conversationId;
     if (!conversationId) {
-      conversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      conversationId = generateConversationId();
       await db
         .update(contactSubmissions)
         .set({
@@ -251,7 +252,7 @@ export async function updateExistingSubmissionsWithConversationIds() {
     let updatedCount = 0;
 
     for (const submission of submissionsWithoutConversationId) {
-      const conversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const conversationId = generateConversationId();
 
       await db
         .update(contactSubmissions)

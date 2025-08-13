@@ -48,9 +48,9 @@ export default async function RootLayout({
               <main className="pt-0">{children}</main>
             </Suspense>
             <CookieConsentBanner />
+            <Footer />
           </ToastProvider>
         </SWRConfig>
-        <Footer />
       </body>
     </html>
   );
