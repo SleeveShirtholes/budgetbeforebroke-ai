@@ -6,7 +6,7 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen">
       <Navigation />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-24">
         <div className="space-y-8">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-secondary-900 mb-4">
@@ -24,10 +24,11 @@ export default function PrivacyPage() {
                   Introduction
                 </h2>
                 <p className="text-secondary-700 mb-4">
-                  Welcome to Budget Before Broke. We respect your privacy and are
-                  committed to protecting your personal data. This privacy policy
-                  explains how we collect, use, and protect your information when you
-                  use our budgeting and financial management services.
+                  Welcome to Budget Before Broke. We respect your privacy and
+                  are committed to protecting your personal data. This privacy
+                  policy explains how we collect, use, and protect your
+                  information when you use our budgeting and financial
+                  management services.
                 </p>
               </section>
 
@@ -43,12 +44,15 @@ export default function PrivacyPage() {
                   <li>Phone number (if provided)</li>
                   <li>Profile information you choose to provide</li>
                 </ul>
-                
+
                 <h3 className="text-lg font-medium text-secondary-800 mb-3">
                   Financial Information
                 </h3>
                 <ul className="list-disc pl-6 text-secondary-700 mb-4 space-y-1">
-                  <li>Bank account information (through secure third-party connections)</li>
+                  <li>
+                    Bank account information (through secure third-party
+                    connections)
+                  </li>
                   <li>Transaction data</li>
                   <li>Budget categories and spending patterns</li>
                   <li>Financial goals and preferences</li>
@@ -84,14 +88,18 @@ export default function PrivacyPage() {
                   Information Sharing and Disclosure
                 </h2>
                 <p className="text-secondary-700 mb-4">
-                  We do not sell, trade, or otherwise transfer your personal information
-                  to third parties except in the following circumstances:
+                  We do not sell, trade, or otherwise transfer your personal
+                  information to third parties except in the following
+                  circumstances:
                 </p>
                 <ul className="list-disc pl-6 text-secondary-700 space-y-2">
                   <li>With your explicit consent</li>
                   <li>To comply with legal requirements or court orders</li>
                   <li>To protect our rights, property, or safety</li>
-                  <li>With trusted service providers who assist in our operations (under strict confidentiality agreements)</li>
+                  <li>
+                    With trusted service providers who assist in our operations
+                    (under strict confidentiality agreements)
+                  </li>
                   <li>In connection with a business transfer or merger</li>
                 </ul>
               </section>
@@ -101,8 +109,8 @@ export default function PrivacyPage() {
                   Data Security
                 </h2>
                 <p className="text-secondary-700 mb-4">
-                  We implement industry-standard security measures to protect your
-                  personal and financial information:
+                  We implement industry-standard security measures to protect
+                  your personal and financial information:
                 </p>
                 <ul className="list-disc pl-6 text-secondary-700 space-y-2">
                   <li>SSL/TLS encryption for data transmission</li>
@@ -135,9 +143,10 @@ export default function PrivacyPage() {
                   Cookies and Tracking
                 </h2>
                 <p className="text-secondary-700 mb-4">
-                  We use cookies and similar technologies to enhance your experience
-                  and analyze usage patterns. You can control cookie settings through
-                  your browser preferences or our cookie consent banner.
+                  We use cookies and similar technologies to enhance your
+                  experience and analyze usage patterns. You can control cookie
+                  settings through your browser preferences or our cookie
+                  consent banner.
                 </p>
               </section>
 
@@ -147,8 +156,8 @@ export default function PrivacyPage() {
                 </h2>
                 <p className="text-secondary-700 mb-4">
                   Our platform integrates with trusted third-party services for
-                  banking connections and payments. These services have their own
-                  privacy policies, and we encourage you to review them.
+                  banking connections and payments. These services have their
+                  own privacy policies, and we encourage you to review them.
                 </p>
               </section>
 
@@ -157,30 +166,11 @@ export default function PrivacyPage() {
                   Changes to This Policy
                 </h2>
                 <p className="text-secondary-700 mb-4">
-                  We may update this privacy policy from time to time. We will notify
-                  you of any significant changes by email or through our platform.
-                  Your continued use of our services constitutes acceptance of the
-                  updated policy.
+                  We may update this privacy policy from time to time. We will
+                  notify you of any significant changes by email or through our
+                  platform. Your continued use of our services constitutes
+                  acceptance of the updated policy.
                 </p>
-              </section>
-
-              <section>
-                <h2 className="text-2xl font-semibold text-secondary-900 mb-4">
-                  Contact Us
-                </h2>
-                <p className="text-secondary-700 mb-4">
-                  If you have any questions about this privacy policy or our data
-                  practices, please contact us:
-                </p>
-                <div className="bg-accent-50 p-4 rounded-lg">
-                  <p className="text-secondary-700">
-                    <strong>Email:</strong> privacy@budgetbeforebroke.com
-                  </p>
-                  <p className="text-secondary-700">
-                    <strong>Address:</strong> Budget Before Broke, Privacy Team<br />
-                    [Your Company Address]
-                  </p>
-                </div>
               </section>
             </div>
           </Card>

@@ -651,7 +651,7 @@ export const incomeSource = pgTable(
     amount: numeric({ precision: 10, scale: 2 }).notNull(),
     frequency: text().notNull(),
     startDate: date("start_date").notNull(),
-    endDate: timestamp("end_date", { mode: "string" }),
+    endDate: date("end_date"),
     isActive: boolean("is_active").default(true).notNull(),
     notes: text(),
     createdAt: timestamp("created_at", { mode: "string" })
@@ -669,6 +669,21 @@ export const incomeSource = pgTable(
     }).onDelete("cascade"),
   ],
 );
+
+export const emailConversation = pgTable("email_conversation", {
+  id: text().primaryKey().notNull(),
+  conversationId: text("conversation_id").notNull(),
+  messageId: text("message_id"),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name").notNull(),
+  toEmail: text("to_email").notNull(),
+  subject: text().notNull(),
+  message: text().notNull(),
+  messageType: text("message_type").notNull(),
+  direction: text().notNull(),
+  rawEmail: text("raw_email"),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+});
 
 export const monthlyDebtPlanning = pgTable(
   "monthly_debt_planning",
@@ -698,5 +713,40 @@ export const monthlyDebtPlanning = pgTable(
       foreignColumns: [debt.id],
       name: "monthly_debt_planning_debt_id_debt_id_fk",
     }).onDelete("cascade"),
+  ],
+);
+
+export const contactSubmission = pgTable(
+  "contact_submission",
+  {
+    id: text().primaryKey().notNull(),
+    name: text().notNull(),
+    email: text().notNull(),
+    subject: text().notNull(),
+    message: text().notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    status: text().default("new").notNull(),
+    assignedTo: text("assigned_to"),
+    notes: text(),
+    resolvedAt: timestamp("resolved_at", { mode: "string" }),
+    createdAt: timestamp("created_at", { mode: "string" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "string" })
+      .defaultNow()
+      .notNull(),
+    conversationId: text("conversation_id"),
+    lastUserMessageAt: timestamp("last_user_message_at", { mode: "string" }),
+    lastSupportMessageAt: timestamp("last_support_message_at", {
+      mode: "string",
+    }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.assignedTo],
+      foreignColumns: [user.id],
+      name: "contact_submission_assigned_to_user_id_fk",
+    }),
   ],
 );

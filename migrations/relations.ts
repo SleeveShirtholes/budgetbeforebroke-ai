@@ -22,6 +22,7 @@ import {
   budgetCategory,
   incomeSource,
   monthlyDebtPlanning,
+  contactSubmission,
 } from "./schema";
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -51,6 +52,7 @@ export const userRelations = relations(user, ({ one, many }) => ({
   goals: many(goal),
   plaidItems: many(plaidItem),
   incomeSources: many(incomeSource),
+  contactSubmissions: many(contactSubmission),
 }));
 
 export const passkeyRelations = relations(passkey, ({ one }) => ({
@@ -300,6 +302,16 @@ export const monthlyDebtPlanningRelations = relations(
     debt: one(debt, {
       fields: [monthlyDebtPlanning.debtId],
       references: [debt.id],
+    }),
+  }),
+);
+
+export const contactSubmissionRelations = relations(
+  contactSubmission,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [contactSubmission.assignedTo],
+      references: [user.id],
     }),
   }),
 );

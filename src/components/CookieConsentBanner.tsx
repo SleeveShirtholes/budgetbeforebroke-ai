@@ -5,7 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { XMarkIcon, CogIcon } from "@heroicons/react/24/outline";
 import Button from "./Button";
 import Card from "./Card";
-import { useCookieConsent, type CookiePreferences } from "@/hooks/useCookieConsent";
+import {
+  useCookieConsent,
+  type CookiePreferences,
+} from "@/hooks/useCookieConsent";
 
 export default function CookieConsentBanner() {
   const {
@@ -17,7 +20,8 @@ export default function CookieConsentBanner() {
   } = useCookieConsent();
 
   const [showPreferences, setShowPreferences] = useState(false);
-  const [tempPreferences, setTempPreferences] = useState<CookiePreferences>(preferences);
+  const [tempPreferences, setTempPreferences] =
+    useState<CookiePreferences>(preferences);
 
   if (!showBanner) return null;
 
@@ -28,8 +32,8 @@ export default function CookieConsentBanner() {
 
   const togglePreference = (key: keyof CookiePreferences) => {
     if (key === "necessary") return; // Can't disable necessary cookies
-    
-    setTempPreferences(prev => ({
+
+    setTempPreferences((prev) => ({
       ...prev,
       [key]: !prev[key],
     }));
@@ -47,23 +51,29 @@ export default function CookieConsentBanner() {
         >
           <div className="max-w-7xl mx-auto">
             <Card className="shadow-2xl border-accent-300">
-              <div className="p-6">
+              <div className="p-4">
                 {!showPreferences ? (
                   // Main consent banner
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-secondary-900 mb-2">
                         We use cookies to enhance your experience
                       </h3>
                       <p className="text-secondary-600 text-sm">
-                        We use cookies to provide essential functionality, analyze usage, and improve your experience. 
-                        You can customize your preferences or accept all cookies to continue.{" "}
-                        <Button variant="text" href="/privacy" className="text-sm p-0">
+                        We use cookies to provide essential functionality,
+                        analyze usage, and improve your experience. You can
+                        customize your preferences or accept all cookies to
+                        continue.{" "}
+                        <Button
+                          variant="text"
+                          href="/privacy"
+                          className="text-sm p-0"
+                        >
                           Learn more in our Privacy Policy
                         </Button>
                       </p>
                     </div>
-                    
+
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
                       <Button
                         variant="text"
@@ -81,11 +91,7 @@ export default function CookieConsentBanner() {
                       >
                         Necessary Only
                       </Button>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={acceptAll}
-                      >
+                      <Button variant="primary" size="sm" onClick={acceptAll}>
                         Accept All
                       </Button>
                     </div>
@@ -113,15 +119,18 @@ export default function CookieConsentBanner() {
                             Necessary Cookies
                           </h4>
                           <p className="text-sm text-secondary-600">
-                            Essential for the website to function properly. These cookies enable core functionality 
-                            such as security, network management, and accessibility.
+                            Essential for the website to function properly.
+                            These cookies enable core functionality such as
+                            security, network management, and accessibility.
                           </p>
                         </div>
                         <div className="flex-shrink-0">
                           <div className="relative inline-block w-12 h-6 bg-primary-600 rounded-full opacity-50">
                             <div className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow"></div>
                           </div>
-                          <p className="text-xs text-secondary-500 mt-1">Always On</p>
+                          <p className="text-xs text-secondary-500 mt-1">
+                            Always On
+                          </p>
                         </div>
                       </div>
 
@@ -132,20 +141,25 @@ export default function CookieConsentBanner() {
                             Analytics Cookies
                           </h4>
                           <p className="text-sm text-secondary-600">
-                            Help us understand how visitors interact with our website by collecting 
-                            and reporting information anonymously.
+                            Help us understand how visitors interact with our
+                            website by collecting and reporting information
+                            anonymously.
                           </p>
                         </div>
                         <div className="flex-shrink-0">
                           <button
                             onClick={() => togglePreference("analytics")}
                             className={`relative inline-block w-12 h-6 rounded-full transition-colors ${
-                              tempPreferences.analytics ? "bg-primary-600" : "bg-accent-300"
+                              tempPreferences.analytics
+                                ? "bg-primary-600"
+                                : "bg-accent-300"
                             }`}
                           >
                             <div
                               className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                                tempPreferences.analytics ? "translate-x-6" : "translate-x-0.5"
+                                tempPreferences.analytics
+                                  ? "translate-x-6"
+                                  : "translate-x-0.5"
                               }`}
                             ></div>
                           </button>
@@ -159,20 +173,25 @@ export default function CookieConsentBanner() {
                             Marketing Cookies
                           </h4>
                           <p className="text-sm text-secondary-600">
-                            Used to track visitors across websites to display relevant advertisements 
-                            and measure campaign effectiveness.
+                            Used to track visitors across websites to display
+                            relevant advertisements and measure campaign
+                            effectiveness.
                           </p>
                         </div>
                         <div className="flex-shrink-0">
                           <button
                             onClick={() => togglePreference("marketing")}
                             className={`relative inline-block w-12 h-6 rounded-full transition-colors ${
-                              tempPreferences.marketing ? "bg-primary-600" : "bg-accent-300"
+                              tempPreferences.marketing
+                                ? "bg-primary-600"
+                                : "bg-accent-300"
                             }`}
                           >
                             <div
                               className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                                tempPreferences.marketing ? "translate-x-6" : "translate-x-0.5"
+                                tempPreferences.marketing
+                                  ? "translate-x-6"
+                                  : "translate-x-0.5"
                               }`}
                             ></div>
                           </button>

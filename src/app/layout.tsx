@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { SWRConfig } from "swr";
+import Footer from "@/components/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -49,6 +50,7 @@ export default async function RootLayout({
             <CookieConsentBanner />
           </ToastProvider>
         </SWRConfig>
+        <Footer />
       </body>
     </html>
   );

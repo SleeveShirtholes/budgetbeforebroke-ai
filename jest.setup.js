@@ -7,6 +7,7 @@ process.env.RESEND_API_KEY = "test-resend-key";
 process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID = "test-google-client-id";
 process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
 process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+process.env.SUPPORT_TEAM_EMAIL = "support@test.com";
 
 // Global mocks for database
 jest.mock("@neondatabase/serverless", () => ({

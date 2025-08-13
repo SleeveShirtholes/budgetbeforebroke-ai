@@ -48,11 +48,11 @@ export function useCookieConsent() {
       analytics: true,
       marketing: true,
     };
-    
+
     setPreferences(allAccepted);
     setHasConsented(true);
     setShowBanner(false);
-    
+
     localStorage.setItem(COOKIE_CONSENT_KEY, "true");
     localStorage.setItem(COOKIE_PREFERENCES_KEY, JSON.stringify(allAccepted));
   };
@@ -63,11 +63,11 @@ export function useCookieConsent() {
       analytics: false,
       marketing: false,
     };
-    
+
     setPreferences(necessaryOnly);
     setHasConsented(true);
     setShowBanner(false);
-    
+
     localStorage.setItem(COOKIE_CONSENT_KEY, "true");
     localStorage.setItem(COOKIE_PREFERENCES_KEY, JSON.stringify(necessaryOnly));
   };
@@ -77,13 +77,16 @@ export function useCookieConsent() {
       ...newPreferences,
       necessary: true, // Always keep necessary cookies enabled
     };
-    
+
     setPreferences(finalPreferences);
     setHasConsented(true);
     setShowBanner(false);
-    
+
     localStorage.setItem(COOKIE_CONSENT_KEY, "true");
-    localStorage.setItem(COOKIE_PREFERENCES_KEY, JSON.stringify(finalPreferences));
+    localStorage.setItem(
+      COOKIE_PREFERENCES_KEY,
+      JSON.stringify(finalPreferences),
+    );
   };
 
   const resetConsent = () => {
@@ -94,7 +97,7 @@ export function useCookieConsent() {
       analytics: false,
       marketing: false,
     });
-    
+
     localStorage.removeItem(COOKIE_CONSENT_KEY);
     localStorage.removeItem(COOKIE_PREFERENCES_KEY);
   };
