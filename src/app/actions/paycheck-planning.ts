@@ -1226,8 +1226,6 @@ export async function initializeMonthlyDebtPlanning(
   return await Promise.all(monthlyPlanningPromises);
 }
 
-
-
 /**
  * Clean up incorrect monthly debt planning records
  * This function removes monthly planning records that have incorrect due dates

@@ -55,7 +55,9 @@ export default function PaymentModal({
   useEffect(() => {
     if (debt) {
       const initialAmount =
-        isEditing && currentAmount ? currentAmount.toString() : debt.amount.toString();
+        isEditing && currentAmount
+          ? currentAmount.toString()
+          : debt.amount.toString();
       const initialDate =
         isEditing && currentDate
           ? currentDate

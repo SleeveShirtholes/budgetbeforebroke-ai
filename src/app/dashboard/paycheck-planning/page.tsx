@@ -738,8 +738,6 @@ export default function PaycheckPlanningPage() {
                 <CurrencyDollarIcon className="h-4 w-4 sm:h-3 sm:w-3" />
                 <span>Manage Debts</span>
               </Button>
-
-
             </div>
           </div>
 
