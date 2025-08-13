@@ -3,7 +3,7 @@
 import { and, eq, desc } from "drizzle-orm";
 import {
   debts,
-  debtPayments,
+  debtAllocations,
   budgetAccounts,
   user,
   transactions,
@@ -20,9 +20,10 @@ import { headers } from "next/headers";
  */
 export type CreateDebtInput = {
   name: string;
-  balance: number;
+  paymentAmount: number;
   interestRate: number;
   dueDate: string;
+  hasBalance?: boolean;
 };
 
 /**
@@ -31,7 +32,7 @@ export type CreateDebtInput = {
 export type UpdateDebtInput = {
   id: string;
   name: string;
-  balance: number;
+  paymentAmount: number;
   interestRate: number;
   dueDate: string;
 };
@@ -54,9 +55,10 @@ export type Debt = {
   budgetAccountId: string;
   createdByUserId: string;
   name: string;
-  balance: number;
+  paymentAmount: number;
   interestRate: number;
-  dueDate: Date;
+  dueDate: string; // Now a date string in YYYY-MM-DD format
+  hasBalance: boolean;
   createdAt: Date;
   updatedAt: Date;
   payments: DebtPayment[];
@@ -69,8 +71,9 @@ export type DebtPayment = {
   id: string;
   debtId: string;
   amount: number;
-  date: Date;
+  date: string; // Now a date string in YYYY-MM-DD format
   note: string | null;
+  isPaid: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -113,58 +116,62 @@ export async function getDebts(budgetAccountId?: string) {
   // Use provided account ID or get the default one
   const accountId = budgetAccountId || (await getDefaultBudgetAccountId());
 
-  // Get debts with payment information
-  const debtsWithPayments = await db
+  // Get debts with allocation/payment information
+  const debtsWithAllocations = await db
     .select({
       id: debts.id,
       budgetAccountId: debts.budgetAccountId,
       createdByUserId: debts.createdByUserId,
       name: debts.name,
-      balance: debts.balance,
+      paymentAmount: debts.paymentAmount,
       interestRate: debts.interestRate,
       dueDate: debts.dueDate,
+      hasBalance: debts.hasBalance,
       createdAt: debts.createdAt,
       updatedAt: debts.updatedAt,
-      paymentId: debtPayments.id,
-      paymentDebtId: debtPayments.debtId,
-      paymentAmount: debtPayments.amount,
-      paymentDate: debtPayments.date,
-      paymentNote: debtPayments.note,
-      paymentCreatedAt: debtPayments.createdAt,
-      paymentUpdatedAt: debtPayments.updatedAt,
+      allocationId: debtAllocations.id,
+      allocationDebtId: debtAllocations.debtId,
+      paymentAmountAllocation: debtAllocations.paymentAmount,
+      paymentDate: debtAllocations.paymentDate,
+      paymentNote: debtAllocations.note,
+      paymentIsPaid: debtAllocations.isPaid,
+      paymentCreatedAt: debtAllocations.createdAt,
+      paymentUpdatedAt: debtAllocations.updatedAt,
     })
     .from(debts)
-    .leftJoin(debtPayments, eq(debts.id, debtPayments.debtId))
+    .leftJoin(debtAllocations, eq(debts.id, debtAllocations.debtId))
     .where(eq(debts.budgetAccountId, accountId))
-    .orderBy(debts.dueDate, desc(debtPayments.date));
+    .orderBy(debts.dueDate, desc(debtAllocations.paymentDate));
 
-  // Group payments by debt
+  // Group allocations by debt
   const debtMap = new Map<string, Debt>();
 
-  debtsWithPayments.forEach((row) => {
+  debtsWithAllocations.forEach((row) => {
     if (!debtMap.has(row.id)) {
       debtMap.set(row.id, {
         id: row.id,
         budgetAccountId: row.budgetAccountId,
         createdByUserId: row.createdByUserId,
         name: row.name,
-        balance: Number(row.balance),
+        paymentAmount: Number(row.paymentAmount),
         interestRate: Number(row.interestRate),
         dueDate: row.dueDate,
+        hasBalance: row.hasBalance,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         payments: [],
       });
     }
 
-    if (row.paymentId) {
+    if (row.allocationId && row.paymentAmountAllocation && row.paymentDate) {
       const debt = debtMap.get(row.id)!;
       debt.payments.push({
-        id: row.paymentId,
-        debtId: row.paymentDebtId!,
-        amount: Number(row.paymentAmount),
+        id: row.allocationId,
+        debtId: row.allocationDebtId!,
+        amount: Number(row.paymentAmountAllocation),
         date: row.paymentDate!,
         note: row.paymentNote,
+        isPaid: row.paymentIsPaid!,
         createdAt: row.paymentCreatedAt!,
         updatedAt: row.paymentUpdatedAt!,
       });
@@ -220,9 +227,10 @@ export async function createDebt(
     budgetAccountId: accountId,
     createdByUserId: sessionResult.user.id,
     name: data.name,
-    balance: data.balance.toString(),
+    paymentAmount: data.paymentAmount.toString(),
     interestRate: data.interestRate.toString(),
-    dueDate: new Date(data.dueDate),
+    dueDate: data.dueDate, // Now a date string in YYYY-MM-DD format
+    hasBalance: data.hasBalance || false,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -274,9 +282,9 @@ export async function updateDebt(
     .update(debts)
     .set({
       name: data.name,
-      balance: data.balance.toString(),
+      paymentAmount: data.paymentAmount.toString(),
       interestRate: data.interestRate.toString(),
-      dueDate: new Date(data.dueDate),
+      dueDate: data.dueDate, // Now a date string in YYYY-MM-DD format
       updatedAt: new Date(),
     })
     .where(eq(debts.id, data.id));
@@ -367,7 +375,7 @@ export async function createDebtPayment(
     throw new Error("Debt not found");
   }
 
-  const currentBalance = Number(existingDebt.balance);
+  const currentBalance = Number(existingDebt.paymentAmount);
   const paymentAmount = data.amount;
 
   if (paymentAmount > currentBalance) {
@@ -378,8 +386,8 @@ export async function createDebtPayment(
     throw new Error("Payment amount must be positive");
   }
 
-  // Calculate new balance
-  const newBalance = currentBalance - paymentAmount;
+  // Calculate new payment amount
+  const newPaymentAmount = currentBalance - paymentAmount;
 
   // Find or create the 'Debts' category for this budget account
   let debtsCategory = await db.query.categories.findFirst({
@@ -409,14 +417,18 @@ export async function createDebtPayment(
     };
   }
 
-  // Create the payment
+  // Create the payment as a standalone allocation (not tied to a paycheck)
   const paymentId = randomUUID();
-  await db.insert(debtPayments).values({
+  await db.insert(debtAllocations).values({
     id: paymentId,
+    budgetAccountId: accountId,
     debtId: data.debtId,
-    amount: paymentAmount.toString(),
-    date: new Date(data.date),
+    paycheckId: "standalone-payment", // Special ID for standalone payments
+    paymentAmount: paymentAmount.toString(),
+    paymentDate: data.date, // Already a date string in YYYY-MM-DD format
     note: data.note || null,
+    isPaid: false, // Default to unpaid when created
+    userId: sessionResult.user.id,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -450,34 +462,61 @@ export async function createDebtPayment(
   );
   const dueMonth = new Date(dueDate.getFullYear(), dueDate.getMonth(), 1);
 
-  // Advance due date if:
-  // 1. Payment is made before or on the due date, OR
-  // 2. Payment is made for the current due period (same month as due date)
-  // AND not already paid for this month
+  // Check if this payment should advance the due date
+  // (but we won't modify the base debt due date - we'll use monthly planning instead)
   const shouldAdvanceDueDate =
     (paymentDate <= dueDate || paymentMonth.getTime() === dueMonth.getTime()) &&
     (!lastPaymentMonth ||
       lastPaymentMonth.getTime() !== paymentMonth.getTime());
 
   if (shouldAdvanceDueDate) {
-    // Advance due date by one month
-    const nextDueDate = new Date(dueDate);
-    nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+    // Instead of modifying the base debt due date, we'll create monthly planning
+    // for future months. The base debt.dueDate remains unchanged.
+
+    // Calculate the next month after this payment
+    const nextMonth = new Date(
+      paymentDate.getFullYear(),
+      paymentDate.getMonth() + 1,
+      1,
+    );
+    const nextYear = nextMonth.getFullYear();
+    const nextMonthNum = nextMonth.getMonth() + 1;
+
+    // Create monthly planning for the next month to track the advanced due date
+    // This preserves the base debt due date while allowing monthly due date tracking
+    try {
+      // Import the function dynamically to avoid circular dependencies
+      const { getOrCreateMonthlyDebtPlanning } = await import(
+        "./paycheck-planning"
+      );
+      await getOrCreateMonthlyDebtPlanning(
+        accountId,
+        data.debtId,
+        nextYear,
+        nextMonthNum,
+      );
+    } catch (error) {
+      console.error(
+        "Failed to create monthly planning for debt payment:",
+        error,
+      );
+    }
+
+    // Update the debt with payment information but NOT the due date
     await db
       .update(debts)
       .set({
-        dueDate: nextDueDate,
         lastPaymentMonth: paymentMonth,
-        balance: newBalance.toString(),
+        paymentAmount: newPaymentAmount.toString(),
         updatedAt: new Date(),
       })
       .where(eq(debts.id, data.debtId));
   } else {
-    // Just update balance
+    // Just update payment amount
     await db
       .update(debts)
       .set({
-        balance: newBalance.toString(),
+        paymentAmount: newPaymentAmount.toString(),
         updatedAt: new Date(),
       })
       .where(eq(debts.id, data.debtId));

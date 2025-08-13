@@ -213,4 +213,48 @@ describe("IncomeSourceForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(mockOnClose).toHaveBeenCalled();
   });
+
+  it("updates form values when editingSource changes", () => {
+    const { rerender } = render(
+      <IncomeSourceForm
+        isOpen={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+        editingSource={mockIncomeSource}
+      />,
+    );
+
+    // Verify initial values are set correctly
+    expect(getInputByLabel("Name")).toHaveValue("Salary");
+    expect(getInputByLabel("Amount")).toHaveValue("5,000");
+
+    // Create a different income source
+    const differentIncomeSource: IncomeSource = {
+      id: "2",
+      userId: "user1",
+      name: "Freelance",
+      amount: 3000,
+      frequency: "weekly",
+      startDate: new Date("2024-02-01"),
+      notes: "Freelance work",
+      isActive: true,
+    };
+
+    // Rerender with different income source
+    rerender(
+      <IncomeSourceForm
+        isOpen={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        isSubmitting={false}
+        editingSource={differentIncomeSource}
+      />,
+    );
+
+    // Verify form values have been updated
+    expect(getInputByLabel("Name")).toHaveValue("Freelance");
+    expect(getInputByLabel("Amount")).toHaveValue("3,000");
+    expect(getInputByLabel("Notes (Optional)")).toHaveValue("Freelance work");
+  });
 });

@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 
-import { formatDate } from "@/utils/date";
+import { formatDateSafely } from "@/utils/date";
 import useSWR from "swr";
 import AccountSecurity from "../AccountSecurity";
 
@@ -76,11 +76,15 @@ describe("AccountSecurity", () => {
     expect(screen.getByText("Your Passkeys")).toBeInTheDocument();
     expect(screen.getByText("MacBook Pro")).toBeInTheDocument();
     expect(
-      screen.getByText(`Laptop • Added ${formatDate("2024-02-29T00:00:00Z")}`),
+      screen.getByText(
+        `Laptop • Added ${formatDateSafely("2024-02-29T00:00:00Z", "MMM dd, yyyy")}`,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText("Change Password")).toBeInTheDocument();
     expect(
-      screen.getByText(`Last changed: ${formatDate("2024-03-09T00:00:00Z")}`),
+      screen.getByText(
+        `Last changed: ${formatDateSafely("2024-03-09T00:00:00Z", "MMM dd, yyyy")}`,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
   });

@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 
-import { formatDate } from "@/utils/date";
+import { formatDateSafely } from "@/utils/date";
 import useSWR from "swr";
 import SignInMethods from "../SignInMethods";
 
@@ -40,14 +40,18 @@ describe("SignInMethods", () => {
       screen.getByText(
         (content) =>
           content.includes("Last used:") &&
-          content.includes(formatDate("2024-03-20T00:00:00Z")),
+          content.includes(
+            formatDateSafely("2024-03-20T00:00:00Z", "MMM dd, yyyy"),
+          ),
       ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
         (content) =>
           content.includes("Last used:") &&
-          content.includes(formatDate("2024-03-19T00:00:00Z")),
+          content.includes(
+            formatDateSafely("2024-03-19T00:00:00Z", "MMM dd, yyyy"),
+          ),
       ),
     ).toBeInTheDocument();
   });

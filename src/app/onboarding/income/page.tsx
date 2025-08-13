@@ -88,7 +88,7 @@ export default function OnboardingIncomePage() {
           income.name,
           income.amount,
           income.frequency,
-          income.startDate,
+          income.startDate.toISOString().slice(0, 10),
           undefined,
           income.notes,
         ),

@@ -1,14 +1,19 @@
 import { render, screen } from "@testing-library/react";
 
-import { RecurringDebt } from "@/types/debt";
+import { Debt } from "@/types/debt";
 import DebtDetails from "../DebtDetails";
 
-const mockDebt: RecurringDebt = {
+const mockDebt: Debt = {
   id: "1",
+  budgetAccountId: "account1",
+  createdByUserId: "user1",
   name: "Test Debt",
-  balance: "1000",
-  interestRate: "5",
+  paymentAmount: 1000,
+  interestRate: 5,
   dueDate: "2024-04-01",
+  hasBalance: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
   payments: [],
 };
 
@@ -17,7 +22,7 @@ describe("DebtDetails", () => {
     render(<DebtDetails debt={mockDebt} search="" />);
 
     expect(screen.getByText("Test Debt")).toBeInTheDocument();
-    expect(screen.getByText("$1000")).toBeInTheDocument();
+    expect(screen.getByText("$1,000")).toBeInTheDocument();
     expect(screen.getByText("5%")).toBeInTheDocument();
     expect(
       screen.getByText(new Date("2024-04-01").toLocaleDateString()),
@@ -49,7 +54,7 @@ describe("DebtDetails", () => {
   it("formats currency and percentage correctly", () => {
     render(<DebtDetails debt={mockDebt} search="" />);
 
-    expect(screen.getByText("$1000")).toBeInTheDocument();
+    expect(screen.getByText("$1,000")).toBeInTheDocument();
     expect(screen.getByText("5%")).toBeInTheDocument();
   });
 });

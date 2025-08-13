@@ -13,7 +13,7 @@ import ChangePasswordModal from "./ChangePasswordModal";
 import DeletePasskeyModal from "./DeletePasskeyModal";
 import { Passkey } from "@/lib/auth-types";
 import { authClient } from "@/lib/auth-client";
-import { formatDate } from "@/utils/date";
+import { formatDateSafely } from "@/utils/date";
 import useSWR from "swr";
 import { useState } from "react";
 import { useToast } from "@/components/Toast";
@@ -179,7 +179,10 @@ const AccountSecurity = () => {
                     <p className="text-xs text-gray-500">
                       {passkey.deviceType} • Added{" "}
                       {passkey.createdAt
-                        ? formatDate(passkey.createdAt.toISOString())
+                        ? formatDateSafely(
+                            passkey.createdAt.toISOString(),
+                            "MMM dd, yyyy",
+                          )
                         : "Unknown"}
                     </p>
                   </div>
@@ -213,7 +216,7 @@ const AccountSecurity = () => {
             <p className="text-sm text-secondary-600">
               {account?.hasPassword
                 ? account.passwordLastChanged
-                  ? `Last changed: ${formatDate(account.passwordLastChanged.toISOString())}`
+                  ? `Last changed: ${formatDateSafely(account.passwordLastChanged.toISOString(), "MMM dd, yyyy")}`
                   : "Last changed: Unknown"
                 : "Add a password to your account for additional security"}
             </p>

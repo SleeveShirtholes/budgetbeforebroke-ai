@@ -8,9 +8,9 @@ export const debtFormSchema = z.object({
     .string()
     .min(1, "Name is required")
     .max(100, "Name must be less than 100 characters"),
-  balance: z
+  paymentAmount: z
     .string()
-    .min(1, "Balance is required")
+    .min(1, "Payment amount is required")
     .refine(
       (val) =>
         !isNaN(Number(val)) &&
@@ -18,7 +18,7 @@ export const debtFormSchema = z.object({
         Number(val) <= 999999999.99,
       {
         message:
-          "Balance must be a valid number greater than 0 and less than 1 billion",
+          "Payment amount must be a valid number greater than 0 and less than 1 billion",
       },
     ),
   interestRate: z
@@ -37,6 +37,7 @@ export const debtFormSchema = z.object({
       today.setHours(0, 0, 0, 0);
       return selectedDate >= today;
     }, "Due date must be today or in the future"),
+  hasBalance: z.boolean(),
 });
 
 /**

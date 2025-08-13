@@ -88,7 +88,7 @@ export default function Modal({
           {/* Modal */}
           <div className="fixed top-0 left-0 w-screen h-screen z-50 overflow-y-auto">
             <div
-              className="flex min-h-[100vh] items-start justify-center p-2 sm:p-4 pt-20 sm:pt-24"
+              className="flex min-h-[100vh] items-start justify-center p-2 sm:p-4 pt-16 sm:pt-20 md:pt-24"
               onClick={(e) => {
                 if (e.target === e.currentTarget) {
                   onClose();
@@ -101,11 +101,11 @@ export default function Modal({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className={`relative w-full ${maxWidthClasses[maxWidth]} ${responsiveMaxWidthClasses} bg-white rounded-xl shadow-lg ring-1 ring-black/5 overflow-hidden`}
+                className={`relative w-full ${maxWidthClasses[maxWidth]} ${responsiveMaxWidthClasses} bg-white rounded-lg sm:rounded-xl shadow-lg ring-1 ring-black/5 overflow-hidden flex flex-col max-h-[calc(100vh-4rem)] sm:max-h-[calc(100vh-6rem)] md:max-h-[calc(100vh-8rem)]`}
               >
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-900 pr-4">
+                <div className="flex items-center justify-between px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-gray-100 flex-shrink-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 pr-3 sm:pr-4">
                     {title}
                   </h3>
                   <button
@@ -113,19 +113,19 @@ export default function Modal({
                     className="text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-full p-1 flex-shrink-0"
                   >
                     <span className="sr-only">Close</span>
-                    <XMarkIcon className="h-5 w-5" />
+                    <XMarkIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </button>
                 </div>
 
                 {/* Content */}
-                <div className="px-4 sm:px-6 py-4 max-h-[calc(100vh-12rem)] sm:max-h-[calc(100vh-16rem)] overflow-y-auto">
+                <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 overflow-y-auto flex-1">
                   {children}
                 </div>
 
                 {/* Footer */}
                 {footerButtons && (
-                  <div className="px-4 sm:px-6 py-4 border-t border-gray-100 bg-white">
-                    <div className="flex flex-col sm:flex-row justify-end gap-3 sm:space-x-3">
+                  <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-t border-gray-100 bg-white flex-shrink-0">
+                    <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                       {footerButtons}
                     </div>
                   </div>
