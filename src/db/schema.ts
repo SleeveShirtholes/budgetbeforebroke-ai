@@ -659,3 +659,76 @@ export const dismissedWarningsRelations = relations(
     }),
   }),
 );
+
+/**
+ * Contact Submissions Table
+ * Stores contact form submissions from unauthenticated users.
+ */
+export const contactSubmissions = pgTable("contact_submission", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  status: text("status").notNull().default("new"), // 'new', 'in_progress', 'resolved', 'closed'
+  assignedTo: text("assigned_to").references(() => user.id),
+  notes: text("notes"), // Internal notes from support team
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  // New fields for conversation threading
+  conversationId: text("conversation_id").$defaultFn(() => generateId()), // Unique ID for the conversation thread
+  lastUserMessageAt: timestamp("last_user_message_at"), // When user last sent a message
+  lastSupportMessageAt: timestamp("last_support_message_at"), // When support last responded
+});
+
+/**
+ * Email Conversations Table
+ * Stores the full conversation thread between users and support staff.
+ */
+export const emailConversations = pgTable("email_conversation", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  conversationId: text("conversation_id").notNull(), // Links to contact_submission.conversationId
+  messageId: text("message_id"), // Email message ID for tracking
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name").notNull(),
+  toEmail: text("to_email").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  messageType: text("message_type").notNull(), // 'user_reply', 'support_response', 'initial_contact'
+  direction: text("direction").notNull(), // 'inbound' (from user), 'outbound' (from support)
+  rawEmail: text("raw_email"), // Raw email content for debugging
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Contact submissions relations
+export const contactSubmissionsRelations = relations(
+  contactSubmissions,
+  ({ one, many }) => ({
+    assignedUser: one(user, {
+      fields: [contactSubmissions.assignedTo],
+      references: [user.id],
+    }),
+    conversations: many(emailConversations, {
+      relationName: "submission_conversations",
+    }),
+  }),
+);
+
+// Email conversations relations
+export const emailConversationsRelations = relations(
+  emailConversations,
+  ({ one }) => ({
+    submission: one(contactSubmissions, {
+      fields: [emailConversations.conversationId],
+      references: [contactSubmissions.conversationId],
+      relationName: "submission_conversations",
+    }),
+  }),
+);

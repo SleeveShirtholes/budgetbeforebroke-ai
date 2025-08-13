@@ -8,3 +8,11 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+/**
+ * Generates a unique conversation ID for email conversations
+ * @returns A unique conversation ID string
+ */
+export function generateConversationId(): string {
+  return `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}

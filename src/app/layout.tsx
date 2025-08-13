@@ -2,10 +2,12 @@ import "./globals.css";
 
 import Spinner from "@/components/Spinner";
 import { ToastProvider } from "@/components/Toast";
+import CookieConsentBanner from "@/components/CookieConsentBanner";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { SWRConfig } from "swr";
+import Footer from "@/components/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -45,6 +47,8 @@ export default async function RootLayout({
             <Suspense fallback={<Spinner size="md" />}>
               <main className="pt-0">{children}</main>
             </Suspense>
+            <CookieConsentBanner />
+            <Footer />
           </ToastProvider>
         </SWRConfig>
       </body>

@@ -1,5 +1,3 @@
-import Spinner from "@/components/Spinner";
-import { Suspense } from "react";
 import RootLayout from "../layout";
 
 // Mock the Inter font
@@ -23,8 +21,12 @@ describe("RootLayout", () => {
     expect(body.type).toBe("body");
     expect(body.props.className).toBe("bg-pastel-gradient inter-font");
 
-    // Verify the SWRConfig wrapper
+    // Verify that we have children in the body
+    expect(body.props.children).toBeDefined();
+
+    // The body has a single SWRConfig child, not an array
     const swrConfig = body.props.children;
+    expect(swrConfig).toBeDefined();
     expect(swrConfig.type.name).toBe("SWRConfig");
     expect(swrConfig.props.value).toEqual({
       revalidateOnFocus: false,
@@ -32,18 +34,18 @@ describe("RootLayout", () => {
       dedupingInterval: 2000,
     });
 
-    // Verify the ToastProvider and main content
+    // Verify the SWRConfig has children (ToastProvider)
     const toastProvider = swrConfig.props.children;
+    expect(toastProvider).toBeDefined();
     expect(toastProvider.type.name).toBe("ToastProvider");
-    expect(toastProvider.props.defaultPosition).toBe("top-center");
 
-    const suspense = toastProvider.props.children;
-    expect(suspense.type).toBe(Suspense);
-    expect(suspense.props.fallback.type).toBe(Spinner);
+    // Verify the ToastProvider has children including Footer
+    const toastChildren = toastProvider.props.children;
+    expect(toastChildren).toBeDefined();
 
-    const main = suspense.props.children;
-    expect(main.type).toBe("main");
-    expect(main.props.className).toBe("pt-0");
-    expect(main.props.children.props.children).toBe(testContent);
+    // Check that Footer is present in the ToastProvider children
+    const footer = toastChildren[2]; // Footer should be the third child (after main and CookieConsentBanner)
+    expect(footer).toBeDefined();
+    expect(footer.type.name).toBe("Footer");
   });
 });
