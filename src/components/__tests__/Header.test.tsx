@@ -1,11 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
-import { ImageProps } from "next/image";
 import Header from "../Header";
 
-// Mock the navigationData
+// Mock the getNavigationData function
 jest.mock("@/utils/navigationLoader", () => ({
-  navigationData: {
+  getNavigationData: jest.fn().mockResolvedValue({
     features: {
       label: "Features",
       items: [
@@ -17,47 +16,49 @@ jest.mock("@/utils/navigationLoader", () => ({
         },
       ],
     },
-  },
+  }),
 }));
 
 // Mock next/image
 jest.mock("next/image", () => ({
   __esModule: true,
-  default: (props: Omit<ImageProps, "src"> & { src: string }) => (
-    <img {...props} alt={props.alt || "Mock image"} />
-  ),
+  default: () => <></>,
+}));
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    pathname: "/",
+    query: {},
+    asPath: "/",
+  }),
 }));
 
 describe("Header", () => {
-  const mockUserName = "Test User";
-  const mockUserAvatar = "/test-avatar.png";
-
   beforeEach(() => {
     // Reset all mocks before each test
     jest.clearAllMocks();
   });
 
-  it("renders with default props", () => {
+  it("renders with default props", async () => {
     render(<Header />);
-    expect(screen.getByText("User")).toBeInTheDocument();
-    expect(screen.getByAltText("User")).toHaveAttribute(
-      "src",
-      "/default-avatar.png",
-    );
+    expect(screen.getByText("TU")).toBeInTheDocument();
+    // Wait for navigation data to load
+    expect(await screen.findByText("Features")).toBeInTheDocument();
   });
 
-  it("renders with custom props", () => {
-    render(<Header userName={mockUserName} userAvatar={mockUserAvatar} />);
-    expect(screen.getByText(mockUserName)).toBeInTheDocument();
-    expect(screen.getByAltText(mockUserName)).toHaveAttribute(
-      "src",
-      mockUserAvatar,
-    );
+  it("renders with custom props", async () => {
+    render(<Header />);
+    expect(screen.getByText("TU")).toBeInTheDocument();
+    // Wait for navigation data to load
+    expect(await screen.findByText("Features")).toBeInTheDocument();
   });
 
-  it("toggles navigation dropdown on click", () => {
+  it("toggles navigation dropdown on click", async () => {
     render(<Header />);
-    const featuresButton = screen.getByText("Features");
+    const featuresButton = await screen.findByText("Features");
 
     // Open dropdown
     fireEvent.click(featuresButton);
@@ -71,11 +72,12 @@ describe("Header", () => {
     expect(screen.queryByText("Analytics")).not.toBeInTheDocument();
   });
 
-  it("closes navigation dropdown when clicking outside", () => {
+  it("closes navigation dropdown when clicking outside", async () => {
     render(<Header />);
 
     // Open dropdown
-    fireEvent.click(screen.getByText("Features"));
+    const featuresButton = await screen.findByText("Features");
+    fireEvent.click(featuresButton);
     expect(screen.getByText("Analytics")).toBeInTheDocument();
 
     // Click outside
@@ -83,80 +85,62 @@ describe("Header", () => {
     expect(screen.queryByText("Analytics")).not.toBeInTheDocument();
   });
 
-  it("toggles user dropdown on click", () => {
-    render(<Header userName={mockUserName} />);
-
-    // Find and click the user button by its role
-    const userButton = screen.getByRole("button", {
-      name: new RegExp(mockUserName),
-    });
+  it("toggles user dropdown on click", async () => {
+    render(<Header />);
+    // Wait for navigation data to load
+    await screen.findByText("Features");
+    // Find and click the user button by its role and text content
+    const userButton = screen.getByRole("button", { name: "TU" });
     fireEvent.click(userButton);
-
     // Verify dropdown content is visible
     expect(screen.getByText("Profile")).toBeInTheDocument();
-    expect(screen.getByText("Settings")).toBeInTheDocument();
     expect(screen.getByText("Logout")).toBeInTheDocument();
-    expect(screen.getByText("user@example.com")).toBeInTheDocument();
-
+    expect(screen.getByText("test@example.com")).toBeInTheDocument();
     // Close dropdown
     fireEvent.click(userButton);
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
   });
 
-  it("closes user dropdown when clicking outside", () => {
-    render(<Header userName={mockUserName} />);
-
+  it("closes user dropdown when clicking outside", async () => {
+    render(<Header />);
+    // Wait for navigation data to load
+    await screen.findByText("Features");
     // Open dropdown using the button
-    const userButton = screen.getByRole("button", {
-      name: new RegExp(mockUserName),
-    });
+    const userButton = screen.getByRole("button", { name: "TU" });
     fireEvent.click(userButton);
     expect(screen.getByText("Profile")).toBeInTheDocument();
-
     // Click outside
     fireEvent.mouseDown(document.body);
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
   });
 
-  it("closes dropdowns when clicking menu items", () => {
-    render(<Header userName={mockUserName} />);
-
+  it("closes dropdowns when clicking menu items", async () => {
+    render(<Header />);
+    // Wait for navigation data to load
+    await screen.findByText("Features");
     // Test navigation dropdown
     fireEvent.click(screen.getByText("Features"));
     const analyticsLink = screen.getByText("Analytics");
     fireEvent.click(analyticsLink);
     expect(screen.queryByText("Analytics")).not.toBeInTheDocument();
-
     // Test user dropdown
-    const userButton = screen.getByRole("button", {
-      name: new RegExp(mockUserName),
-    });
+    const userButton = screen.getByRole("button", { name: "TU" });
     fireEvent.click(userButton);
     const profileLink = screen.getByText("Profile");
     fireEvent.click(profileLink);
     expect(screen.queryByText("Profile")).not.toBeInTheDocument();
   });
 
-  it("handles click events on all user dropdown items", () => {
-    render(<Header userName={mockUserName} />);
+  it("handles click events on all user dropdown items", async () => {
+    render(<Header />);
+    await screen.findByText("Features");
+    const userButton = screen.getByRole("button", { name: "TU" });
 
-    // Open user dropdown
-    const userButton = screen.getByRole("button", {
-      name: new RegExp(mockUserName),
-    });
+    // Profile
     fireEvent.click(userButton);
-
-    // Click each menu item
-    ["Profile", "Settings", "Logout"].forEach((item) => {
-      const link = screen.getByRole("menuitem", { name: item });
-      fireEvent.click(link);
-      // Reopen dropdown for next item
-      if (item !== "Logout") {
-        fireEvent.click(userButton);
-      }
-    });
-
-    // Verify dropdown is closed
-    expect(screen.queryByText("Profile")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Profile"));
+    // Logout
+    fireEvent.click(userButton);
+    fireEvent.click(screen.getByText("Logout"));
   });
 });

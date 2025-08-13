@@ -44,4 +44,11 @@ describe("Button Component", () => {
     const button = screen.getByText("Disabled Button");
     expect(button).toBeDisabled();
   });
+
+  it("applies danger variant styles", () => {
+    render(<Button variant="danger">Danger Button</Button>);
+    const button = screen.getByText("Danger Button");
+    expect(button).toHaveClass("bg-red-600");
+    expect(button).toHaveClass("hover:bg-red-700");
+  });
 });

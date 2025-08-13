@@ -1,132 +1,243 @@
+"use client";
+
+import {
+  ArrowTrendingDownIcon,
+  ArrowTrendingUpIcon,
+  BanknotesIcon,
+} from "@heroicons/react/24/outline";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import useSWR from "swr";
+
 import BudgetCategoriesProgress from "@/components/BudgetCategoriesProgress";
+import Card from "@/components/Card";
 import MonthlySpendingChart from "@/components/MonthlySpendingChart";
-import StatsCard from "@/components/StatsCard";
+import { getDashboardData, type DashboardData } from "@/app/actions/dashboard";
+import { needsOnboarding } from "@/app/actions/onboarding";
+import Button from "@/components/Button";
 
-// Mock data - replace with real data from your backend
-const monthlySpendingData = [
-  { month: "Jan", amount: 1200 },
-  { month: "Feb", amount: 1800 },
-  { month: "Mar", amount: 1400 },
-  { month: "Apr", amount: 900 },
-  { month: "May", amount: 1100 },
-  { month: "Jun", amount: 1300 },
-  { month: "Jul", amount: 1250 },
-  { month: "Aug", amount: 1600 },
-  { month: "Sep", amount: 1450 },
-  { month: "Oct", amount: 1000 },
-  { month: "Nov", amount: 1200 },
-  { month: "Dec", amount: 1100 },
-];
+// Format number as currency string
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
 
-const budgetCategories = [
-  { name: "Housing", spent: 1200, budget: 1500, color: "rgb(78, 0, 142)" }, // primary-500
-  { name: "Food", spent: 400, budget: 500, color: "rgb(153, 51, 255)" }, // primary-400
-  {
-    name: "Transportation",
-    spent: 200,
-    budget: 300,
-    color: "rgb(179, 102, 255)",
-  }, // primary-300
-  {
-    name: "Entertainment",
-    spent: 150,
-    budget: 200,
-    color: "rgb(209, 153, 255)",
-  }, // primary-200
-  { name: "Shopping", spent: 300, budget: 400, color: "rgb(230, 204, 255)" }, // primary-100
-];
+// SWR fetcher function for dashboard data
+const fetchDashboardData = async (): Promise<DashboardData> => {
+  return await getDashboardData();
+};
 
 export default function DashboardPage() {
+  const router = useRouter();
+
+  // Check if user needs onboarding on component mount
+  useEffect(() => {
+    async function checkOnboardingStatus() {
+      try {
+        const needsSetup = await needsOnboarding();
+        if (needsSetup) {
+          router.replace("/onboarding");
+        }
+      } catch (error) {
+        console.error("Error checking onboarding status:", error);
+      }
+    }
+
+    checkOnboardingStatus();
+  }, [router]);
+
+  // Use mutate from SWR to allow retrying the fetch without a full page reload
+  const { data, error, isLoading, mutate } = useSWR(
+    "dashboard-data",
+    fetchDashboardData,
+    {
+      refreshInterval: 30000, // Refresh every 30 seconds
+      revalidateOnFocus: true,
+    },
+  );
+
+  // Handle missing budget account error with useEffect to avoid setState during render
+  useEffect(() => {
+    if (error && error.message?.includes("No default budget account found")) {
+      router.replace("/onboarding");
+    }
+  }, [error, router]);
+
+  if (error) {
+    // If error is about missing budget account, show loading state while redirecting
+    if (error.message?.includes("No default budget account found")) {
+      return (
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold">Setting up your account...</h2>
+            <p className="text-gray-500">Redirecting to complete setup...</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <Card>
+          <div className="text-center py-8">
+            <p className="text-red-600">
+              Error loading dashboard data: {error.message}
+            </p>
+            {/* Use SWR's mutate to retry fetching dashboard data instead of reloading the page */}
+            <button
+              onClick={() => mutate()}
+              className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            >
+              Retry
+            </button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Loading skeleton for overview cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="h-4 bg-gray-200 rounded w-24 mb-2 animate-pulse"></div>
+                  <div className="h-8 bg-gray-200 rounded w-32 animate-pulse"></div>
+                </div>
+                <div className="p-3 bg-gray-100 rounded-lg animate-pulse">
+                  <div className="w-6 h-6 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Loading skeleton for charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card>
+            <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+          </Card>
+          <div className="lg:col-span-2">
+            <Card>
+              <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const {
+    totalBalance,
+    monthlyIncome,
+    monthlyExpenses,
+    monthlySpendingData,
+    budgetCategories,
+  } = data!;
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Total Spending"
-          value="$2,250"
-          icon={
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          }
-          trend={{ value: 8.2, isPositive: false }}
-        />
-        <StatsCard
-          title="Budget Remaining"
-          value="$750"
-          icon={
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-              />
-            </svg>
-          }
-        />
-        <StatsCard
-          title="Categories On Track"
-          value="4/5"
-          icon={
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
-          }
-          trend={{ value: 12.5, isPositive: true }}
-        />
-        <StatsCard
-          title="Savings Rate"
-          value="15%"
-          icon={
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-              />
-            </svg>
-          }
-          trend={{ value: 2.3, isPositive: true }}
-        />
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <Card>
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm sm:text-base font-semibold text-secondary-600">
+                Total Balance
+              </h3>
+              <p className="mt-2 text-xl sm:text-2xl font-semibold text-secondary-900 truncate">
+                ${formatCurrency(totalBalance)}
+              </p>
+            </div>
+            <div className="p-2 sm:p-3 bg-primary-50 rounded-lg flex-shrink-0">
+              <BanknotesIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm sm:text-base font-semibold text-secondary-600">
+                Monthly Income
+              </h3>
+              <p className="mt-2 text-xl sm:text-2xl font-semibold text-green-600 truncate">
+                ${formatCurrency(monthlyIncome)}
+              </p>
+            </div>
+            <div className="p-2 sm:p-3 bg-green-50 rounded-lg flex-shrink-0">
+              <ArrowTrendingUpIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm sm:text-base font-semibold text-secondary-600">
+                Monthly Expenses
+              </h3>
+              <p className="mt-2 text-xl sm:text-2xl font-semibold text-red-600 truncate">
+                ${formatCurrency(monthlyExpenses)}
+              </p>
+            </div>
+            <div className="p-2 sm:p-3 bg-red-50 rounded-lg flex-shrink-0">
+              <ArrowTrendingDownIcon className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
+            </div>
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <MonthlySpendingChart data={monthlySpendingData} />
-        </div>
         <div>
-          <BudgetCategoriesProgress categories={budgetCategories} />
+          {budgetCategories.length > 0 ? (
+            <BudgetCategoriesProgress categories={budgetCategories} />
+          ) : (
+            <Card>
+              <div className="text-center py-8">
+                <div className="mb-4">
+                  <div className="mx-auto w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+                    <svg
+                      className="w-8 h-8 text-primary-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-2">
+                    Set Up Your Budget
+                  </h3>
+                  <p className="text-secondary-600 mb-6">
+                    Create budget categories to track your spending and stay on
+                    top of your finances.
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={() => router.push("/dashboard/budgets")}
+                  >
+                    Set Up Budget Categories
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+        <div className="lg:col-span-2 order-1 lg:order-2">
+          <MonthlySpendingChart data={monthlySpendingData} />
         </div>
       </div>
     </div>

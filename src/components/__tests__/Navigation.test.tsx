@@ -7,7 +7,7 @@ import Navigation from "../Navigation";
 describe("Navigation Component", () => {
   it("renders the logo text", () => {
     render(<Navigation />);
-    expect(screen.getByText("BudgetBeforeBroke")).toBeInTheDocument();
+    expect(screen.getByText("BBB")).toBeInTheDocument();
   });
 
   it("renders sign in and sign up buttons", () => {
@@ -20,11 +20,11 @@ describe("Navigation Component", () => {
     render(<Navigation />);
     expect(screen.getByText("Sign In").closest("a")).toHaveAttribute(
       "href",
-      "/login",
+      "/auth/signin",
     );
     expect(screen.getByText("Sign Up").closest("a")).toHaveAttribute(
       "href",
-      "/signup",
+      "/auth/signup",
     );
   });
 });

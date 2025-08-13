@@ -1,0 +1,5 @@
+{
+  "buildCommand": "yarn db:push && yarn build",
+  "outputDirectory": ".next",
+  "framework": "nextjs"
+}

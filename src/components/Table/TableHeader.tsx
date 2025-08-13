@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  ChevronDownIcon,
+  ChevronUpDownIcon,
+  ChevronUpIcon,
+} from "@heroicons/react/20/solid";
 import { ColumnDef, FilterValue, FiltersState, SortingState } from "./types";
 
 import ColumnFilter from "./ColumnFilter";
@@ -15,6 +20,7 @@ import ColumnFilter from "./ColumnFilter";
  * @param {(sorting: SortingState) => void} props.onSort - Callback when sorting changes
  * @param {(columnKey: string, filter: FilterValue | null) => void} props.onFilterChange - Callback when a column filter changes
  * @param {boolean} props.actions - Whether to show the actions column
+ * @param {boolean} props.hasDetailPanel - Whether the table has a detail panel (controls expansion column visibility)
  */
 
 interface TableHeaderProps<T> {
@@ -24,6 +30,7 @@ interface TableHeaderProps<T> {
   onSort: (sorting: SortingState) => void;
   onFilterChange: (columnKey: string, filter: FilterValue | null) => void;
   actions: boolean;
+  hasDetailPanel: boolean;
 }
 
 export default function TableHeader<T>({
@@ -33,6 +40,7 @@ export default function TableHeader<T>({
   onSort,
   onFilterChange,
   actions,
+  hasDetailPanel,
 }: TableHeaderProps<T>) {
   const handleSort = (column: ColumnDef<T>) => {
     if (!column.sortable) return;
@@ -63,8 +71,8 @@ export default function TableHeader<T>({
   return (
     <thead className="bg-secondary-50">
       <tr>
-        {/* Expansion column */}
-        <th className="w-10 px-4 py-3 text-left" />
+        {/* Expansion column - only show if detailPanel is provided */}
+        {hasDetailPanel && <th className="w-10 px-4 py-3 text-left" />}
 
         {/* Data columns */}
         {columns.map((column) => (
@@ -95,48 +103,21 @@ export default function TableHeader<T>({
                   <div className="ml-1">
                     {sorting.column === column.key ? (
                       sorting.direction === "asc" ? (
-                        <svg
-                          className="h-5 w-5 text-gray-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 15l7-7 7 7"
-                          />
-                        </svg>
+                        <ChevronUpIcon
+                          className="w-5 h-5 ml-1 text-gray-600"
+                          title="Sort ascending"
+                        />
                       ) : (
-                        <svg
-                          className="h-5 w-5 text-gray-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
+                        <ChevronDownIcon
+                          className="w-5 h-5 ml-1 text-gray-600"
+                          title="Sort descending"
+                        />
                       )
                     ) : (
-                      <svg
-                        className="h-5 w-5 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                        />
-                      </svg>
+                      <ChevronUpDownIcon
+                        className="w-5 h-5 ml-1 text-gray-600"
+                        title="Click to sort"
+                      />
                     )}
                   </div>
                 )}

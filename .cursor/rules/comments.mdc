@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+When generating code please make sure that you add comments as you go. Also, please add a docstring to any new functions and place them right above the function name.

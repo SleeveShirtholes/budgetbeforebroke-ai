@@ -1,14 +1,25 @@
 import "./globals.css";
 
-import Header from "@/components/Header";
+import Spinner from "@/components/Spinner";
+import { ToastProvider } from "@/components/Toast";
+import CookieConsentBanner from "@/components/CookieConsentBanner";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
+import { SWRConfig } from "swr";
+import Footer from "@/components/Footer";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Budget Before Broke",
-  description: "Take control of your finances",
+  description: "Budget First, Panic Never",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default async function RootLayout({
@@ -24,9 +35,22 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <Header />
-        <main className="pt-16">{children}</main>
+      <body className={`bg-pastel-gradient ${inter.className}`}>
+        <SWRConfig
+          value={{
+            revalidateOnFocus: false,
+            revalidateOnReconnect: true,
+            dedupingInterval: 2000,
+          }}
+        >
+          <ToastProvider defaultPosition="top-center">
+            <Suspense fallback={<Spinner size="md" />}>
+              <main className="pt-0">{children}</main>
+            </Suspense>
+            <CookieConsentBanner />
+            <Footer />
+          </ToastProvider>
+        </SWRConfig>
       </body>
     </html>
   );

@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  Bars3Icon,
+  ChevronUpDownIcon,
+  FunnelIcon,
+} from "@heroicons/react/20/solid";
 import { ReactNode, useState } from "react";
 import { ColumnDef, FilterValue, FiltersState, SortingState } from "./types";
 
@@ -7,6 +12,9 @@ import TableBody from "./TableBody";
 import TableHeader from "./TableHeader";
 import TablePagination from "./TablePagination";
 import TableSearch from "./TableSearch";
+import MobileTransactionList from "./MobileTransactionList";
+import MobileCategoryList from "./MobileCategoryList";
+import MobileSupportList from "./MobileSupportList";
 
 /**
  * A flexible and feature-rich table component that supports sorting, filtering, pagination,
@@ -170,11 +178,6 @@ export default function Table<T extends Record<string, unknown>>({
         const stringValue = value.toString().toLowerCase();
         const searchTerm = searchQuery.toLowerCase();
 
-        // For name columns, match exact words
-        if (typeof value === "string") {
-          const regex = new RegExp(`\\b${searchTerm}\\b`, "i");
-          return regex.test(stringValue);
-        }
         return stringValue.includes(searchTerm);
       });
       if (!matchesSearch) return false;
@@ -250,11 +253,12 @@ export default function Table<T extends Record<string, unknown>>({
 
   return (
     <div className="flex flex-col w-full">
-      <div className="flex justify-between items-center mb-4">
-        <div className="w-full sm:w-64">
+      {/* Header controls - responsive layout */}
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-4">
+        <div className="w-full lg:w-64">
           <TableSearch value={searchQuery} onChange={handleSearchChange} />
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-end space-x-2">
           {/* Clear sorting button */}
           <button
             onClick={clearAllSorting}
@@ -266,22 +270,7 @@ export default function Table<T extends Record<string, unknown>>({
             title="Clear sorting"
             disabled={!isSortingActive}
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-              />
-              {isSortingActive && (
-                <circle cx="18" cy="6" r="4" fill="currentColor" />
-              )}
-            </svg>
+            <ChevronUpDownIcon className="w-3 h-3" />
             {isSortingActive && (
               <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
                 1
@@ -295,31 +284,15 @@ export default function Table<T extends Record<string, unknown>>({
             className="p-1.5 rounded-md hover:bg-secondary-50 transition-colors text-gray-500 hover:text-secondary-700"
             title={showPagination ? "Show all rows" : "Enable pagination"}
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d={
-                  showPagination
-                    ? "M4 6h16M4 10h16M4 14h16M4 18h16"
-                    : "M4 6h16M4 12h8m-8 6h16"
-                }
-              />
-            </svg>
+            <Bars3Icon className="w-5 h-5" />
           </button>
         </div>
       </div>
 
       {/* Active filters display */}
       {activeFiltersCount > 0 && (
-        <div className="flex items-center mb-2 text-sm">
-          <span className="text-gray-700 mr-2">Active filters:</span>
+        <div className="flex flex-col lg:flex-row lg:items-center mb-2 text-sm gap-2">
+          <span className="text-gray-700 flex-shrink-0">Active filters:</span>
           <div className="flex flex-wrap gap-1">
             {Object.entries(filters).map(([columnKey, filterValue]) => {
               const column = columns.find((col) => col.key === columnKey);
@@ -336,19 +309,7 @@ export default function Table<T extends Record<string, unknown>>({
                     onClick={() => handleFilterChange(columnKey, null)}
                     className="ml-1 text-secondary-600 hover:text-secondary-900"
                   >
-                    <svg
-                      className="w-3 h-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
+                    <FunnelIcon className="w-5 h-5" />
                   </button>
                 </div>
               );
@@ -363,38 +324,82 @@ export default function Table<T extends Record<string, unknown>>({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-        <table className={`min-w-full divide-y divide-gray-200 ${className}`}>
-          <TableHeader<T>
-            columns={columns}
-            sorting={sorting}
-            onSort={setSorting}
-            actions={!!actions}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-          />
-          <TableBody<T>
+      {/* Mobile-friendly card layout for small screens */}
+      <div className="lg:hidden">
+        {/* Check if this is category data by looking for category-specific columns */}
+        {columns.some(
+          (col) =>
+            col.key === "name" &&
+            columns.some((c) => c.key === "transactionCount"),
+        ) ? (
+          <MobileCategoryList<T>
             data={displayData}
             columns={columns}
-            expandedRows={expandedRows}
-            toggleRowExpansion={toggleRowExpansion}
-            detailPanel={detailPanel}
             actions={actions}
           />
-        </table>
+        ) : columns.some(
+            (col) =>
+              col.key === "title" && columns.some((c) => c.key === "upvotes"),
+          ) ? (
+          <MobileSupportList<T>
+            data={displayData}
+            columns={columns}
+            actions={actions}
+            detailPanel={detailPanel}
+          />
+        ) : (
+          <MobileTransactionList<T>
+            data={displayData}
+            columns={columns}
+            actions={actions}
+          />
+        )}
       </div>
 
-      {showPagination && totalPages > 1 && (
-        <div className="mt-4">
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            showPagination={showPagination}
-            togglePagination={togglePagination}
-          />
+      {/* Desktop table layout */}
+      <div className="hidden lg:block overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+        <div className="min-w-full">
+          <table className={`w-full divide-y divide-gray-200 ${className}`}>
+            <TableHeader<T>
+              columns={columns}
+              sorting={sorting}
+              onSort={setSorting}
+              actions={!!actions}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              hasDetailPanel={!!detailPanel}
+            />
+            <TableBody<T>
+              data={displayData}
+              columns={columns}
+              expandedRows={expandedRows}
+              toggleRowExpansion={toggleRowExpansion}
+              detailPanel={detailPanel}
+              actions={actions}
+              searchQuery={searchQuery}
+            />
+          </table>
         </div>
-      )}
+      </div>
+
+      {/* Footer with responsive layout */}
+      <div className="mt-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+        <div className="text-sm text-gray-600 text-center lg:text-left">
+          Showing {displayData.length} of {sortedData.length} rows
+        </div>
+
+        {showPagination && totalPages > 1 && (
+          <div className="flex justify-center lg:justify-end">
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              showPagination={showPagination}
+              togglePagination={togglePagination}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

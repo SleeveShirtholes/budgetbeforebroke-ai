@@ -1,0 +1,1 @@
+ALTER TABLE "income_source" ALTER COLUMN "start_date" SET DATA TYPE date;

@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Please always utilize our pre-built components when generating new code instead of building from scratch

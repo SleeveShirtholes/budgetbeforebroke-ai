@@ -49,11 +49,6 @@ describe("Home Page", () => {
 
     // Check for the main container with background gradient
     const mainContainer = container.firstChild as HTMLElement;
-    expect(mainContainer).toHaveClass(
-      "min-h-screen",
-      "bg-gradient-to-b",
-      "from-accent-50",
-      "to-white",
-    );
+    expect(mainContainer).toHaveClass("min-h-screen");
   });
 });

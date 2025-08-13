@@ -1,0 +1,1 @@
+ALTER TABLE "debt" ADD COLUMN "last_payment_month" timestamp;

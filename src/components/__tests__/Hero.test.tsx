@@ -7,8 +7,8 @@ import Hero from "../Hero";
 describe("Hero Component", () => {
   it("renders the main heading", () => {
     render(<Hero />);
-    expect(screen.getByText("Budget first,")).toBeInTheDocument();
-    expect(screen.getByText("panic later")).toBeInTheDocument();
+    expect(screen.getByText("Budget First,")).toBeInTheDocument();
+    expect(screen.getByText("Panic Never")).toBeInTheDocument();
   });
 
   it("renders the description text", () => {

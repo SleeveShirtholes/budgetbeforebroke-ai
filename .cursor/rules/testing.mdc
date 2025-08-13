@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+When creating tests, please make sure that you run the tests and that each test suite passes. Please also make sure to put tests in a __tests__ folder in the same location as the file you are building the tests for.

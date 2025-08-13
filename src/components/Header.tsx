@@ -1,24 +1,59 @@
 "use client";
 
+import {
+  NavDropdownWithReactIcon,
+  getNavigationData,
+} from "@/utils/navigationLoader";
+import {
+  ArrowRightStartOnRectangleIcon,
+  UserIcon,
+  Bars3Icon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import { useEffect, useRef, useState } from "react";
 
-import { navigationData } from "@/utils/navigationLoader";
-import Image from "next/image";
+import Avatar from "@/components/Avatar";
+import { authClient } from "@/lib/auth-client";
+import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-interface HeaderProps {
-  userAvatar?: string;
-  userName?: string;
-}
-
-export default function Header({
-  userAvatar = "/default-avatar.png",
-  userName = "User",
-}: HeaderProps) {
+/**
+ * Header component that displays the main navigation bar with dropdown menus and user profile.
+ *
+ * @component
+ * @returns {JSX.Element} A responsive header with navigation dropdowns and user profile menu
+ */
+export default function Header() {
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [navigationData, setNavigationData] = useState<
+    Record<string, NavDropdownWithReactIcon>
+  >({});
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const userDropdownRef = useRef<HTMLDivElement | null>(null);
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
+
+  const { data: session } = authClient.useSession();
+
+  // Only use the session user image if it exists
+  const userAvatar = session?.user?.image || undefined;
+  const userName = session?.user?.name || "User";
+  const userEmail = session?.user?.email || "user@example.com";
+
+  useEffect(() => {
+    async function loadNavigationData() {
+      try {
+        const data = await getNavigationData();
+        setNavigationData(data);
+      } catch (error) {
+        console.error("Failed to load navigation data:", error);
+      }
+    }
+    loadNavigationData();
+  }, []);
 
   // Handle click outside to close dropdowns
   useEffect(() => {
@@ -39,13 +74,22 @@ export default function Header({
       ) {
         setIsUserDropdownOpen(false);
       }
+
+      // Close mobile menu when clicking outside
+      if (
+        isMobileMenuOpen &&
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsMobileMenuOpen(false);
+      }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [openDropdown, isUserDropdownOpen]);
+  }, [openDropdown, isUserDropdownOpen, isMobileMenuOpen]);
 
   // Toggle dropdown on click
   const toggleDropdown = (key: string) => {
@@ -59,36 +103,39 @@ export default function Header({
     }
   };
 
-  // Create SVG icons for navigation items
-  const createSvgIcon = (pathData: string) => (
-    <svg
-      className="w-5 h-5"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d={pathData}
-      />
-    </svg>
-  );
+  /**
+   * Handles user sign out and redirects to the login page on success.
+   */
+  const handleLogout = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/auth/signin");
+        },
+      },
+    });
+  };
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
+    <header className="fixed top-0 left-0 right-0 bg-white/70 backdrop-blur-md shadow-sm z-50 border-b border-accent-200 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <Link
               href="/dashboard"
-              className="text-2xl font-bold text-primary-500"
+              className="text-xl sm:text-2xl font-bold text-primary-500 truncate"
+              aria-label="Budget Before Broke"
             >
-              BudgetBeforeBroke
+              BBB
             </Link>
-            <nav className="ml-10 flex space-x-8">
-              {Object.entries(navigationData).map(([key, dropdown]) => (
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:ml-10 lg:flex lg:space-x-8">
+              {(
+                Object.entries(navigationData) as [
+                  string,
+                  NavDropdownWithReactIcon,
+                ][]
+              ).map(([key, dropdown]) => (
                 <div
                   key={key}
                   className="relative"
@@ -103,20 +150,11 @@ export default function Header({
                     }`}
                   >
                     <span>{dropdown.label}</span>
-                    <svg
+                    <ChevronDownIcon
                       className={`ml-1 h-5 w-5 transition-transform duration-200 ${
                         openDropdown === key ? "transform rotate-180" : ""
                       }`}
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                    />
                   </button>
                   {openDropdown === key && (
                     <div className="absolute left-0 mt-2 w-64 rounded-md shadow-sm bg-white border border-gray-100 divide-y divide-gray-100 overflow-hidden">
@@ -130,7 +168,7 @@ export default function Header({
                             onClick={() => setOpenDropdown(null)}
                           >
                             <div className="flex-shrink-0 mr-3 p-1 rounded-full bg-gray-50 text-gray-400 group-hover:text-primary-500">
-                              {createSvgIcon(item.icon)}
+                              {item.icon}
                             </div>
                             <div>
                               <p className="font-medium">{item.label}</p>
@@ -148,124 +186,117 @@ export default function Header({
             </nav>
           </div>
 
-          <div className="relative" ref={userDropdownRef}>
+          <div className="flex items-center space-x-4">
+            {/* Mobile menu button */}
             <button
-              onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-              className="flex items-center space-x-3 focus:outline-none"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-2 rounded-md text-secondary-700 hover:text-primary-500 hover:bg-secondary-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              aria-label="Toggle mobile menu"
             >
-              <div className="w-8 h-8 rounded-full overflow-hidden">
-                <Image
-                  src={userAvatar}
-                  alt={userName}
-                  width={32}
-                  height={32}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span className="text-secondary-700">{userName}</span>
-              <svg
-                className={`ml-1 h-5 w-5 transition-transform duration-200 ${
-                  isUserDropdownOpen ? "transform rotate-180" : ""
-                }`}
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              {isMobileMenuOpen ? (
+                <XMarkIcon className="h-6 w-6" />
+              ) : (
+                <Bars3Icon className="h-6 w-6" />
+              )}
             </button>
 
-            {isUserDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-md shadow-sm bg-white border border-gray-100 divide-y divide-gray-100 overflow-hidden">
-                <div className="px-4 py-3">
-                  <p className="text-sm font-medium text-gray-900">
-                    {userName}
-                  </p>
-                  <p className="text-sm text-gray-500 truncate">
-                    user@example.com
-                  </p>
-                </div>
-                <div className="py-2 px-1" role="menu">
-                  <Link
-                    href="/dashboard/profile"
-                    className="group flex items-center px-4 py-2 mx-1 my-1 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-                    role="menuitem"
-                    onClick={() => setIsUserDropdownOpen(false)}
-                  >
-                    <svg
-                      className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+            {/* User dropdown */}
+            <div className="relative" ref={userDropdownRef}>
+              <button
+                onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                className="flex items-center space-x-2 sm:space-x-3 focus:outline-none"
+              >
+                <Avatar src={userAvatar} name={userName} size={32} />
+                <ChevronDownIcon
+                  className={`hidden sm:block h-5 w-5 transition-transform duration-200 ${
+                    isUserDropdownOpen ? "transform rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {isUserDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-md shadow-sm bg-white border border-gray-100 divide-y divide-gray-100 overflow-hidden">
+                  <div className="px-4 py-3">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {userName}
+                    </p>
+                    <p className="text-sm text-gray-500 truncate">
+                      {userEmail}
+                    </p>
+                  </div>
+                  <div className="py-2 px-1" role="menu">
+                    <Link
+                      href="/profile"
+                      className="group flex items-center px-4 py-2 mx-1 my-1 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                      role="menuitem"
+                      onClick={() => setIsUserDropdownOpen(false)}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                    Profile
-                  </Link>
-                  <Link
-                    href="/dashboard/settings"
-                    className="group flex items-center px-4 py-2 mx-1 my-1 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-                    role="menuitem"
-                    onClick={() => setIsUserDropdownOpen(false)}
-                  >
-                    <svg
-                      className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                      <UserIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-500" />
+                      Profile
+                    </Link>
+                  </div>
+                  <div className="py-2 px-1" role="menu">
+                    <button
+                      type="button"
+                      className="group flex items-center px-4 py-2 mx-1 my-1 rounded-md text-sm text-gray-700 hover:bg-gray-50 w-full text-left"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsUserDropdownOpen(false);
+                        handleLogout();
+                      }}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    Settings
-                  </Link>
+                      <ArrowRightStartOnRectangleIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-500" />
+                      Logout
+                    </button>
+                  </div>
                 </div>
-                <div className="py-2 px-1" role="menu">
-                  <Link
-                    href="/logout"
-                    className="group flex items-center px-4 py-2 mx-1 my-1 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-                    role="menuitem"
-                    onClick={() => setIsUserDropdownOpen(false)}
-                  >
-                    <svg
-                      className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                    Logout
-                  </Link>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Mobile Navigation Menu */}
+        {isMobileMenuOpen && (
+          <div
+            ref={mobileMenuRef}
+            className="lg:hidden border-t border-accent-200 bg-white/95 backdrop-blur-sm max-h-[calc(100vh-4rem)] overflow-y-auto"
+          >
+            <nav className="space-y-4">
+              {(
+                Object.entries(navigationData) as [
+                  string,
+                  NavDropdownWithReactIcon,
+                ][]
+              ).map(([key, dropdown]) => (
+                <div key={key} className="space-y-2">
+                  <div className="font-medium text-secondary-800 px-4 py-2 text-sm">
+                    {dropdown.label}
+                  </div>
+                  <div className="space-y-1">
+                    {dropdown.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className="group flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-md mx-2"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <div className="flex-shrink-0 mr-3 p-1 rounded-full bg-gray-50 text-gray-400 group-hover:text-primary-500">
+                          {item.icon}
+                        </div>
+                        <div>
+                          <p className="font-medium">{item.label}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {item.description}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );
