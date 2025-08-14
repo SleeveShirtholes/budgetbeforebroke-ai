@@ -23,8 +23,8 @@ describe("CTA Component", () => {
 
   it("renders the call to action button", () => {
     render(<CTA />);
-    const button = screen.getByText("Start Your Free Trial");
+    const button = screen.getByText("Start For Free");
     expect(button).toBeInTheDocument();
-    expect(button.closest("a")).toHaveAttribute("href", "/signup");
+    expect(button.closest("a")).toHaveAttribute("href", "/auth/signup");
   });
 });

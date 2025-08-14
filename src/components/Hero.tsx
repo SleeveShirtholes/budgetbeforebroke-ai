@@ -20,7 +20,7 @@ export default function Hero() {
             <Button
               variant="primary"
               size="lg"
-              href="/signup"
+              href="/auth/signup"
               fullWidth
               className="sm:w-auto"
             >

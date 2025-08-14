@@ -13,10 +13,10 @@ export default function CTA() {
         <Button
           variant="primary"
           size="lg"
-          href="/signup"
+          href="/auth/signup"
           className="w-full sm:w-auto"
         >
-          Start Your Free Trial
+          Start For Free
         </Button>
       </div>
     </div>

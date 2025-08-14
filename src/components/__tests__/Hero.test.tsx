@@ -24,6 +24,6 @@ describe("Hero Component", () => {
     render(<Hero />);
     const button = screen.getByText("Get Started Free");
     expect(button).toBeInTheDocument();
-    expect(button.closest("a")).toHaveAttribute("href", "/signup");
+    expect(button.closest("a")).toHaveAttribute("href", "/auth/signup");
   });
 });
