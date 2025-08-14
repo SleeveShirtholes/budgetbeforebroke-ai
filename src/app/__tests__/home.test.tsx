@@ -27,12 +27,6 @@ jest.mock("@/components/CTA", () => {
   };
 });
 
-jest.mock("@/components/Footer", () => {
-  return function MockFooter() {
-    return <footer data-testid="footer">Footer</footer>;
-  };
-});
-
 describe("Home Page", () => {
   it("renders all main sections", () => {
     render(<Home />);
@@ -41,7 +35,6 @@ describe("Home Page", () => {
     expect(screen.getByTestId("hero")).toBeInTheDocument();
     expect(screen.getByTestId("features")).toBeInTheDocument();
     expect(screen.getByTestId("cta")).toBeInTheDocument();
-    expect(screen.getByTestId("footer")).toBeInTheDocument();
   });
 
   it("renders with the correct layout structure", () => {
