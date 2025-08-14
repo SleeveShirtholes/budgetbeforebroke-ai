@@ -3,6 +3,7 @@ import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 
 import Navigation from "../Navigation";
+import { authClient } from "@/lib/auth-client";
 
 // Mock the auth client
 jest.mock("@/lib/auth-client", () => ({
@@ -15,11 +16,10 @@ jest.mock("@/lib/auth-client", () => ({
 const mockUseSession = jest.fn();
 const mockSignOut = jest.fn();
 
-// Get the mocked module
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const authClientModule = require("@/lib/auth-client");
-authClientModule.authClient.useSession = mockUseSession;
-authClientModule.authClient.signOut = mockSignOut;
+// Get the mocked module using jest.mocked for type safety
+const mockedAuthClient = jest.mocked(authClient);
+mockedAuthClient.useSession = mockUseSession;
+mockedAuthClient.signOut = mockSignOut;
 
 describe("Navigation Component", () => {
   beforeEach(() => {

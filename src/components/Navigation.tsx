@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Button from "./Button";
 import Avatar from "./Avatar";
 import Link from "next/link";
@@ -12,12 +13,15 @@ import {
 
 export default function Navigation() {
   const { data: session } = authClient.useSession();
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   const handleSignOut = async () => {
     try {
       await authClient.signOut();
+      setSignOutError(null);
     } catch (error) {
       console.error("Error signing out:", error);
+      setSignOutError("Failed to sign out. Please try again.");
     }
   };
 
@@ -133,6 +137,13 @@ export default function Navigation() {
             )}
           </div>
         </div>
+
+        {/* Error Message Display */}
+        {signOutError && (
+          <div className="absolute top-16 left-0 right-0 bg-red-50 border-b border-red-200 px-4 py-2">
+            <p className="text-red-600 text-sm text-center">{signOutError}</p>
+          </div>
+        )}
       </div>
     </nav>
   );
