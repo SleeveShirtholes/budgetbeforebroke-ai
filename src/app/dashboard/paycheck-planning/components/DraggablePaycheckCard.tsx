@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import {
   CurrencyDollarIcon,
@@ -8,6 +8,7 @@ import {
   PencilIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import Sortable from "sortablejs";
 
 import Card from "@/components/Card";
 import Button from "@/components/Button";
@@ -59,7 +60,6 @@ export default function DraggablePaycheckCard({
   movingDebtId,
 }: DraggablePaycheckCardProps) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [draggedDebtId, setDraggedDebtId] = useState<string | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingDebt, setPendingDebt] = useState<DebtInfo | null>(null);
   const [removingDebtId, setRemovingDebtId] = useState<string | null>(null);
@@ -72,89 +72,82 @@ export default function DraggablePaycheckCard({
     null,
   );
   const [markingAsPaidId, setMarkingAsPaidId] = useState<string | null>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   const hasInsufficientFunds = allocation.remainingAmount < 0;
   const hasRemainingBalance = allocation.remainingAmount > 0;
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
+  // Set up SortableJS for the drop zone
+  useEffect(() => {
+    if (!dropZoneRef.current) return;
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
+    const sortable = Sortable.create(dropZoneRef.current, {
+      group: {
+        name: "debts",
+        put: true, // Allow items to be put into this list
+      },
+      animation: 150,
+      ghostClass: "sortable-ghost",
+      chosenClass: "sortable-chosen",
+      dragClass: "sortable-drag",
+      onAdd: async (evt) => {
+        // Handle debt being dropped from outside
+        const debtId = evt.item.getAttribute("data-debt-id");
+        const fromPaycheckId = evt.item.getAttribute("data-from-paycheck");
 
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
+        if (debtId) {
+          // Remove the element added by SortableJS since we'll handle this through React state
+          evt.item.remove();
 
-    const debtId = e.dataTransfer.getData("debtId");
-    const fromPaycheckId = e.dataTransfer.getData("fromPaycheckId");
-    const paymentAmount = e.dataTransfer.getData("paymentAmount");
-    const paymentDate = e.dataTransfer.getData("paymentDate");
-    const debtName = e.dataTransfer.getData("debtName");
-    const debtAmount = e.dataTransfer.getData("debtAmount");
-    const debtDueDate = e.dataTransfer.getData("debtDueDate");
+          if (fromPaycheckId && fromPaycheckId !== paycheck.id) {
+            // This is a move from another paycheck - we need more info
+            const paymentAmount = evt.item.getAttribute("data-payment-amount");
+            const paymentDate = evt.item.getAttribute("data-payment-date");
+            const debtName = evt.item.getAttribute("data-debt-name");
+            const debtAmount = evt.item.getAttribute("data-debt-amount");
+            const debtDueDate = evt.item.getAttribute("data-debt-due-date");
 
-    if (debtId && draggedDebtId !== debtId) {
-      // Check if this debt is being moved from another paycheck
-      if (fromPaycheckId && fromPaycheckId !== paycheck.id) {
-        // Create a debt object from the drag data
-        const debt = {
-          id: debtId,
-          name: debtName,
-          amount: parseFloat(debtAmount),
-          dueDate: debtDueDate,
-          frequency: "",
-          description: "",
-          isRecurring: false,
-        };
+            const debt = {
+              id: debtId,
+              name: debtName || "",
+              amount: parseFloat(debtAmount || "0"),
+              dueDate: debtDueDate || "",
+              frequency: "",
+              description: "",
+              isRecurring: false,
+            };
 
-        // Set up editing state with current payment details
-        setEditingDebt({
-          debt: debt,
-          currentAmount: paymentAmount
-            ? parseFloat(paymentAmount)
-            : parseFloat(debtAmount),
-          currentDate: paymentDate || format(new Date(), "yyyy-MM-dd"),
-        });
-        setMoveFromPaycheckId(fromPaycheckId);
-        setIsPaymentModalOpen(true);
-      } else {
-        // Find the debt in unallocated debts (new allocation)
-        const debt = unallocatedDebts.find((d) => d.id === debtId);
-        if (debt) {
-          setPendingDebt(debt);
-          setIsPaymentModalOpen(true);
+            setEditingDebt({
+              debt: debt,
+              currentAmount: paymentAmount
+                ? parseFloat(paymentAmount)
+                : parseFloat(debtAmount || "0"),
+              currentDate: paymentDate || format(new Date(), "yyyy-MM-dd"),
+            });
+            setMoveFromPaycheckId(fromPaycheckId);
+            setIsPaymentModalOpen(true);
+          } else {
+            // Find the debt in unallocated debts (new allocation)
+            const debt = unallocatedDebts.find((d) => d.id === debtId);
+            if (debt) {
+              setPendingDebt(debt);
+              setIsPaymentModalOpen(true);
+            }
+          }
         }
-      }
-    }
-  };
+      },
+      onStart: () => {
+        setIsDragOver(true);
+      },
+      onEnd: () => {
+        setIsDragOver(false);
+      },
+    });
 
-  const handleDebtDragStart = (e: React.DragEvent, debtId: string) => {
-    e.dataTransfer.setData("debtId", debtId);
-    e.dataTransfer.setData("fromPaycheckId", paycheck.id);
-
-    // If this is an allocated debt, include its payment details and debt info
-    const allocatedDebt = allocation.allocatedDebts.find(
-      (d) => d.debtId === debtId,
-    );
-    if (allocatedDebt) {
-      e.dataTransfer.setData("paymentAmount", allocatedDebt.amount.toString());
-      e.dataTransfer.setData("paymentDate", allocatedDebt.paymentDate || "");
-      e.dataTransfer.setData("debtName", allocatedDebt.debtName);
-      e.dataTransfer.setData("debtAmount", allocatedDebt.amount.toString());
-      e.dataTransfer.setData("debtDueDate", allocatedDebt.dueDate);
-    }
-
-    setDraggedDebtId(debtId);
-  };
-
-  const handleDebtDragEnd = () => {
-    setDraggedDebtId(null);
-  };
+    return () => {
+      sortable.destroy();
+    };
+  }, [paycheck.id, unallocatedDebts, onDebtAllocated, onDebtMoved]);
 
   const handleRemoveDebt = async (debtId: string) => {
     setRemovingDebtId(debtId);
@@ -241,14 +234,10 @@ export default function DraggablePaycheckCard({
   };
 
   return (
-    <div
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
+    <div ref={dropZoneRef}>
       <Card
-        className={`transition-all duration-200 min-h-[200px] ${
-          isDragOver ? "bg-blue-50 shadow-lg" : ""
+        className={`transition-all duration-200 min-h-[200px] sortable-drop-zone ${
+          isDragOver ? "drag-over" : ""
         }`}
       >
         <div className="space-y-3 h-full flex flex-col">
@@ -306,9 +295,13 @@ export default function DraggablePaycheckCard({
                   return (
                     <div
                       key={debt.debtId}
-                      draggable={movingDebtId !== debt.debtId}
-                      onDragStart={(e) => handleDebtDragStart(e, debt.debtId)}
-                      onDragEnd={handleDebtDragEnd}
+                      data-debt-id={debt.debtId}
+                      data-from-paycheck={paycheck.id}
+                      data-payment-amount={debt.amount}
+                      data-payment-date={debt.paymentDate || ""}
+                      data-debt-name={debt.debtName}
+                      data-debt-amount={debt.amount}
+                      data-debt-due-date={debt.dueDate}
                       className={`relative p-2 rounded-md transition-colors ${
                         movingDebtId === debt.debtId
                           ? "opacity-50 cursor-not-allowed"

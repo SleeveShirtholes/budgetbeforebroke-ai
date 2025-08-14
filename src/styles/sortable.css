@@ -1,0 +1,45 @@
+/* SortableJS Styles */
+
+.sortable-ghost {
+  opacity: 0.4;
+  background: #c8ebfb;
+  border: 2px dashed #3b82f6 !important;
+  transform: rotate(5deg);
+}
+
+.sortable-chosen {
+  cursor: grabbing !important;
+  transform: scale(1.05);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+}
+
+.sortable-drag {
+  cursor: grabbing !important;
+  transform: rotate(5deg) scale(1.05);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+}
+
+/* Drop zone visual feedback */
+.sortable-drop-zone {
+  transition: all 0.2s ease;
+}
+
+.sortable-drop-zone.drag-over {
+  background-color: #dbeafe !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Improve mobile touch experience */
+@media (max-width: 768px) {
+  .sortable-chosen,
+  .sortable-drag {
+    transform: scale(1.1);
+  }
+
+  .sortable-ghost {
+    transform: rotate(3deg);
+  }
+}
