@@ -196,16 +196,16 @@ export function PhoneNumberManager({
             <h4 className="font-medium mb-2">Quick Commands:</h4>
             <ul className="text-sm text-gray-600 space-y-1">
               <li>
-                • <code>"Spent $25 on groceries"</code> - Add expense
+                • <code>"Spent $25 on groceries at Walmart"</code> - Add expense
               </li>
               <li>
-                • <code>"Income $500 freelance"</code> - Add income
+                • <code>"$50 gas at Shell yesterday"</code> - With date
+              </li>
+              <li>
+                • <code>"Income $500 freelance 12/15"</code> - Add income
               </li>
               <li>
                 • <code>"Budget groceries"</code> - Check category budget
-              </li>
-              <li>
-                • <code>"Budget"</code> - See all budgets
               </li>
               <li>
                 • <code>"help"</code> - Get full help menu
@@ -319,10 +319,11 @@ export function PhoneNumberManager({
         <div className="p-4 bg-gray-50 rounded-lg">
           <h4 className="font-medium mb-2">What you can do with SMS:</h4>
           <ul className="text-sm text-gray-600 space-y-1">
-            <li>• Add expenses and income instantly</li>
+            <li>• Add expenses and income with merchant & date</li>
             <li>• Check budget balances on the go</li>
             <li>• Get real-time spending alerts</li>
             <li>• Simple, natural language commands</li>
+            <li>• Support for flexible date formats</li>
           </ul>
         </div>
       </CardContent>

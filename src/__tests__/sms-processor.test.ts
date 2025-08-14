@@ -47,16 +47,17 @@ describe("SMS Message Processing", () => {
 // Example test data that would be used in real tests:
 const testMessages = [
   {
-    input: "Spent $25 on groceries",
+    input: "Spent $25 on groceries at Walmart",
     expected: {
       amount: 25.0,
       type: "expense",
       category: "groceries",
+      merchant: "Walmart",
       description: "Spent",
     },
   },
   {
-    input: "Income $500 freelance work",
+    input: "Income $500 freelance work 12/15",
     expected: {
       amount: 500.0,
       type: "income",
@@ -65,12 +66,23 @@ const testMessages = [
     },
   },
   {
-    input: "$30 lunch",
+    input: "$30 lunch at McDonald's yesterday",
     expected: {
       amount: 30.0,
       type: "expense",
       category: "lunch",
+      merchant: "McDonald's",
       description: "",
+    },
+  },
+  {
+    input: "Paid $50 for gas at Shell on Monday",
+    expected: {
+      amount: 50.0,
+      type: "expense",
+      category: "gas",
+      merchant: "Shell",
+      description: "Paid",
     },
   },
 ];

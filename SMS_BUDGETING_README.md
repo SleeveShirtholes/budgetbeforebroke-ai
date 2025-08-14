@@ -51,16 +51,16 @@ Users can send natural language messages to add transactions:
 
 **Expenses:**
 
-- `"Spent $25 on groceries"`
-- `"Paid $50 for gas"`
-- `"Bought $15 coffee"`
-- `"$30 for lunch"`
+- `"Spent $25 on groceries at Walmart"`
+- `"Paid $50 for gas at Shell yesterday"`
+- `"Bought $15 coffee at Starbucks"`
+- `"$30 lunch at McDonald's on Monday"`
 
 **Income:**
 
-- `"Income $500 freelance work"`
-- `"Earned $100 side hustle"`
-- `"Received $200 from mom"`
+- `"Income $500 freelance work 12/15"`
+- `"Earned $100 side hustle yesterday"`
+- `"Received $200 from mom 3 days ago"`
 
 ### Budget Commands
 
@@ -78,22 +78,39 @@ Users can send natural language messages to add transactions:
 
 - `"help"` or `"?"` - Shows complete help menu
 
+### Date Formats
+
+The system supports flexible date parsing:
+
+**Relative Dates:**
+- `yesterday`, `today`, `tomorrow`
+- `Monday`, `Tuesday`, etc. (assumes current/next week)
+- `3 days ago`, `1 week ago`
+
+**Absolute Dates:**
+- `12/15` (current year assumed)
+- `12/15/24` or `12/15/2024`
+- `MM/DD/YYYY` format
+
 ## Message Parsing
 
 The system uses intelligent parsing to extract:
 
 - **Amount**: Recognizes `$25`, `25`, `$25.50` formats
 - **Type**: Detects income vs expense keywords
-- **Category**: Extracts from prepositions (on, for, at) or description
-- **Description**: Remaining text after amount and category extraction
+- **Category**: Extracts from prepositions (on, for, in) or description
+- **Merchant**: Extracts from "at [merchant]" or "from [merchant]"
+- **Date**: Recognizes various date formats (yesterday, Monday, 12/15, etc.)
+- **Description**: Remaining text after extracting other components
 
 ### Examples:
 
-| Input                        | Amount | Type    | Category       | Description |
-| ---------------------------- | ------ | ------- | -------------- | ----------- |
-| "Spent $25 on groceries"     | 25.00  | expense | groceries      | Spent       |
-| "Income $500 freelance work" | 500.00 | income  | freelance work | Income      |
-| "$30 lunch meeting"          | 30.00  | expense | lunch meeting  | -           |
+| Input                                    | Amount | Type    | Category  | Merchant   | Date      | Description |
+| ---------------------------------------- | ------ | ------- | --------- | ---------- | --------- | ----------- |
+| "Spent $25 on groceries at Walmart"     | 25.00  | expense | groceries | Walmart    | today     | Spent       |
+| "Income $500 freelance work 12/15"      | 500.00 | income  | freelance | -          | 12/15     | Income      |
+| "$30 lunch at McDonald's yesterday"      | 30.00  | expense | lunch     | McDonald's | yesterday | -           |
+| "Paid $50 for gas at Shell on Monday"   | 50.00  | expense | gas       | Shell      | Monday    | Paid        |
 
 ## Response System
 
@@ -102,7 +119,7 @@ The system provides rich feedback:
 **Transaction Confirmation:**
 
 ```
-✅ Expense recorded: $25.00 - Spent (groceries)
+✅ Expense recorded: $25.00 - Spent at Walmart (groceries) on 12/15/2024
 
 💰 groceries budget remaining: $175.00
 ```

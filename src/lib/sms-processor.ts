@@ -22,6 +22,8 @@ export interface TransactionData {
   amount: number;
   description: string;
   category?: string;
+  merchant?: string;
+  date?: Date;
   type: "expense" | "income";
 }
 
@@ -128,10 +130,10 @@ async function handleTransactionCommand(
   const transactionData = parseTransactionMessage(message);
   if (!transactionData) {
     return `I couldn't parse that transaction. Please use formats like:
-• Spent $25 on groceries
-• Paid $50 for gas
-• Income $500 freelance work
-• Earned $100 side hustle`;
+• Spent $25 on groceries at Walmart
+• Paid $50 for gas at Shell yesterday
+• Income $500 freelance work 12/15
+• Earned $100 side hustle on Monday`;
   }
 
   try {
@@ -150,10 +152,13 @@ async function handleTransactionCommand(
       id: transactionId,
       budgetAccountId,
       categoryId,
+      createdByUserId: userId,
       amount: transactionData.amount.toString(),
       description: transactionData.description,
+      merchantName: transactionData.merchant,
       type: transactionData.type,
-      date: new Date(),
+      status: 'completed',
+      date: transactionData.date || new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -167,8 +172,14 @@ async function handleTransactionCommand(
     if (transactionData.description) {
       response += ` - ${transactionData.description}`;
     }
+    if (transactionData.merchant) {
+      response += ` at ${transactionData.merchant}`;
+    }
     if (transactionData.category) {
       response += ` (${transactionData.category})`;
+    }
+    if (transactionData.date && transactionData.date.toDateString() !== new Date().toDateString()) {
+      response += ` on ${transactionData.date.toLocaleDateString()}`;
     }
 
     if (budgetInfo && transactionData.type === "expense") {
@@ -257,7 +268,7 @@ Remaining: $${remaining.toFixed(2)}${remaining < 0 ? " (over budget)" : ""}`;
 }
 
 /**
- * Parse transaction message to extract amount, description, and category
+ * Parse transaction message to extract amount, description, category, merchant, and date
  */
 function parseTransactionMessage(message: string): TransactionData | null {
   const text = message.trim();
@@ -273,8 +284,55 @@ function parseTransactionMessage(message: string): TransactionData | null {
   const amount = parseFloat(amountMatch[1]);
   if (isNaN(amount) || amount <= 0) return null;
 
-  // Extract description and category
-  let description = text.replace(/\$?\d+(?:\.\d{2})?/, "").trim();
+  // Extract date if provided
+  let transactionDate: Date | undefined;
+  let workingText = text;
+  
+  // Try to extract date patterns (MM/DD, MM/DD/YY, MM/DD/YYYY, yesterday, today, etc.)
+  const datePatterns = [
+    // MM/DD/YYYY or MM/DD/YY format
+    /\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/,
+    // MM/DD format (current year assumed)
+    /\b(\d{1,2})\/(\d{1,2})\b/,
+    // Relative dates
+    /\b(yesterday|today|tomorrow)\b/i,
+    // Day names (this week assumed)
+    /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i,
+    // "X days ago"
+    /\b(\d+)\s+days?\s+ago\b/i,
+  ];
+
+  for (const pattern of datePatterns) {
+    const dateMatch = workingText.match(pattern);
+    if (dateMatch) {
+      transactionDate = parseDate(dateMatch[0]);
+      // Remove the date from the working text
+      workingText = workingText.replace(pattern, '').trim();
+      break;
+    }
+  }
+
+  // Extract merchant information
+  let merchant: string | undefined;
+  const merchantPatterns = [
+    // "at [merchant]" or "from [merchant]"
+    /\b(?:at|from)\s+([A-Za-z][A-Za-z0-9\s&'-]+?)(?:\s+(?:for|on|in)\s|\s*$)/i,
+    // Look for merchant after common prepositions
+    /\b(?:merchant|store|shop|restaurant|cafe|gas|grocery)\s+([A-Za-z][A-Za-z0-9\s&'-]+?)(?:\s+(?:for|on|in)\s|\s*$)/i,
+  ];
+
+  for (const pattern of merchantPatterns) {
+    const merchantMatch = workingText.match(pattern);
+    if (merchantMatch) {
+      merchant = merchantMatch[1].trim();
+      // Remove the merchant from the working text
+      workingText = workingText.replace(pattern, ' ').trim();
+      break;
+    }
+  }
+
+  // Extract description and category from remaining text
+  let description = workingText.replace(/\$?\d+(?:\.\d{2})?/, "").trim();
 
   // Remove common prefixes
   description = description
@@ -284,17 +342,18 @@ function parseTransactionMessage(message: string): TransactionData | null {
     )
     .trim();
 
-  // Try to extract category (last word or phrase after "on", "for", "at")
+  // Try to extract category (word or phrase after "on", "for", "in")
   let category = "";
-  const categoryMatch = description.match(/\b(?:on|for|at|from)\s+(.+)$/i);
+  const categoryMatch = description.match(/\b(?:on|for|in)\s+(.+?)(?:\s+(?:at|from)\s|\s*$)/i);
   if (categoryMatch) {
     category = categoryMatch[1].trim();
-    description = description.replace(/\b(?:on|for|at|from)\s+.+$/i, "").trim();
-  } else if (description) {
-    // Use the entire description as category if no specific preposition found
+    description = description.replace(/\b(?:on|for|in)\s+.+$/i, "").trim();
+  } else if (description && !merchant) {
+    // Use the entire description as category if no specific preposition found and no merchant
     const words = description.split(" ");
     if (words.length <= 2) {
       category = description;
+      description = "";
     } else {
       // Take last 1-2 words as category
       category = words.slice(-2).join(" ");
@@ -306,8 +365,91 @@ function parseTransactionMessage(message: string): TransactionData | null {
     amount,
     description: description || `${type} via SMS`,
     category: category || undefined,
+    merchant: merchant || undefined,
+    date: transactionDate,
     type,
   };
+}
+
+/**
+ * Parse date string into Date object
+ */
+function parseDate(dateStr: string): Date | undefined {
+  const today = new Date();
+  const now = new Date();
+  
+  // Handle relative dates
+  if (/yesterday/i.test(dateStr)) {
+    today.setDate(today.getDate() - 1);
+    return today;
+  }
+  
+  if (/today/i.test(dateStr)) {
+    return today;
+  }
+  
+  if (/tomorrow/i.test(dateStr)) {
+    today.setDate(today.getDate() + 1);
+    return today;
+  }
+  
+  // Handle "X days ago"
+  const daysAgoMatch = dateStr.match(/(\d+)\s+days?\s+ago/i);
+  if (daysAgoMatch) {
+    const daysAgo = parseInt(daysAgoMatch[1]);
+    today.setDate(today.getDate() - daysAgo);
+    return today;
+  }
+  
+  // Handle day names (assume current week)
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayMatch = dateStr.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i);
+  if (dayMatch) {
+    const targetDay = dayNames.indexOf(dayMatch[1].toLowerCase());
+    const currentDay = today.getDay();
+    let daysToAdd = targetDay - currentDay;
+    
+    // If the day already passed this week, assume next week
+    if (daysToAdd < 0) {
+      daysToAdd += 7;
+    }
+    
+    today.setDate(today.getDate() + daysToAdd);
+    return today;
+  }
+  
+  // Handle MM/DD/YYYY or MM/DD/YY format
+  const fullDateMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (fullDateMatch) {
+    let month = parseInt(fullDateMatch[1]) - 1; // JS months are 0-based
+    let day = parseInt(fullDateMatch[2]);
+    let year = parseInt(fullDateMatch[3]);
+    
+    // Handle 2-digit years
+    if (year < 100) {
+      year += year < 50 ? 2000 : 1900;
+    }
+    
+    const date = new Date(year, month, day);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+  }
+  
+  // Handle MM/DD format (current year)
+  const shortDateMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})/);
+  if (shortDateMatch) {
+    const month = parseInt(shortDateMatch[1]) - 1; // JS months are 0-based
+    const day = parseInt(shortDateMatch[2]);
+    const year = now.getFullYear();
+    
+    const date = new Date(year, month, day);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+  }
+  
+  return undefined;
 }
 
 /**
@@ -503,10 +645,11 @@ function getHelpMessage(): string {
   return `💡 SMS Budget Assistant Help
 
 📝 RECORD TRANSACTIONS:
-• "Spent $25 on groceries"
-• "Paid $50 for gas"
-• "Income $500 freelance work"
-• "Bought $15 coffee"
+• "Spent $25 on groceries at Walmart"
+• "Paid $50 for gas at Shell yesterday"
+• "Income $500 freelance work 12/15"
+• "Bought $15 coffee at Starbucks"
+• "$30 lunch at McDonald's on Monday"
 
 💰 CHECK BUDGETS:
 • "Budget groceries" - specific category
@@ -514,10 +657,15 @@ function getHelpMessage(): string {
 • "Balance gas" - check gas category
 
 🎯 TIPS:
+• Include merchant: "at [store name]"
+• Add dates: "yesterday", "Monday", "12/15", "3 days ago"
 • Use keywords: spent, paid, bought, income, earned
-• Include $ amount and description
 • Categories are auto-created if needed
 • All amounts in USD
+
+📅 DATE FORMATS:
+• Relative: yesterday, today, Monday, 3 days ago
+• Absolute: 12/15, 12/15/24, 12/15/2024
 
 Questions? Reply "help" anytime!`;
 }
