@@ -49,6 +49,9 @@ export default function OnboardingIncomePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [amountInputs, setAmountInputs] = useState<{ [key: number]: string }>(
+    {},
+  );
 
   const {
     register,
@@ -121,6 +124,7 @@ export default function OnboardingIncomePage() {
   };
 
   const addIncomeSource = () => {
+    const newIndex = fields.length;
     append({
       name: "",
       amount: 0,
@@ -128,6 +132,8 @@ export default function OnboardingIncomePage() {
       startDate: new Date(),
       notes: "",
     });
+    // Initialize amount input for new field
+    setAmountInputs((prev) => ({ ...prev, [newIndex]: "" }));
   };
 
   return (
@@ -191,14 +197,42 @@ export default function OnboardingIncomePage() {
                     placeholder="0.00"
                     error={errors.incomeSources?.[index]?.amount?.message}
                     value={
-                      watch(`incomeSources.${index}.amount`)?.toString() || ""
+                      amountInputs[index] ||
+                      watch(`incomeSources.${index}.amount`)?.toString() ||
+                      ""
                     }
-                    onChange={(value) =>
-                      setValue(
-                        `incomeSources.${index}.amount`,
-                        parseFloat(value) || 0,
-                      )
-                    }
+                    onChange={(value) => {
+                      // Update local state for input
+                      setAmountInputs((prev) => ({ ...prev, [index]: value }));
+
+                      // Only update form value if it's a valid number
+                      if (value === "") {
+                        setValue(`incomeSources.${index}.amount`, 0);
+                      } else if (value.endsWith(".")) {
+                        // Don't update form yet if ending with decimal point
+                        return;
+                      } else {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                          setValue(`incomeSources.${index}.amount`, numValue);
+                        }
+                      }
+                    }}
+                    onBlur={(value) => {
+                      // Convert to final number on blur
+                      if (value && value !== ".") {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                          setValue(`incomeSources.${index}.amount`, numValue);
+                          // Clear local input state
+                          setAmountInputs((prev) => {
+                            const newState = { ...prev };
+                            delete newState[index];
+                            return newState;
+                          });
+                        }
+                      }
+                    }}
                   />
 
                   <CustomSelect
