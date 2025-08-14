@@ -28,6 +28,7 @@ TWILIO_PHONE_NUMBER="+1234567890"
 ### 2. Webhook Configuration
 
 Configure your Twilio phone number webhook URL to point to:
+
 ```
 https://yourdomain.com/api/sms/webhook
 ```
@@ -49,12 +50,14 @@ Users need to add and verify their phone number through the web interface:
 Users can send natural language messages to add transactions:
 
 **Expenses:**
+
 - `"Spent $25 on groceries"`
 - `"Paid $50 for gas"`
 - `"Bought $15 coffee"`
 - `"$30 for lunch"`
 
 **Income:**
+
 - `"Income $500 freelance work"`
 - `"Earned $100 side hustle"`
 - `"Received $200 from mom"`
@@ -62,10 +65,12 @@ Users can send natural language messages to add transactions:
 ### Budget Commands
 
 **Check specific category:**
+
 - `"Budget groceries"`
 - `"Balance gas"`
 
 **Check all categories:**
+
 - `"Budget"`
 - `"Balance"`
 
@@ -76,6 +81,7 @@ Users can send natural language messages to add transactions:
 ## Message Parsing
 
 The system uses intelligent parsing to extract:
+
 - **Amount**: Recognizes `$25`, `25`, `$25.50` formats
 - **Type**: Detects income vs expense keywords
 - **Category**: Extracts from prepositions (on, for, at) or description
@@ -83,17 +89,18 @@ The system uses intelligent parsing to extract:
 
 ### Examples:
 
-| Input | Amount | Type | Category | Description |
-|-------|--------|------|----------|-------------|
-| "Spent $25 on groceries" | 25.00 | expense | groceries | Spent |
-| "Income $500 freelance work" | 500.00 | income | freelance work | Income |
-| "$30 lunch meeting" | 30.00 | expense | lunch meeting | - |
+| Input                        | Amount | Type    | Category       | Description |
+| ---------------------------- | ------ | ------- | -------------- | ----------- |
+| "Spent $25 on groceries"     | 25.00  | expense | groceries      | Spent       |
+| "Income $500 freelance work" | 500.00 | income  | freelance work | Income      |
+| "$30 lunch meeting"          | 30.00  | expense | lunch meeting  | -           |
 
 ## Response System
 
 The system provides rich feedback:
 
 **Transaction Confirmation:**
+
 ```
 ✅ Expense recorded: $25.00 - Spent (groceries)
 
@@ -101,6 +108,7 @@ The system provides rich feedback:
 ```
 
 **Budget Query Response:**
+
 ```
 💰 Groceries Budget:
 Allocated: $200.00
@@ -109,6 +117,7 @@ Remaining: $75.00
 ```
 
 **Budget Summary:**
+
 ```
 📊 Budget Summary (12/2024):
 
@@ -134,6 +143,7 @@ Entertainment: $15.00 remaining
 ## Database Changes
 
 The system uses existing schema with these key tables:
+
 - `user` - Stores user phone numbers
 - `transactions` - Transaction data
 - `categories` - Auto-created categories
@@ -143,11 +153,13 @@ The system uses existing schema with these key tables:
 ## API Endpoints
 
 ### SMS Webhook
+
 - **POST** `/api/sms/webhook`
 - Receives Twilio webhook requests
 - Processes SMS messages and returns TwiML responses
 
 ### Phone Management
+
 - **POST** `/api/user/phone` - Send verification code
 - **PATCH** `/api/user/phone` - Verify phone number
 - **DELETE** `/api/user/phone` - Remove phone number
@@ -155,7 +167,9 @@ The system uses existing schema with these key tables:
 ## Components
 
 ### PhoneNumberManager
+
 React component for phone number management:
+
 - Add phone number
 - Verify with SMS code
 - Remove phone number
@@ -164,6 +178,7 @@ React component for phone number management:
 ## Testing
 
 ### Development Testing
+
 1. Use [Twilio Console](https://console.twilio.com) to send test messages
 2. Use ngrok for local webhook testing:
    ```bash
@@ -172,6 +187,7 @@ React component for phone number management:
 3. Update Twilio webhook URL to ngrok URL
 
 ### Production Testing
+
 - Test all message formats
 - Verify webhook signature validation
 - Test error scenarios
@@ -182,16 +198,19 @@ React component for phone number management:
 ### Common Issues
 
 1. **Webhook not receiving messages**
+
    - Check Twilio webhook URL configuration
    - Verify HTTPS endpoint (required for production)
    - Check webhook logs in Twilio Console
 
 2. **Signature validation failing**
+
    - Ensure `TWILIO_AUTH_TOKEN` is correct
    - Check webhook URL matches exactly
    - Verify request method is POST
 
 3. **Messages not parsing**
+
    - Check message format examples
    - Ensure amount includes $ or numeric value
    - Try simpler message formats
@@ -220,6 +239,7 @@ React component for phone number management:
 ## Contributing
 
 When adding SMS features:
+
 1. Update message parsing in `sms-processor.ts`
 2. Add new response templates
 3. Update help message
