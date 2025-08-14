@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, UseFormSetValue } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Card from "@/components/Card";
@@ -45,10 +45,63 @@ const FREQUENCY_OPTIONS = [
   { value: "monthly", label: "Monthly" },
 ];
 
+/**
+ * Handles decimal input validation and conversion
+ * @param value - The input string value
+ * @param setValue - Function to set form value
+ * @param fieldPath - The form field path (e.g., "incomeSources.0.amount")
+ * @returns void
+ */
+const handleDecimalInputChange = (
+  value: string,
+  setValue: UseFormSetValue<IncomeFormData>,
+  fieldPath: `incomeSources.${number}.amount`,
+) => {
+  // Only update form value if it's a valid number
+  if (value === "") {
+    setValue(fieldPath, 0);
+  } else if (value.endsWith(".")) {
+    // Don't update form yet if ending with decimal point
+    return;
+  } else {
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue)) {
+      setValue(fieldPath, numValue);
+    }
+  }
+};
+
+/**
+ * Handles decimal input blur event for final validation
+ * @param value - The input string value
+ * @param setValue - Function to set form value
+ * @param fieldPath - The form field path
+ * @param clearLocalInput - Function to clear local input state
+ * @returns void
+ */
+const handleDecimalInputBlur = (
+  value: string,
+  setValue: UseFormSetValue<IncomeFormData>,
+  fieldPath: `incomeSources.${number}.amount`,
+  clearLocalInput: () => void,
+) => {
+  // Convert to final number on blur
+  if (value && value !== ".") {
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue)) {
+      setValue(fieldPath, numValue);
+      clearLocalInput();
+    }
+  }
+};
+
 export default function OnboardingIncomePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [amountInputs, setAmountInputs] = useState<{ [key: number]: string }>(
+    {},
+  );
 
   const {
     register,
@@ -121,6 +174,7 @@ export default function OnboardingIncomePage() {
   };
 
   const addIncomeSource = () => {
+    const newIndex = fields.length;
     append({
       name: "",
       amount: 0,
@@ -128,6 +182,8 @@ export default function OnboardingIncomePage() {
       startDate: new Date(),
       notes: "",
     });
+    // Initialize amount input for new field
+    setAmountInputs((prev) => ({ ...prev, [newIndex]: "" }));
   };
 
   return (
@@ -191,14 +247,36 @@ export default function OnboardingIncomePage() {
                     placeholder="0.00"
                     error={errors.incomeSources?.[index]?.amount?.message}
                     value={
-                      watch(`incomeSources.${index}.amount`)?.toString() || ""
+                      amountInputs[index] ||
+                      watch(`incomeSources.${index}.amount`)?.toString() ||
+                      ""
                     }
-                    onChange={(value) =>
-                      setValue(
+                    onChange={(value) => {
+                      // Update local state for input
+                      setAmountInputs((prev) => ({ ...prev, [index]: value }));
+
+                      // Only update form value if it's a valid number
+                      handleDecimalInputChange(
+                        value,
+                        setValue,
                         `incomeSources.${index}.amount`,
-                        parseFloat(value) || 0,
-                      )
-                    }
+                      );
+                    }}
+                    onBlur={(value) => {
+                      // Convert to final number on blur
+                      handleDecimalInputBlur(
+                        value,
+                        setValue,
+                        `incomeSources.${index}.amount`,
+                        () => {
+                          setAmountInputs((prev) => {
+                            const newState = { ...prev };
+                            delete newState[index];
+                            return newState;
+                          });
+                        },
+                      );
+                    }}
                   />
 
                   <CustomSelect
