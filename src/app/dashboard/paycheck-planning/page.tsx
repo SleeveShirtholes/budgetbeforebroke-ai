@@ -11,6 +11,18 @@ import {
   ArrowRightIcon,
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import Button from "@/components/Button";
 import Card from "@/components/Card";
@@ -24,10 +36,15 @@ import {
 } from "@/app/actions/paycheck-planning";
 import { useToast } from "@/components/Toast";
 import { formatDateSafely } from "@/utils/date";
+import { useDeviceDetection } from "@/hooks/useDeviceDetection";
 
 import DraggablePaycheckCard from "./components/DraggablePaycheckCard";
+import EnhancedPaycheckCard from "./components/EnhancedPaycheckCard";
+import DraggableDebtItem from "./components/DraggableDebtItem";
+import MobileDebtSelector from "./components/MobileDebtSelector";
 import DebtManagement from "./components/DebtManagement";
 import WarningsPanel from "./components/WarningsPanel";
+import type { DebtInfo } from "@/app/actions/paycheck-planning";
 
 /**
  * Enhanced PaycheckPlanningPage Component
@@ -46,7 +63,22 @@ export default function PaycheckPlanningPage() {
   const [isDebtsModalOpen, setIsDebtsModalOpen] = useState(false);
   const [movingDebtId, setMovingDebtId] = useState<string | null>(null);
   const [showMobileDetails, setShowMobileDetails] = useState(false);
+  const [activeDebt, setActiveDebt] = useState<DebtInfo | null>(null);
+
   const { showToast } = useToast();
+  const { isMobile, isTouchDevice } = useDeviceDetection();
+
+  // Configure sensors for dnd-kit
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   // Use the new debt allocation manager hook
   const {
@@ -353,6 +385,57 @@ export default function PaycheckPlanningPage() {
     setSelectedDate(new Date());
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    if (active.data.current?.type === "debt") {
+      setActiveDebt(active.data.current.debt);
+    }
+  };
+
+  const handleDragOver = () => {
+    // You can add visual feedback here if needed
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDebt(null);
+
+    if (!over || !active.data.current?.debt) return;
+
+    const debt = active.data.current.debt as DebtInfo;
+    const paycheckId = over.id as string;
+
+    try {
+      await handleDebtAllocated(
+        debt.id,
+        paycheckId,
+        debt.amount,
+        formatDateSafely(new Date(), "yyyy-MM-dd"),
+      );
+    } catch (error) {
+      console.error("Failed to allocate debt via drag and drop:", error);
+    }
+  };
+
+  // Mobile debt selection handlers
+  const handleMobileDebtSelect = () => {
+    // This can be extended later for additional mobile functionality
+  };
+
+  const handleMobileDebtAssign = async (
+    debtId: string,
+    paycheckId: string,
+    paymentAmount?: number,
+    paymentDate?: string,
+  ) => {
+    try {
+      await handleDebtAllocated(debtId, paycheckId, paymentAmount, paymentDate);
+    } catch (error) {
+      console.error("Failed to assign debt on mobile:", error);
+    }
+  };
+
   // Loading states
   if (isAccountsLoading) {
     return (
@@ -403,32 +486,72 @@ export default function PaycheckPlanningPage() {
     selectedDate.getFullYear() === new Date().getFullYear();
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="space-y-3">
-        {/* Mobile: Stacked Layout */}
-        <div className="block md:hidden">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Paycheck Planning
-          </h1>
-          <p className="text-gray-600 text-xs sm:text-sm">
-            {format(selectedDate, "MMMM yyyy")}
-          </p>
-        </div>
-
-        {/* Desktop: Title and Month Navigation on same row */}
-        <div className="hidden md:flex md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="space-y-3">
+          {/* Mobile: Stacked Layout */}
+          <div className="block md:hidden">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
               Paycheck Planning
             </h1>
-            <p className="text-gray-600 text-sm">
+            <p className="text-gray-600 text-xs sm:text-sm">
               {format(selectedDate, "MMMM yyyy")}
             </p>
           </div>
 
-          {/* Month Navigation - Right side on desktop */}
-          <div className="flex items-center space-x-2">
+          {/* Desktop: Title and Month Navigation on same row */}
+          <div className="hidden md:flex md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Paycheck Planning
+              </h1>
+              <p className="text-gray-600 text-sm">
+                {format(selectedDate, "MMMM yyyy")}
+              </p>
+            </div>
+
+            {/* Month Navigation - Right side on desktop */}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPreviousMonth}
+                className="p-2"
+              >
+                <ArrowLeftIcon className="h-4 w-4" />
+              </Button>
+
+              {!isCurrentMonth && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToCurrentMonth}
+                  className="text-xs px-3 py-2"
+                >
+                  Now
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToNextMonth}
+                className="p-2"
+              >
+                <ArrowRightIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Mobile: Month Navigation - Below Title */}
+          <div className="flex md:hidden items-center justify-center space-x-2">
             <Button
               variant="outline"
               size="sm"
@@ -460,561 +583,532 @@ export default function PaycheckPlanningPage() {
           </div>
         </div>
 
-        {/* Mobile: Month Navigation - Below Title */}
-        <div className="flex md:hidden items-center justify-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goToPreviousMonth}
-            className="p-2"
-          >
-            <ArrowLeftIcon className="h-4 w-4" />
-          </Button>
-
-          {!isCurrentMonth && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToCurrentMonth}
-              className="text-xs px-3 py-2"
-            >
-              Now
-            </Button>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goToNextMonth}
-            className="p-2"
-          >
-            <ArrowRightIcon className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Month Summary Card - Mobile Collapsible, Desktop Full */}
-      <Card className="p-3 sm:p-4">
-        <div className="space-y-3 sm:space-y-2">
-          {/* Header */}
-          <div className="text-center sm:text-left">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-1">
-              {format(selectedDate, "MMMM yyyy")} Summary
-            </h2>
-            <div className="flex items-center justify-center sm:justify-start space-x-3 text-xs text-gray-600">
-              <span className="flex items-center space-x-1">
-                <CurrencyDollarIcon className="h-3 w-3 text-green-500" />
-                <span>
-                  {paychecks.length} paycheck{paychecks.length !== 1 ? "s" : ""}
+        {/* Month Summary Card - Mobile Collapsible, Desktop Full */}
+        <Card className="p-3 sm:p-4">
+          <div className="space-y-3 sm:space-y-2">
+            {/* Header */}
+            <div className="text-center sm:text-left">
+              <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-1">
+                {format(selectedDate, "MMMM yyyy")} Summary
+              </h2>
+              <div className="flex items-center justify-center sm:justify-start space-x-3 text-xs text-gray-600">
+                <span className="flex items-center space-x-1">
+                  <CurrencyDollarIcon className="h-3 w-3 text-green-500" />
+                  <span>
+                    {paychecks.length} paycheck
+                    {paychecks.length !== 1 ? "s" : ""}
+                  </span>
                 </span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <ExclamationTriangleIcon className="h-3 w-3 text-red-500" />
-                <span>
-                  {debts.length} debt{debts.length !== 1 ? "s" : ""}
+                <span className="flex items-center space-x-1">
+                  <ExclamationTriangleIcon className="h-3 w-3 text-red-500" />
+                  <span>
+                    {debts.length} debt{debts.length !== 1 ? "s" : ""}
+                  </span>
                 </span>
-              </span>
-            </div>
-          </div>
-
-          {/* Mobile: Essential Metrics Only (Income + Remaining) */}
-          <div className="block sm:hidden">
-            <div className="grid grid-cols-2 gap-2">
-              {/* Income */}
-              <div className="flex flex-col items-center space-y-1 p-2 bg-green-50 rounded-lg border border-green-200">
-                <div className="p-1 bg-green-100 rounded-lg">
-                  <CurrencyDollarIcon className="h-4 w-4 text-green-600" />
-                </div>
-                <p className="text-xs font-medium text-gray-700 text-center">
-                  Total Income
-                </p>
-                <p className="text-base font-bold text-green-700">
-                  ${totalIncome.toLocaleString()}
-                </p>
-              </div>
-
-              {/* Remaining */}
-              <div className="flex flex-col items-center space-y-1 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
-                <div className="p-1 bg-emerald-100 rounded-lg">
-                  <CurrencyDollarIcon className="h-4 w-4 text-emerald-600" />
-                </div>
-                <p className="text-xs font-medium text-gray-700 text-center">
-                  Remaining
-                </p>
-                <p className="text-base font-bold text-emerald-700">
-                  ${totalRemaining.toLocaleString()}
-                </p>
               </div>
             </div>
 
-            {/* Expand Button for Mobile */}
-            <button
-              onClick={() => setShowMobileDetails(!showMobileDetails)}
-              className="w-full mt-2 p-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors flex items-center justify-center space-x-1"
-            >
-              <span>{showMobileDetails ? "Hide" : "Show"} Details</span>
-              <ChevronDownIcon
-                className={`h-3 w-3 transition-transform ${showMobileDetails ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {/* Mobile Details (Collapsible) */}
-            {showMobileDetails && (
-              <div className="mt-2 space-y-2">
-                {/* Debts */}
-                <div className="flex items-center justify-between p-2 bg-red-50 rounded-lg border border-red-200">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-1 bg-red-100 rounded-lg">
-                      <ExclamationTriangleIcon className="h-4 w-4 text-red-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-700">
-                        Total Debts
-                      </p>
-                      <p className="text-xs text-gray-500">Due this month</p>
-                    </div>
+            {/* Mobile: Essential Metrics Only (Income + Remaining) */}
+            <div className="block sm:hidden">
+              <div className="grid grid-cols-2 gap-2">
+                {/* Income */}
+                <div className="flex flex-col items-center space-y-1 p-2 bg-green-50 rounded-lg border border-green-200">
+                  <div className="p-1 bg-green-100 rounded-lg">
+                    <CurrencyDollarIcon className="h-4 w-4 text-green-600" />
                   </div>
-                  <p className="text-sm font-bold text-red-700">
-                    ${totalDebts.toLocaleString()}
+                  <p className="text-xs font-medium text-gray-700 text-center">
+                    Total Income
+                  </p>
+                  <p className="text-base font-bold text-green-700">
+                    ${totalIncome.toLocaleString()}
                   </p>
                 </div>
 
-                {/* Allocated */}
-                <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-1 bg-blue-100 rounded-lg">
-                      <CheckCircleIcon className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-700">
-                        Allocated
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {allocations?.reduce(
-                          (sum, a) => sum + a.allocatedDebts.length,
-                          0,
-                        ) || 0}{" "}
-                        payments
-                      </p>
-                    </div>
+                {/* Remaining */}
+                <div className="flex flex-col items-center space-y-1 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                  <div className="p-1 bg-emerald-100 rounded-lg">
+                    <CurrencyDollarIcon className="h-4 w-4 text-emerald-600" />
                   </div>
-                  <p className="text-sm font-bold text-blue-700">
+                  <p className="text-xs font-medium text-gray-700 text-center">
+                    Remaining
+                  </p>
+                  <p className="text-base font-bold text-emerald-700">
+                    ${totalRemaining.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Expand Button for Mobile */}
+              <button
+                onClick={() => setShowMobileDetails(!showMobileDetails)}
+                className="w-full mt-2 p-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors flex items-center justify-center space-x-1"
+              >
+                <span>{showMobileDetails ? "Hide" : "Show"} Details</span>
+                <ChevronDownIcon
+                  className={`h-3 w-3 transition-transform ${showMobileDetails ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {/* Mobile Details (Collapsible) */}
+              {showMobileDetails && (
+                <div className="mt-2 space-y-2">
+                  {/* Debts */}
+                  <div className="flex items-center justify-between p-2 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center space-x-2">
+                      <div className="p-1 bg-red-100 rounded-lg">
+                        <ExclamationTriangleIcon className="h-4 w-4 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-700">
+                          Total Debts
+                        </p>
+                        <p className="text-xs text-gray-500">Due this month</p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-bold text-red-700">
+                      ${totalDebts.toLocaleString()}
+                    </p>
+                  </div>
+
+                  {/* Allocated */}
+                  <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center space-x-2">
+                      <div className="p-1 bg-blue-100 rounded-lg">
+                        <CheckCircleIcon className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-700">
+                          Allocated
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {allocations?.reduce(
+                            (sum, a) => sum + a.allocatedDebts.length,
+                            0,
+                          ) || 0}{" "}
+                          payments
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-bold text-blue-700">
+                      ${totalAllocated.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop: Full 4-Metric Grid */}
+            <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+              {/* Income */}
+              <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center justify-center sm:justify-start space-x-2">
+                  <div className="p-1 bg-green-100 rounded-lg">
+                    <CurrencyDollarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                  </div>
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs sm:text-sm font-medium text-gray-700">
+                      Total Income
+                    </p>
+                    <p className="text-xs text-gray-500 hidden sm:block">
+                      From all paychecks
+                    </p>
+                  </div>
+                </div>
+                <div className="text-center sm:text-right">
+                  <p className="text-base sm:text-lg font-bold text-green-700">
+                    ${totalIncome.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Debts */}
+              <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-red-50 rounded-lg border border-red-200">
+                <div className="flex items-center justify-center sm:justify-start space-x-2">
+                  <div className="p-1 bg-red-100 rounded-lg">
+                    <ExclamationTriangleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                  </div>
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs sm:text-sm font-medium text-gray-700">
+                      Total Income
+                    </p>
+                    <p className="text-xs text-gray-500 hidden sm:block">
+                      Due this month
+                    </p>
+                  </div>
+                </div>
+                <div className="text-center sm:text-right">
+                  <p className="text-base sm:text-lg font-bold text-red-700">
+                    ${totalDebts.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Allocated */}
+              <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-center sm:justify-start space-x-2">
+                  <div className="p-1 bg-blue-100 rounded-lg">
+                    <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                  </div>
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs sm:text-sm font-medium text-gray-700">
+                      Allocated
+                    </p>
+                    <p className="text-xs text-gray-500 hidden sm:block">
+                      {allocations?.reduce(
+                        (sum, a) => sum + a.allocatedDebts.length,
+                        0,
+                      ) || 0}{" "}
+                      payments
+                    </p>
+                  </div>
+                </div>
+                <div className="text-center sm:text-right">
+                  <p className="text-base sm:text-lg font-bold text-blue-700">
                     ${totalAllocated.toLocaleString()}
                   </p>
                 </div>
               </div>
+
+              {/* Remaining */}
+              <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                <div className="flex items-center justify-center sm:justify-start space-x-2">
+                  <div className="p-1 bg-emerald-100 rounded-lg">
+                    <CurrencyDollarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
+                  </div>
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs sm:text-sm font-medium text-gray-700">
+                      Remaining
+                    </p>
+                    <p className="text-xs text-gray-500 hidden sm:block">
+                      After allocations
+                    </p>
+                  </div>
+                </div>
+                <div className="text-center sm:text-right">
+                  <p className="text-base sm:text-lg font-bold text-emerald-700">
+                    ${totalRemaining.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Main Content - Column Layout */}
+        <div className="space-y-4">
+          {/* Debts Section - Above Paychecks */}
+          <div className="space-y-2">
+            <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Available Debts
+              </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                {unallocatedDebts.length > 0 && (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span className="text-xs text-gray-500">
+                      {unallocatedDebts.length} to allocate
+                    </span>
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsDebtsModalOpen(true)}
+                  className="flex items-center justify-center space-x-1 px-3 py-2 sm:px-2 sm:py-1 text-sm sm:text-xs w-full sm:w-auto"
+                >
+                  <CurrencyDollarIcon className="h-4 w-4 sm:h-3 sm:w-3" />
+                  <span>Manage Debts</span>
+                </Button>
+              </div>
+            </div>
+
+            {unallocatedDebts.length === 0 ? (
+              <Card className="p-3">
+                <div className="text-center py-1">
+                  <CurrencyDollarIcon className="mx-auto h-4 w-4 text-gray-400 mb-1" />
+                  <h3 className="text-xs font-medium text-gray-900 mb-1">
+                    No Debts to Allocate
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    All debts have been allocated to paychecks.
+                  </p>
+                </div>
+              </Card>
+            ) : isMobile || isTouchDevice ? (
+              <MobileDebtSelector
+                debts={unallocatedDebts}
+                paychecks={paychecks}
+                onDebtAssigned={handleMobileDebtAssign}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-2">
+                {unallocatedDebts.map((debt) => (
+                  <DraggableDebtItem
+                    key={debt.id}
+                    debt={debt}
+                    onMobileSelect={handleMobileDebtSelect}
+                  />
+                ))}
+              </div>
             )}
           </div>
 
-          {/* Desktop: Full 4-Metric Grid */}
-          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-            {/* Income */}
-            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <div className="p-1 bg-green-100 rounded-lg">
-                  <CurrencyDollarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                </div>
-                <div className="text-center sm:text-left">
-                  <p className="text-xs sm:text-sm font-medium text-gray-700">
-                    Total Income
-                  </p>
-                  <p className="text-xs text-gray-500 hidden sm:block">
-                    From all paychecks
-                  </p>
-                </div>
-              </div>
-              <div className="text-center sm:text-right">
-                <p className="text-base sm:text-lg font-bold text-green-700">
-                  ${totalIncome.toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            {/* Debts */}
-            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-red-50 rounded-lg border border-red-200">
-              <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <div className="p-1 bg-red-100 rounded-lg">
-                  <ExclamationTriangleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
-                </div>
-                <div className="text-center sm:text-left">
-                  <p className="text-xs sm:text-sm font-medium text-gray-700">
-                    Total Income
-                  </p>
-                  <p className="text-xs text-gray-500 hidden sm:block">
-                    Due this month
-                  </p>
-                </div>
-              </div>
-              <div className="text-center sm:text-right">
-                <p className="text-base sm:text-lg font-bold text-red-700">
-                  ${totalDebts.toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            {/* Allocated */}
-            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <div className="p-1 bg-blue-100 rounded-lg">
-                  <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-                </div>
-                <div className="text-center sm:text-left">
-                  <p className="text-xs sm:text-sm font-medium text-gray-700">
-                    Allocated
-                  </p>
-                  <p className="text-xs text-gray-500 hidden sm:block">
-                    {allocations?.reduce(
-                      (sum, a) => sum + a.allocatedDebts.length,
-                      0,
-                    ) || 0}{" "}
-                    payments
-                  </p>
-                </div>
-              </div>
-              <div className="text-center sm:text-right">
-                <p className="text-base sm:text-lg font-bold text-blue-700">
-                  ${totalAllocated.toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            {/* Remaining */}
-            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
-              <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <div className="p-1 bg-emerald-100 rounded-lg">
-                  <CurrencyDollarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
-                </div>
-                <div className="text-center sm:text-left">
-                  <p className="text-xs sm:text-sm font-medium text-gray-700">
-                    Remaining
-                  </p>
-                  <p className="text-xs text-gray-500 hidden sm:block">
-                    After allocations
-                  </p>
-                </div>
-              </div>
-              <div className="text-center sm:text-right">
-                <p className="text-base sm:text-lg font-bold text-emerald-700">
-                  ${totalRemaining.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Main Content - Column Layout */}
-      <div className="space-y-4">
-        {/* Debts Section - Above Paychecks */}
-        <div className="space-y-2">
-          <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Available Debts
-            </h2>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-              {unallocatedDebts.length > 0 && (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-xs text-gray-500">
-                    {unallocatedDebts.length} to allocate
-                  </span>
-                </div>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsDebtsModalOpen(true)}
-                className="flex items-center justify-center space-x-1 px-3 py-2 sm:px-2 sm:py-1 text-sm sm:text-xs w-full sm:w-auto"
-              >
-                <CurrencyDollarIcon className="h-4 w-4 sm:h-3 sm:w-3" />
-                <span>Manage Debts</span>
-              </Button>
-            </div>
-          </div>
-
-          {unallocatedDebts.length === 0 ? (
-            <Card className="p-3">
-              <div className="text-center py-1">
-                <CurrencyDollarIcon className="mx-auto h-4 w-4 text-gray-400 mb-1" />
-                <h3 className="text-xs font-medium text-gray-900 mb-1">
-                  No Debts to Allocate
-                </h3>
-                <p className="text-xs text-gray-600">
-                  All debts have been allocated to paychecks.
-                </p>
-              </div>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-2">
-              {unallocatedDebts.map((debt) => {
-                // Check if debt is past due
-                const isPastDue = new Date(debt.dueDate) < new Date();
-
-                return (
-                  <div
-                    key={debt.id}
-                    className={`cursor-move hover:shadow-lg transition-shadow border-2 border-dashed rounded-lg p-3 sm:p-2 ${
-                      isPastDue
-                        ? "border-red-300 bg-red-50"
-                        : "border-yellow-300 bg-yellow-50"
-                    }`}
-                    draggable
-                    onDragStart={(e: React.DragEvent) => {
-                      e.dataTransfer.setData("debtId", debt.id);
-                    }}
-                  >
-                    <div className="space-y-2 sm:space-y-1">
-                      {/* Header with status indicator */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2 min-w-0 flex-1">
-                          <div
-                            className={`w-2 h-2 sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0 ${
-                              isPastDue ? "bg-red-500" : "bg-yellow-500"
-                            }`}
-                          ></div>
-                          <h3 className="text-sm sm:text-xs font-semibold text-gray-900 truncate">
-                            {debt.name}
-                          </h3>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm sm:text-xs font-bold text-gray-900">
-                            ${debt.amount.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Details and past due warning */}
-                      <div className="space-y-1">
-                        <p className="text-xs text-gray-600">
-                          {formatDateSafely(debt.dueDate, "MMM dd")} •{" "}
-                          {debt.frequency}
-                        </p>
-                        {isPastDue && (
-                          <div className="flex items-center gap-1.5 bg-red-100 border border-red-200 rounded-md px-2 py-1.5">
-                            <ExclamationTriangleIcon className="h-3.5 w-3.5 text-red-600 flex-shrink-0" />
-                            <span className="text-xs text-red-700 font-medium">
-                              Past Due
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {/* Warnings Panel - Above Paychecks */}
+          {warnings.length > 0 && (
+            <WarningsPanel
+              warnings={warnings}
+              budgetAccountId={selectedAccount.id}
+              onWarningDismissed={async () => {
+                try {
+                  // Refresh the data when a warning is dismissed
+                  await Promise.all([
+                    mutatePlanningData?.(),
+                    mutateAllocations?.(),
+                  ]);
+                  showToast("Warning dismissed", { type: "success" });
+                } catch (error) {
+                  console.error("Failed to dismiss warning:", error);
+                  showToast("Failed to dismiss warning", { type: "error" });
+                }
+              }}
+            />
           )}
-        </div>
 
-        {/* Warnings Panel - Above Paychecks */}
-        {warnings.length > 0 && (
-          <WarningsPanel
-            warnings={warnings}
-            budgetAccountId={selectedAccount.id}
-            onWarningDismissed={async () => {
-              try {
-                // Refresh the data when a warning is dismissed
-                await Promise.all([
-                  mutatePlanningData?.(),
-                  mutateAllocations?.(),
-                ]);
-                showToast("Warning dismissed", { type: "success" });
-              } catch (error) {
-                console.error("Failed to dismiss warning:", error);
-                showToast("Failed to dismiss warning", { type: "error" });
-              }
-            }}
-          />
-        )}
+          {/* Paychecks Section - Column Layout */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Paychecks for {format(selectedDate, "MMMM yyyy")}
+              </h2>
+            </div>
 
-        {/* Paychecks Section - Column Layout */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Paychecks for {format(selectedDate, "MMMM yyyy")}
-            </h2>
-          </div>
+            {paychecks.length === 0 ? (
+              <Card>
+                <div className="text-center py-4">
+                  <CalendarDaysIcon className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No Paychecks Found
+                  </h3>
+                  <p className="text-gray-600 mb-3">
+                    No paychecks are scheduled for{" "}
+                    {format(selectedDate, "MMMM yyyy")}.
+                  </p>
+                  <Button variant="primary" href="/dashboard/income">
+                    Add Income Source
+                  </Button>
+                </div>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {(() => {
+                  // Group paychecks by date
+                  const paychecksByDate = new Map<
+                    string,
+                    {
+                      paychecks: typeof paychecks;
+                      allocations: typeof allocations;
+                    }
+                  >();
 
-          {paychecks.length === 0 ? (
-            <Card>
-              <div className="text-center py-4">
-                <CalendarDaysIcon className="mx-auto h-10 w-10 text-gray-400 mb-2" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No Paychecks Found
-                </h3>
-                <p className="text-gray-600 mb-3">
-                  No paychecks are scheduled for{" "}
-                  {format(selectedDate, "MMMM yyyy")}.
-                </p>
-                <Button variant="primary" href="/dashboard/income">
-                  Add Income Source
-                </Button>
-              </div>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {(() => {
-                // Group paychecks by date
-                const paychecksByDate = new Map<
-                  string,
-                  {
-                    paychecks: typeof paychecks;
-                    allocations: typeof allocations;
-                  }
-                >();
+                  allocations?.forEach((allocation) => {
+                    const paycheck = paychecks.find(
+                      (p) => p.id === allocation.paycheckId,
+                    );
+                    if (!paycheck) return;
 
-                allocations?.forEach((allocation) => {
-                  const paycheck = paychecks.find(
-                    (p) => p.id === allocation.paycheckId,
-                  );
-                  if (!paycheck) return;
+                    const dateKey = format(paycheck.date, "yyyy-MM-dd");
+                    if (!paychecksByDate.has(dateKey)) {
+                      paychecksByDate.set(dateKey, {
+                        paychecks: [],
+                        allocations: [],
+                      });
+                    }
+                    const dateGroup = paychecksByDate.get(dateKey);
+                    if (dateGroup && dateGroup.allocations) {
+                      dateGroup.paychecks.push(paycheck);
+                      dateGroup.allocations.push(allocation);
+                    }
+                  });
 
-                  const dateKey = format(paycheck.date, "yyyy-MM-dd");
-                  if (!paychecksByDate.has(dateKey)) {
-                    paychecksByDate.set(dateKey, {
-                      paychecks: [],
-                      allocations: [],
-                    });
-                  }
-                  const dateGroup = paychecksByDate.get(dateKey);
-                  if (dateGroup && dateGroup.allocations) {
-                    dateGroup.paychecks.push(paycheck);
-                    dateGroup.allocations.push(allocation);
-                  }
-                });
+                  return Array.from(paychecksByDate.entries())
+                    .map(([dateKey, group]) => {
+                      if (!group || group.paychecks.length === 0) return null;
 
-                return Array.from(paychecksByDate.entries())
-                  .map(([dateKey, group]) => {
-                    if (!group || group.paychecks.length === 0) return null;
+                      if (group.paychecks.length === 1) {
+                        // Single paycheck on this date, render normally
+                        const paycheck = group.paychecks[0];
+                        const allocation = group.allocations?.[0];
 
-                    if (group.paychecks.length === 1) {
-                      // Single paycheck on this date, render normally
-                      const paycheck = group.paychecks[0];
-                      const allocation = group.allocations?.[0];
+                        if (!allocation) return null;
 
-                      if (!allocation) return null;
+                        return isMobile || isTouchDevice ? (
+                          <EnhancedPaycheckCard
+                            key={allocation.paycheckId}
+                            paycheck={paycheck}
+                            allocation={allocation}
+                            unallocatedDebts={unallocatedDebts}
+                            onDebtAllocated={handleDebtAllocated}
+                            onDebtUnallocated={handleDebtUnallocated}
+                            onDebtUpdated={handleDebtUpdated}
+                            onDebtMoved={handleDebtMoved}
+                            movingDebtId={movingDebtId}
+                            onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
+                          />
+                        ) : (
+                          <DraggablePaycheckCard
+                            key={allocation.paycheckId}
+                            paycheck={paycheck}
+                            allocation={allocation}
+                            unallocatedDebts={unallocatedDebts}
+                            onDebtAllocated={handleDebtAllocated}
+                            onDebtUnallocated={handleDebtUnallocated}
+                            onDebtUpdated={handleDebtUpdated}
+                            onDebtMoved={handleDebtMoved}
+                            movingDebtId={movingDebtId}
+                            onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
+                          />
+                        );
+                      } else {
+                        // Multiple paychecks on the same date, combine them
+                        const totalAmount = group.paychecks.reduce(
+                          (sum, p) => sum + p.amount,
+                          0,
+                        );
+                        const combinedNames = group.paychecks
+                          .map((p) => p.name)
+                          .join(" + ");
+                        const firstPaycheck = group.paychecks[0];
 
-                      return (
-                        <DraggablePaycheckCard
-                          key={allocation.paycheckId}
-                          paycheck={paycheck}
-                          allocation={allocation}
-                          unallocatedDebts={unallocatedDebts}
-                          onDebtAllocated={handleDebtAllocated}
-                          onDebtUnallocated={handleDebtUnallocated}
-                          onDebtUpdated={handleDebtUpdated}
-                          onDebtMoved={handleDebtMoved}
-                          movingDebtId={movingDebtId}
-                          onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
-                        />
-                      );
-                    } else {
-                      // Multiple paychecks on the same date, combine them
-                      const totalAmount = group.paychecks.reduce(
-                        (sum, p) => sum + p.amount,
-                        0,
-                      );
-                      const combinedNames = group.paychecks
-                        .map((p) => p.name)
-                        .join(" + ");
-                      const firstPaycheck = group.paychecks[0];
+                        // Combine all allocated debts from all paychecks on this date
+                        const combinedAllocatedDebts =
+                          group.allocations?.flatMap((a) => a.allocatedDebts) ||
+                          [];
+                        const totalAllocated = combinedAllocatedDebts.reduce(
+                          (sum, debt) => sum + debt.amount,
+                          0,
+                        );
 
-                      // Combine all allocated debts from all paychecks on this date
-                      const combinedAllocatedDebts =
-                        group.allocations?.flatMap((a) => a.allocatedDebts) ||
-                        [];
-                      const totalAllocated = combinedAllocatedDebts.reduce(
-                        (sum, debt) => sum + debt.amount,
-                        0,
-                      );
+                        const combinedAllocation = {
+                          paycheckId: `combined-${dateKey}`,
+                          paycheckDate: firstPaycheck.date, // Use Date object directly
+                          paycheckAmount: totalAmount,
+                          allocatedDebts: combinedAllocatedDebts,
+                          remainingAmount: totalAmount - totalAllocated,
+                        };
 
-                      const combinedAllocation = {
-                        paycheckId: `combined-${dateKey}`,
-                        paycheckDate: firstPaycheck.date, // Use Date object directly
-                        paycheckAmount: totalAmount,
-                        allocatedDebts: combinedAllocatedDebts,
-                        remainingAmount: totalAmount - totalAllocated,
-                      };
+                        const combinedPaycheck = {
+                          id: `combined-${dateKey}`,
+                          name: combinedNames,
+                          amount: totalAmount,
+                          date: firstPaycheck.date, // Use Date object directly
+                          frequency: firstPaycheck.frequency,
+                          userId: firstPaycheck.userId,
+                        };
 
-                      const combinedPaycheck = {
-                        id: `combined-${dateKey}`,
-                        name: combinedNames,
-                        amount: totalAmount,
-                        date: firstPaycheck.date, // Use Date object directly
-                        frequency: firstPaycheck.frequency,
-                        userId: firstPaycheck.userId,
-                      };
-
-                      return (
-                        <DraggablePaycheckCard
-                          key={`combined-${dateKey}`}
-                          paycheck={combinedPaycheck}
-                          allocation={combinedAllocation}
-                          unallocatedDebts={unallocatedDebts}
-                          onDebtAllocated={(
-                            debtId,
-                            paycheckId,
-                            paymentAmount,
-                            paymentDate,
-                          ) =>
-                            handleCombinedDebtAllocated(
+                        return isMobile || isTouchDevice ? (
+                          <EnhancedPaycheckCard
+                            key={`combined-${dateKey}`}
+                            paycheck={combinedPaycheck}
+                            allocation={combinedAllocation}
+                            unallocatedDebts={unallocatedDebts}
+                            onDebtAllocated={(
                               debtId,
-                              dateKey,
+                              paycheckId,
                               paymentAmount,
                               paymentDate,
-                            )
-                          }
-                          onDebtUnallocated={(debtId) =>
-                            handleCombinedDebtUnallocated(debtId, dateKey)
-                          }
-                          onDebtUpdated={handleDebtUpdated}
-                          onDebtMoved={handleDebtMoved}
-                          movingDebtId={movingDebtId}
-                          onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
-                        />
-                      );
-                    }
-                  })
-                  .filter(Boolean);
-              })()}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Debts Modal */}
-      <Modal
-        isOpen={isDebtsModalOpen}
-        onClose={() => setIsDebtsModalOpen(false)}
-        title="Debt Management"
-        footerButtons={
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setIsDebtsModalOpen(false)}
-            >
-              Close
-            </Button>
+                            ) =>
+                              handleCombinedDebtAllocated(
+                                debtId,
+                                dateKey,
+                                paymentAmount,
+                                paymentDate,
+                              )
+                            }
+                            onDebtUnallocated={(debtId) =>
+                              handleCombinedDebtUnallocated(debtId, dateKey)
+                            }
+                            onDebtUpdated={handleDebtUpdated}
+                            onDebtMoved={handleDebtMoved}
+                            movingDebtId={movingDebtId}
+                            onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
+                          />
+                        ) : (
+                          <DraggablePaycheckCard
+                            key={`combined-${dateKey}`}
+                            paycheck={combinedPaycheck}
+                            allocation={combinedAllocation}
+                            unallocatedDebts={unallocatedDebts}
+                            onDebtAllocated={(
+                              debtId,
+                              paycheckId,
+                              paymentAmount,
+                              paymentDate,
+                            ) =>
+                              handleCombinedDebtAllocated(
+                                debtId,
+                                dateKey,
+                                paymentAmount,
+                                paymentDate,
+                              )
+                            }
+                            onDebtUnallocated={(debtId) =>
+                              handleCombinedDebtUnallocated(debtId, dateKey)
+                            }
+                            onDebtUpdated={handleDebtUpdated}
+                            onDebtMoved={handleDebtMoved}
+                            movingDebtId={movingDebtId}
+                            onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
+                          />
+                        );
+                      }
+                    })
+                    .filter(Boolean);
+                })()}
+              </div>
+            )}
           </div>
-        }
-      >
-        <div className="space-y-4">
-          <DebtManagement
-            budgetAccountId={selectedAccount.id}
-            onDebtUpdate={async () => {
-              try {
-                // Refresh the data without closing the modal
-                await Promise.all([
-                  mutatePlanningData?.(),
-                  mutateAllocations?.(),
-                ]);
-              } catch (error) {
-                console.error("Failed to update debt:", error);
-                showToast("Failed to update debt", { type: "error" });
-              }
-            }}
-          />
         </div>
-      </Modal>
-    </div>
+
+        {/* Debts Modal */}
+        <Modal
+          isOpen={isDebtsModalOpen}
+          onClose={() => setIsDebtsModalOpen(false)}
+          title="Debt Management"
+          footerButtons={
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setIsDebtsModalOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <DebtManagement
+              budgetAccountId={selectedAccount.id}
+              onDebtUpdate={async () => {
+                try {
+                  // Refresh the data without closing the modal
+                  await Promise.all([
+                    mutatePlanningData?.(),
+                    mutateAllocations?.(),
+                  ]);
+                } catch (error) {
+                  console.error("Failed to update debt:", error);
+                  showToast("Failed to update debt", { type: "error" });
+                }
+              }}
+            />
+          </div>
+        </Modal>
+
+        {/* Drag Overlay */}
+        <DragOverlay>
+          {activeDebt ? <DraggableDebtItem debt={activeDebt} /> : null}
+        </DragOverlay>
+      </div>
+    </DndContext>
   );
 }
