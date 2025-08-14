@@ -63,6 +63,7 @@
     "swr": "^2.3.3",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "twilio": "^5.8.0",
     "zod": "^3.25.56",
     "zustand": "^5.0.4"
   },
@@ -81,6 +82,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/twilio": "^3.19.3",
     "autoprefixer": "^10.4.21",
     "babel-jest": "^30.0.0-beta.3",
     "clsx": "^2.1.1",
