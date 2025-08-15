@@ -85,7 +85,7 @@ export default function DraggablePaycheckCard({
         name: "debts",
         put: true,
       },
-      animation: 0,
+      animation: 150,
       ghostClass: "",
       chosenClass: "",
       dragClass: "",
