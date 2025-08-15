@@ -56,13 +56,8 @@ describe("WarningsPanel", () => {
     expect(screen.getByText("3 issues found")).toBeInTheDocument(); // Warning count
   });
 
-  it("displays all warnings when expanded", async () => {
-    const user = userEvent.setup();
+  it("displays all warnings", () => {
     render(<WarningsPanel {...defaultProps} />);
-
-    // Expand the panel
-    const expandButton = screen.getByRole("button", { name: "Expand" });
-    await user.click(expandButton);
 
     // Check that all warnings are displayed
     expect(
@@ -74,26 +69,17 @@ describe("WarningsPanel", () => {
     expect(screen.getByText("Payment is overdue")).toBeInTheDocument();
   });
 
-  it("collapses warnings when toggle button is clicked", async () => {
-    const user = userEvent.setup();
+  it("always displays warnings", () => {
     render(<WarningsPanel {...defaultProps} />);
 
-    // Expand the panel
-    const expandButton = screen.getByRole("button", { name: "Expand" });
-    await user.click(expandButton);
-
-    // Verify warnings are visible
+    // Verify warnings are always visible
     expect(
       screen.getByText("You have unpaid debts from last month"),
     ).toBeInTheDocument();
-
-    // Collapse the panel
-    await user.click(expandButton);
-
-    // Verify warnings are hidden
     expect(
-      screen.queryByText("You have unpaid debts from last month"),
-    ).not.toBeInTheDocument();
+      screen.getByText("Not enough funds to cover all debts"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Payment is overdue")).toBeInTheDocument();
   });
 
   it("displays warning count correctly", () => {
@@ -111,13 +97,8 @@ describe("WarningsPanel", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("displays warning severity indicators correctly", async () => {
-    const user = userEvent.setup();
+  it("displays warning severity indicators correctly", () => {
     render(<WarningsPanel {...defaultProps} />);
-
-    // Expand the panel
-    const expandButton = screen.getByRole("button", { name: "Expand" });
-    await user.click(expandButton);
 
     // Check for severity indicators (these would be icons or color coding)
     const warningElements = screen.getAllByText(
@@ -129,10 +110,6 @@ describe("WarningsPanel", () => {
   it("calls dismissWarning when dismiss button is clicked", async () => {
     const user = userEvent.setup();
     render(<WarningsPanel {...defaultProps} />);
-
-    // Expand the panel
-    const expandButton = screen.getByRole("button", { name: "Expand" });
-    await user.click(expandButton);
 
     // Click dismiss on the first warning
     const dismissButtons = screen.getAllByTitle("Dismiss warning");
@@ -148,10 +125,6 @@ describe("WarningsPanel", () => {
   it("calls onWarningDismissed after successful dismissal", async () => {
     const user = userEvent.setup();
     render(<WarningsPanel {...defaultProps} />);
-
-    // Expand the panel
-    const expandButton = screen.getByRole("button", { name: "Expand" });
-    await user.click(expandButton);
 
     // Click dismiss on a warning
     const dismissButtons = screen.getAllByTitle("Dismiss warning");
@@ -169,10 +142,6 @@ describe("WarningsPanel", () => {
 
     render(<WarningsPanel {...defaultProps} />);
 
-    // Expand the panel
-    const expandButton = screen.getByRole("button", { name: "Expand" });
-    await user.click(expandButton);
-
     // Click dismiss on a warning
     const dismissButtons = screen.getAllByTitle("Dismiss warning");
     await user.click(dismissButtons[0]);
@@ -183,13 +152,8 @@ describe("WarningsPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("displays different warning types with appropriate styling", async () => {
-    const user = userEvent.setup();
+  it("displays different warning types with appropriate styling", () => {
     render(<WarningsPanel {...defaultProps} />);
-
-    // Expand the panel
-    const expandButton = screen.getByRole("button", { name: "Expand" });
-    await user.click(expandButton);
 
     // Check that different warning types are displayed
     expect(
@@ -205,10 +169,6 @@ describe("WarningsPanel", () => {
     const user = userEvent.setup();
     render(<WarningsPanel {...defaultProps} />);
 
-    // Expand the panel
-    const expandButton = screen.getByRole("button", { name: "Expand" });
-    await user.click(expandButton);
-
     // Tab through dismiss buttons
     const dismissButtons = screen.getAllByTitle("Dismiss warning");
     await user.tab();
@@ -217,13 +177,9 @@ describe("WarningsPanel", () => {
     expect(dismissButtons[0]).toHaveFocus();
   });
 
-  it("maintains expanded state during interactions", async () => {
+  it("maintains state during interactions", async () => {
     const user = userEvent.setup();
     render(<WarningsPanel {...defaultProps} />);
-
-    // Expand the panel
-    const expandButton = screen.getByRole("button", { name: "Expand" });
-    await user.click(expandButton);
 
     // Verify warnings are visible
     expect(
@@ -234,7 +190,7 @@ describe("WarningsPanel", () => {
     const dismissButtons = screen.getAllByTitle("Dismiss warning");
     await user.click(dismissButtons[0]);
 
-    // Panel should remain expanded
+    // Panel should remain visible
     expect(
       screen.getByText("Not enough funds to cover all debts"),
     ).toBeInTheDocument();
@@ -252,13 +208,8 @@ describe("WarningsPanel", () => {
     expect(screen.getByText("25 issues found")).toBeInTheDocument();
   });
 
-  it("displays warning messages with proper formatting", async () => {
-    const user = userEvent.setup();
+  it("displays warning messages with proper formatting", () => {
     render(<WarningsPanel {...defaultProps} />);
-
-    // Expand the panel
-    const expandButton = screen.getByRole("button", { name: "Expand" });
-    await user.click(expandButton);
 
     // Check that warning messages are properly formatted
     const warningMessages = screen.getAllByText(
