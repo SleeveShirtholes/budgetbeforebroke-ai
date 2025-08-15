@@ -48,6 +48,7 @@ export default function PaycheckPlanningPage() {
   const [isDebtsModalOpen, setIsDebtsModalOpen] = useState(false);
   const [movingDebtId, setMovingDebtId] = useState<string | null>(null);
   const [showMobileDetails, setShowMobileDetails] = useState(false);
+  const [isWarningsExpanded, setIsWarningsExpanded] = useState(false);
   const { showToast } = useToast();
   const unallocatedDebtsRef = useRef<HTMLDivElement>(null);
 
@@ -545,29 +546,29 @@ export default function PaycheckPlanningPage() {
 
           {/* Mobile: Essential Metrics Only (Income + Remaining) */}
           <div className="block sm:hidden">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {/* Income */}
-              <div className="flex flex-col items-center space-y-1 p-2 bg-green-50 rounded-lg border border-green-200">
-                <div className="p-1 bg-green-100 rounded-lg">
-                  <CurrencyDollarIcon className="h-4 w-4 text-green-600" />
+              <div className="flex flex-col items-center space-y-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="p-1.5 bg-green-100 rounded-lg">
+                  <CurrencyDollarIcon className="h-5 w-5 text-green-600" />
                 </div>
-                <p className="text-xs font-medium text-gray-700 text-center">
+                <p className="text-sm font-medium text-gray-700 text-center">
                   Total Income
                 </p>
-                <p className="text-base font-bold text-green-700">
+                <p className="text-lg font-bold text-green-700">
                   ${totalIncome.toLocaleString()}
                 </p>
               </div>
 
               {/* Remaining */}
-              <div className="flex flex-col items-center space-y-1 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
-                <div className="p-1 bg-emerald-100 rounded-lg">
-                  <CurrencyDollarIcon className="h-4 w-4 text-emerald-600" />
+              <div className="flex flex-col items-center space-y-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                <div className="p-1.5 bg-emerald-100 rounded-lg">
+                  <CurrencyDollarIcon className="h-5 w-5 text-emerald-600" />
                 </div>
-                <p className="text-xs font-medium text-gray-700 text-center">
+                <p className="text-sm font-medium text-gray-700 text-center">
                   Remaining
                 </p>
-                <p className="text-base font-bold text-emerald-700">
+                <p className="text-lg font-bold text-emerald-700">
                   ${totalRemaining.toLocaleString()}
                 </p>
               </div>
@@ -576,46 +577,46 @@ export default function PaycheckPlanningPage() {
             {/* Expand Button for Mobile */}
             <button
               onClick={() => setShowMobileDetails(!showMobileDetails)}
-              className="w-full mt-2 p-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors flex items-center justify-center space-x-1"
+              className="w-full mt-3 p-3 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors flex items-center justify-center space-x-2"
             >
               <span>{showMobileDetails ? "Hide" : "Show"} Details</span>
               <ChevronDownIcon
-                className={`h-3 w-3 transition-transform ${showMobileDetails ? "rotate-180" : ""}`}
+                className={`h-4 w-4 transition-transform ${showMobileDetails ? "rotate-180" : ""}`}
               />
             </button>
 
             {/* Mobile Details (Collapsible) */}
             {showMobileDetails && (
-              <div className="mt-2 space-y-2">
+              <div className="mt-3 space-y-3">
                 {/* Debts */}
-                <div className="flex items-center justify-between p-2 bg-red-50 rounded-lg border border-red-200">
+                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
                   <div className="flex items-center space-x-2">
-                    <div className="p-1 bg-red-100 rounded-lg">
+                    <div className="p-1.5 bg-red-100 rounded-lg">
                       <ExclamationTriangleIcon className="h-4 w-4 text-red-600" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-gray-700">
+                      <p className="text-sm font-medium text-gray-700">
                         Total Debts
                       </p>
-                      <p className="text-xs text-gray-500">Due this month</p>
+                      <p className="text-sm text-gray-500">Due this month</p>
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-red-700">
+                  <p className="text-base font-bold text-red-700">
                     ${totalDebts.toLocaleString()}
                   </p>
                 </div>
 
                 {/* Allocated */}
-                <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <div className="flex items-center space-x-2">
-                    <div className="p-1 bg-blue-100 rounded-lg">
+                    <div className="p-1.5 bg-blue-100 rounded-lg">
                       <CheckCircleIcon className="h-4 w-4 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-gray-700">
+                      <p className="text-sm font-medium text-gray-700">
                         Allocated
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm text-gray-500">
                         {allocations?.reduce(
                           (sum, a) => sum + a.allocatedDebts.length,
                           0,
@@ -624,7 +625,7 @@ export default function PaycheckPlanningPage() {
                       </p>
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-blue-700">
+                  <p className="text-base font-bold text-blue-700">
                     ${totalAllocated.toLocaleString()}
                   </p>
                 </div>
@@ -633,62 +634,60 @@ export default function PaycheckPlanningPage() {
           </div>
 
           {/* Desktop: Full 4-Metric Grid */}
-          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* Income */}
-            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
               <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <div className="p-1 bg-green-100 rounded-lg">
+                <div className="p-1.5 bg-green-100 rounded-lg">
                   <CurrencyDollarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                 </div>
                 <div className="text-center sm:text-left">
-                  <p className="text-xs sm:text-sm font-medium text-gray-700">
+                  <p className="text-sm font-medium text-gray-700">
                     Total Income
                   </p>
-                  <p className="text-xs text-gray-500 hidden sm:block">
+                  <p className="text-sm text-gray-500 hidden sm:block">
                     From all paychecks
                   </p>
                 </div>
               </div>
               <div className="text-center sm:text-right">
-                <p className="text-base sm:text-lg font-bold text-green-700">
+                <p className="text-lg font-bold text-green-700">
                   ${totalIncome.toLocaleString()}
                 </p>
               </div>
             </div>
 
             {/* Debts */}
-            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-red-50 rounded-lg border border-red-200">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-3 bg-red-50 rounded-lg border border-red-200">
               <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <div className="p-1 bg-red-100 rounded-lg">
+                <div className="p-1.5 bg-red-100 rounded-lg">
                   <ExclamationTriangleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
                 </div>
                 <div className="text-center sm:text-left">
-                  <p className="text-xs sm:text-sm font-medium text-gray-700">
-                    Total Income
+                  <p className="text-sm font-medium text-gray-700">
+                    Total Debts
                   </p>
-                  <p className="text-xs text-gray-500 hidden sm:block">
+                  <p className="text-sm text-gray-500 hidden sm:block">
                     Due this month
                   </p>
                 </div>
               </div>
               <div className="text-center sm:text-right">
-                <p className="text-base sm:text-lg font-bold text-red-700">
+                <p className="text-lg font-bold text-red-700">
                   ${totalDebts.toLocaleString()}
                 </p>
               </div>
             </div>
 
             {/* Allocated */}
-            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <div className="p-1 bg-blue-100 rounded-lg">
+                <div className="p-1.5 bg-blue-100 rounded-lg">
                   <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                 </div>
                 <div className="text-center sm:text-left">
-                  <p className="text-xs sm:text-sm font-medium text-gray-700">
-                    Allocated
-                  </p>
-                  <p className="text-xs text-gray-500 hidden sm:block">
+                  <p className="text-sm font-medium text-gray-700">Allocated</p>
+                  <p className="text-sm text-gray-500 hidden sm:block">
                     {allocations?.reduce(
                       (sum, a) => sum + a.allocatedDebts.length,
                       0,
@@ -698,29 +697,27 @@ export default function PaycheckPlanningPage() {
                 </div>
               </div>
               <div className="text-center sm:text-right">
-                <p className="text-base sm:text-lg font-bold text-blue-700">
+                <p className="text-lg font-bold text-blue-700">
                   ${totalAllocated.toLocaleString()}
                 </p>
               </div>
             </div>
 
             {/* Remaining */}
-            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-2 bg-emerald-50 rounded-lg border border-emerald-200">
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
               <div className="flex items-center justify-center sm:justify-start space-x-2">
-                <div className="p-1 bg-emerald-100 rounded-lg">
+                <div className="p-1.5 bg-emerald-100 rounded-lg">
                   <CurrencyDollarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
                 </div>
                 <div className="text-center sm:text-left">
-                  <p className="text-xs sm:text-sm font-medium text-gray-700">
-                    Remaining
-                  </p>
-                  <p className="text-xs text-gray-500 hidden sm:block">
+                  <p className="text-sm font-medium text-gray-700">Remaining</p>
+                  <p className="text-sm text-gray-500 hidden sm:block">
                     After allocations
                   </p>
                 </div>
               </div>
               <div className="text-center sm:text-right">
-                <p className="text-base sm:text-lg font-bold text-emerald-700">
+                <p className="text-lg font-bold text-emerald-700">
                   ${totalRemaining.toLocaleString()}
                 </p>
               </div>
@@ -732,15 +729,15 @@ export default function PaycheckPlanningPage() {
       {/* Main Content - Column Layout */}
       <div className="space-y-4">
         {/* Debts Section - Above Paychecks */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-gray-900">
               Available Debts
             </h2>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               {unallocatedDebts.length > 0 && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-xs text-gray-500">
+                  <span className="text-sm text-gray-500">
                     {unallocatedDebts.length} to allocate
                   </span>
                 </div>
@@ -758,13 +755,13 @@ export default function PaycheckPlanningPage() {
           </div>
 
           {unallocatedDebts.length === 0 ? (
-            <Card className="p-3">
-              <div className="text-center py-1">
-                <CurrencyDollarIcon className="mx-auto h-4 w-4 text-gray-400 mb-1" />
-                <h3 className="text-xs font-medium text-gray-900 mb-1">
+            <Card className="p-6">
+              <div className="text-center py-4">
+                <CurrencyDollarIcon className="mx-auto h-8 w-8 text-gray-400 mb-3" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   No Debts to Allocate
                 </h3>
-                <p className="text-xs text-gray-600">
+                <p className="text-base text-gray-600">
                   All debts have been allocated to paychecks.
                 </p>
               </div>
@@ -772,7 +769,7 @@ export default function PaycheckPlanningPage() {
           ) : (
             <div
               ref={unallocatedDebtsRef}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-2"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
             >
               {unallocatedDebts.map((debt) => {
                 // Check if debt is past due
@@ -785,46 +782,44 @@ export default function PaycheckPlanningPage() {
                     data-debt-name={debt.name}
                     data-debt-amount={debt.amount}
                     data-debt-due-date={debt.dueDate}
-                    className={`cursor-move hover:shadow-lg transition-shadow border-2 border-dashed rounded-lg p-3 sm:p-2 ${
+                    className={`cursor-move hover:shadow-md transition-all duration-200 border-2 border-dashed rounded-md p-3 ${
                       isPastDue
-                        ? "border-red-300 bg-red-50"
-                        : "border-yellow-300 bg-yellow-50"
+                        ? "border-red-300 bg-red-50 hover:bg-red-100 hover:border-red-400"
+                        : "border-yellow-300 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-400"
                     }`}
                   >
-                    <div className="space-y-2 sm:space-y-1">
+                    <div className="space-y-2">
                       {/* Header with status indicator */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2 min-w-0 flex-1">
                           <div
-                            className={`w-2 h-2 sm:w-1.5 sm:h-1.5 rounded-full flex-shrink-0 ${
+                            className={`w-2 h-2 rounded-full flex-shrink-0 ${
                               isPastDue ? "bg-red-500" : "bg-yellow-500"
                             }`}
                           ></div>
-                          <h3 className="text-sm sm:text-xs font-semibold text-gray-900 truncate">
+                          <h3 className="text-sm font-semibold text-gray-900 truncate">
                             {debt.name}
                           </h3>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-sm sm:text-xs font-bold text-gray-900">
+                          <p className="text-sm font-bold text-gray-900">
                             ${debt.amount.toLocaleString()}
                           </p>
                         </div>
                       </div>
 
                       {/* Details and past due warning */}
-                      <div className="space-y-1">
-                        <p className="text-xs text-gray-600">
-                          {formatDateSafely(debt.dueDate, "MMM dd")} •{" "}
-                          {debt.frequency}
-                        </p>
-                        {isPastDue && (
-                          <div className="flex items-center gap-1.5 bg-red-100 border border-red-200 rounded-md px-2 py-1.5">
-                            <ExclamationTriangleIcon className="h-3.5 w-3.5 text-red-600 flex-shrink-0" />
-                            <span className="text-xs text-red-700 font-medium">
-                              Past Due
-                            </span>
-                          </div>
-                        )}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center space-x-2">
+                          <CalendarDaysIcon className="h-3 w-3 text-gray-500" />
+                          <p className="text-xs font-medium text-gray-700">
+                            {formatDateSafely(debt.dueDate, "MMM dd, yyyy")}
+                          </p>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-xs font-medium text-gray-700 capitalize">
+                            {debt.frequency}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -834,34 +829,49 @@ export default function PaycheckPlanningPage() {
           )}
         </div>
 
-        {/* Warnings Panel - Above Paychecks */}
-        {warnings.length > 0 && (
-          <WarningsPanel
-            warnings={warnings}
-            budgetAccountId={selectedAccount.id}
-            onWarningDismissed={async () => {
-              try {
-                // Refresh the data when a warning is dismissed
-                await Promise.all([
-                  mutatePlanningData?.(),
-                  mutateAllocations?.(),
-                ]);
-                showToast("Warning dismissed", { type: "success" });
-              } catch (error) {
-                console.error("Failed to dismiss warning:", error);
-                showToast("Failed to dismiss warning", { type: "error" });
-              }
-            }}
-          />
-        )}
-
         {/* Paychecks Section - Column Layout */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+            <h2 className="text-2xl font-semibold text-gray-900">
               Paychecks for {format(selectedDate, "MMMM yyyy")}
             </h2>
+            {warnings.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsWarningsExpanded(!isWarningsExpanded)}
+                className="flex items-center justify-center space-x-1 px-3 py-2 sm:px-2 sm:py-1 text-sm sm:text-xs w-full sm:w-auto text-amber-700 border-amber-300 hover:bg-amber-50 hover:border-amber-400"
+              >
+                <ExclamationTriangleIcon className="h-4 w-4 sm:h-3 sm:w-3" />
+                <span>
+                  {warnings.length} warning{warnings.length !== 1 ? "s" : ""}
+                </span>
+              </Button>
+            )}
           </div>
+
+          {/* Warnings Panel - Below Button when expanded */}
+          {isWarningsExpanded && warnings.length > 0 && (
+            <div className="mt-4">
+              <WarningsPanel
+                warnings={warnings}
+                budgetAccountId={selectedAccount.id}
+                onWarningDismissed={async () => {
+                  try {
+                    // Refresh the data when a warning is dismissed
+                    await Promise.all([
+                      mutatePlanningData?.(),
+                      mutateAllocations?.(),
+                    ]);
+                    showToast("Warning dismissed", { type: "success" });
+                  } catch (error) {
+                    console.error("Failed to dismiss warning", error);
+                    showToast("Failed to dismiss warning", { type: "error" });
+                  }
+                }}
+              />
+            </div>
+          )}
 
           {paychecks.length === 0 ? (
             <Card>
@@ -880,7 +890,7 @@ export default function PaycheckPlanningPage() {
               </div>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {(() => {
                 // Group paychecks by date
                 const paychecksByDate = new Map<

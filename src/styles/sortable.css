@@ -1,5 +1,6 @@
 /* SortableJS Styles */
 
+/* Allow normal ghost elements for unallocated debts (pull: clone) */
 .sortable-ghost {
   opacity: 0.4;
   background: #c8ebfb;
@@ -7,6 +8,24 @@
   transform: rotate(5deg);
 }
 
+/* Only hide problematic ghost elements that might cause layout issues */
+.sortable-ghost:empty,
+.sortable-ghost:not([class*="sortable-ghost"]) {
+  display: none !important;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+/* Allow normal chosen and drag states for unallocated debts */
 .sortable-chosen {
   cursor: grabbing !important;
   transform: scale(1.05);
@@ -16,20 +35,19 @@
 
 .sortable-drag {
   cursor: grabbing !important;
-  transform: rotate(5deg) scale(1.05);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+  transform: scale(1.05);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   z-index: 1000;
 }
 
-/* Drop zone visual feedback */
-.sortable-drop-zone {
-  transition: all 0.2s ease;
-}
-
-.sortable-drop-zone.drag-over {
-  background-color: #dbeafe !important;
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+/* Hide problematic ghost elements that might cause layout issues */
+.sortable-ghost-no-layout {
+  opacity: 0 !important;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
 }
 
 /* Improve mobile touch experience */
