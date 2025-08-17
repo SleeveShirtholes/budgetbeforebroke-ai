@@ -164,20 +164,6 @@ export default function DebtModal({
           </p>
         </div>
 
-        {/* Debug: Show validation errors if any */}
-        {Object.keys(errors).length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm text-red-700">
-              <strong>Please fix the following errors:</strong>
-            </p>
-            <ul className="mt-2 text-sm text-red-600">
-              {Object.entries(errors).map(([field, error]) => (
-                <li key={field}>• {error?.message}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         <TextField
           label="Name"
           {...register("name")}

@@ -587,14 +587,6 @@ export async function updateDebtAllocation(
   paymentAmount?: number,
   paymentDate?: string,
 ) {
-  console.log("updateDebtAllocation called with:", {
-    budgetAccountId,
-    debtId,
-    paycheckId,
-    action,
-    paymentAmount,
-    paymentDate,
-  });
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
   });
@@ -698,13 +690,7 @@ export async function updateDebtAllocation(
 
     // Now remove the allocation
     try {
-      console.log("Attempting to delete debt allocation with criteria:", {
-        debtId,
-        paycheckId,
-        budgetAccountId,
-      });
-
-      const result = await db
+      await db
         .delete(debtAllocations)
         .where(
           and(
@@ -713,8 +699,6 @@ export async function updateDebtAllocation(
             eq(debtAllocations.budgetAccountId, budgetAccountId),
           ),
         );
-
-      console.log("Delete result:", result);
     } catch (error) {
       console.error("Error deleting debt allocation:", error);
       throw new Error(

@@ -34,10 +34,10 @@ describe("EditDebtModal", () => {
     name: "Test Debt",
     paymentAmount: 500,
     interestRate: 5.5,
-    dueDate: "2024-02-15",
+    dueDate: "2025-12-15",
     hasBalance: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
+    createdAt: new Date("2025-01-01"),
+    updatedAt: new Date("2025-01-01"),
     payments: [],
   };
 
@@ -79,7 +79,7 @@ describe("EditDebtModal", () => {
     expect(screen.getByTestId("debt-name-input")).toHaveValue("Test Debt");
     expect(screen.getByTestId("debt-payment-amount-input")).toHaveValue("500");
     expect(screen.getByTestId("debt-due-date-input")).toHaveValue(
-      "Feb 15, 2024",
+      "Dec 15, 2025",
     );
   });
 
@@ -102,7 +102,7 @@ describe("EditDebtModal", () => {
       name: "Updated Debt Name",
       paymentAmount: 750,
       interestRate: 5.5, // From the mock debt data
-      dueDate: "2024-02-15", // Keep original date
+      dueDate: "2025-12-15", // Keep original date
       categoryId: "category-1", // From the mock debt data
     });
   });
@@ -187,7 +187,7 @@ describe("EditDebtModal", () => {
       name: "Test Debt",
       paymentAmount: 499.99,
       interestRate: 5.5, // From the mock debt data
-      dueDate: "2024-02-15",
+      dueDate: "2025-12-15",
       categoryId: "category-1", // From the mock debt data
     });
   });
@@ -246,7 +246,7 @@ describe("EditDebtModal", () => {
       name: "Credit Card & Bills (2024) - $500",
       paymentAmount: 500,
       interestRate: 5.5, // From the mock debt data
-      dueDate: "2024-02-15",
+      dueDate: "2025-12-15",
       categoryId: "category-1", // From the mock debt data
     });
   });
@@ -268,7 +268,7 @@ describe("EditDebtModal", () => {
       name: "Test Debt",
       paymentAmount: 0.01,
       interestRate: 5.5, // From the mock debt data
-      dueDate: "2024-02-15",
+      dueDate: "2025-12-15",
       categoryId: "category-1", // From the mock debt data
     });
   });

@@ -37,8 +37,13 @@ export const debtFormSchema = z.object({
     .min(1, "Due date is required")
     .refine((date) => {
       const selectedDate = new Date(date);
-      return !isNaN(selectedDate.getTime()); // Just ensure it's a valid date
-    }, "Please enter a valid date"),
+      if (isNaN(selectedDate.getTime())) return false; // Invalid date
+      // Compare only the date part (ignore time)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      selectedDate.setHours(0, 0, 0, 0);
+      return selectedDate >= today;
+    }, "Due date must be today or in the future"),
   hasBalance: z.boolean(),
 });
 

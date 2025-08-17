@@ -140,12 +140,7 @@ export default function AssignmentBasedInterface({
       );
 
       if (allocation) {
-        console.log("Removing debt allocation:", {
-          debtId,
-          paycheckId: allocation.paycheckId,
-        });
         await onDebtUnallocated(debtId, allocation.paycheckId);
-        console.log("Debt allocation removed successfully");
       } else {
         console.error("Could not find paycheck allocation for debt:", debtId);
         throw new Error("Could not find paycheck allocation for debt");
