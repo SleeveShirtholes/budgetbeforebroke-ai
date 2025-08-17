@@ -8,6 +8,7 @@ import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { SWRConfig } from "swr";
 import Footer from "@/components/Footer";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -49,6 +50,28 @@ export default async function RootLayout({
             </Suspense>
             <CookieConsentBanner />
             <Footer />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: "#363636",
+                  color: "#fff",
+                },
+                success: {
+                  duration: 3000,
+                  style: {
+                    background: "#10B981",
+                  },
+                },
+                error: {
+                  duration: 5000,
+                  style: {
+                    background: "#EF4444",
+                  },
+                },
+              }}
+            />
           </ToastProvider>
         </SWRConfig>
       </body>
