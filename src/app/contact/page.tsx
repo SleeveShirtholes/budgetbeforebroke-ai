@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import Footer from "@/components/Footer";
 import Navigation from "@/components/Navigation";
 import Card from "@/components/Card";
 import Input from "@/components/Forms/Input";
@@ -300,7 +299,6 @@ export default function ContactPage() {
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   );
 }

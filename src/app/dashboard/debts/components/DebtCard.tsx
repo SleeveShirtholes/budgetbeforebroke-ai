@@ -20,7 +20,7 @@ interface DebtCardProps {
 }
 
 /**
- * Card component that displays a recurring debt's information and payment history.
+ * Card component that displays a debt's information and payment history.
  * Features expandable payment history, edit/delete actions, and payment functionality.
  * Supports search highlighting and responsive layout for different screen sizes.
  */
@@ -60,7 +60,7 @@ export default function DebtCard({
                 }}
                 variant="text"
                 className="p-2"
-                aria-label="Edit Recurring"
+                aria-label="Edit Debt"
               >
                 <PencilIcon className="h-5 w-5" />
               </Button>
@@ -71,7 +71,7 @@ export default function DebtCard({
                 }}
                 variant="text"
                 className="p-2 text-red-500 hover:text-red-700"
-                aria-label="Delete Recurring"
+                aria-label="Delete Debt"
               >
                 <TrashIcon className="h-5 w-5" />
               </Button>
@@ -100,7 +100,7 @@ export default function DebtCard({
               variant="secondary"
               size="sm"
               className="w-full sm:w-auto"
-              aria-label="Pay Recurring"
+              aria-label="Pay Debt"
             >
               Record Payment
             </Button>

@@ -120,13 +120,11 @@ For incoming emails to work, you need to:
 ### **Common Issues**
 
 1. **Webhooks not receiving emails**
-
    - Check Resend webhook configuration
    - Verify domain MX records
    - Check webhook endpoint accessibility
 
 2. **Conversations not linking**
-
    - Verify conversation IDs in emails
    - Check email headers and formatting
    - Review webhook processing logs
@@ -147,18 +145,15 @@ Enable debug logging by checking:
 ## 🔄 **Workflow Example**
 
 1. **User submits contact form**
-
    - Creates submission with conversation ID
    - Sends confirmation email
 
 2. **Support responds**
-
    - Uses admin panel to send follow-up
    - Email includes conversation ID
    - Response stored in database
 
 3. **User replies**
-
    - Reply automatically processed via webhook
    - Added to conversation thread
    - Admin panel updates in real-time

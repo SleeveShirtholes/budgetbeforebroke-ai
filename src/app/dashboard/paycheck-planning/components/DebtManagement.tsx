@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { useForm } from "react-hook-form";
 import {
   PlusIcon,
   PencilIcon,
@@ -12,6 +11,7 @@ import Button from "@/components/Button";
 import Card from "@/components/Card";
 import { useToast } from "@/components/Toast";
 import { createDebt, getDebts, type Debt } from "@/app/actions/debt";
+import DebtModal from "@/components/DebtModal";
 
 import EditDebtModal from "./EditDebtModal";
 import DeleteDebtModal from "./DeleteDebtModal";
@@ -44,16 +44,6 @@ interface DebtManagementProps {
   onDebtUpdate: () => void;
 }
 
-interface DebtFormData {
-  name: string;
-  amount: number;
-  dueDate: string;
-  isRecurring: boolean;
-  frequency?: string;
-  description?: string;
-  hasBalance?: boolean;
-}
-
 export default function DebtManagement({
   budgetAccountId,
   onDebtUpdate,
@@ -61,25 +51,10 @@ export default function DebtManagement({
   const { showToast } = useToast();
   const [debts, setDebts] = useState<Debt[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isAddFormVisible, setIsAddFormVisible] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [deletingDebt, setDeletingDebt] = useState<Debt | null>(null);
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    reset,
-    formState: { errors },
-  } = useForm<DebtFormData>({
-    defaultValues: {
-      isRecurring: true,
-      frequency: "monthly",
-    },
-  });
-
-  const isRecurring = watch("isRecurring");
 
   // Fetch debts function
   const fetchDebts = useCallback(async () => {
@@ -105,12 +80,11 @@ export default function DebtManagement({
   );
 
   const handleAddDebt = () => {
-    setIsAddFormVisible(true);
+    setIsAddModalOpen(true);
   };
 
   const handleCancelAdd = () => {
-    setIsAddFormVisible(false);
-    reset();
+    setIsAddModalOpen(false);
     setError(null);
   };
 
@@ -122,34 +96,28 @@ export default function DebtManagement({
     setDeletingDebt(debt);
   };
 
-  const onSubmit = async (data: DebtFormData) => {
+  const handleSubmitNewDebt = async (data: {
+    name: string;
+    categoryId?: string;
+    paymentAmount: number;
+    interestRate: number;
+    dueDate: string;
+    hasBalance: boolean;
+  }) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      if (data.isRecurring) {
-        // For now, create as one-time debt with note about being recurring
-        // In a full implementation, you'd want to create a proper recurring transaction
-        await createDebt({
-          name: `${data.name} (${data.frequency || "monthly"})`,
-          paymentAmount: data.amount,
-          interestRate: 0,
-          dueDate: data.dueDate,
-          hasBalance: data.hasBalance || false,
-        });
-      } else {
-        // Create as one-time debt
-        await createDebt({
-          name: data.name,
-          paymentAmount: data.amount,
-          interestRate: 0, // Default to 0 for bills/payments
-          dueDate: data.dueDate,
-          hasBalance: data.hasBalance || false,
-        });
-      }
+      await createDebt({
+        name: data.name,
+        paymentAmount: data.paymentAmount,
+        interestRate: data.interestRate,
+        dueDate: data.dueDate,
+        hasBalance: data.hasBalance,
+        categoryId: data.categoryId || undefined,
+      });
 
-      reset();
-      setIsAddFormVisible(false);
+      setIsAddModalOpen(false);
       await fetchDebts(); // Refetch debts after creation
       onDebtUpdate();
       showToast("The debt has been added successfully.", { type: "success" });
@@ -191,172 +159,11 @@ export default function DebtManagement({
         </Button>
       </div>
 
-      {/* Add Debt Form */}
-      {isAddFormVisible && (
-        <Card className="border-2 border-blue-200 bg-blue-50">
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="space-y-4 sm:space-y-4"
-          >
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-800">{error}</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Name *
-                </label>
-                <input
-                  {...register("name", { required: "Name is required" })}
-                  type="text"
-                  id="name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="e.g., Rent, Credit Card, Utilities"
-                />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.name.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor="amount"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Amount *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-gray-500">$</span>
-                  <input
-                    {...register("amount", {
-                      required: "Amount is required",
-                      min: {
-                        value: 0.01,
-                        message: "Amount must be greater than 0",
-                      },
-                    })}
-                    type="number"
-                    step="0.01"
-                    id="amount"
-                    className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    placeholder="0.00"
-                  />
-                </div>
-                {errors.amount && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.amount.message}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label
-                  htmlFor="dueDate"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Due Date *
-                </label>
-                <input
-                  {...register("dueDate", { required: "Due date is required" })}
-                  type="date"
-                  id="dueDate"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
-                {errors.dueDate && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.dueDate.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Payment Type
-                </label>
-                <div className="flex items-center space-x-4">
-                  <label className="flex items-center">
-                    <input
-                      {...register("isRecurring")}
-                      type="checkbox"
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">
-                      Recurring payment
-                    </span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {isRecurring && (
-              <div>
-                <label
-                  htmlFor="frequency"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Frequency
-                </label>
-                <select
-                  {...register("frequency")}
-                  id="frequency"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Description (Optional)
-              </label>
-              <textarea
-                {...register("description")}
-                id="description"
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Additional notes about this payment..."
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleCancelAdd}
-                disabled={isLoading}
-                className="w-full sm:w-auto"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="sm"
-                isLoading={isLoading}
-                className="w-full sm:w-auto"
-              >
-                Add Debt
-              </Button>
-            </div>
-          </form>
-        </Card>
+      {/* Error display */}
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-800">{error}</p>
+        </div>
       )}
 
       {sortedDebts.length === 0 ? (
@@ -438,6 +245,16 @@ export default function DebtManagement({
           ))}
         </div>
       )}
+
+      {/* Add Debt Modal */}
+      <DebtModal
+        isOpen={isAddModalOpen}
+        onClose={handleCancelAdd}
+        budgetAccountId={budgetAccountId}
+        onSubmit={handleSubmitNewDebt}
+        isLoading={isLoading}
+        title="Add New Debt"
+      />
 
       {/* Modals */}
       {editingDebt && (

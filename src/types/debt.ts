@@ -29,6 +29,7 @@ export interface Debt {
   id: string;
   budgetAccountId: string;
   createdByUserId: string;
+  categoryId?: string;
   name: string;
   paymentAmount: number;
   interestRate: number;
@@ -47,6 +48,7 @@ export interface CreateDebtInput {
   interestRate: number;
   dueDate: string;
   hasBalance?: boolean;
+  categoryId?: string;
 }
 
 export interface UpdateDebtInput {
@@ -55,6 +57,7 @@ export interface UpdateDebtInput {
   paymentAmount: number;
   interestRate: number;
   dueDate: string;
+  categoryId?: string;
 }
 
 export interface CreateDebtPaymentInput {

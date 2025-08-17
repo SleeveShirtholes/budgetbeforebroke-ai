@@ -16,7 +16,7 @@ describe("PayModal", () => {
       <PayModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />,
     );
 
-    expect(screen.getByText("Pay Recurring")).toBeInTheDocument();
+    expect(screen.getByText("Pay Debt")).toBeInTheDocument();
     expect(screen.getByText("Cancel")).toBeInTheDocument();
     expect(screen.getByText("Record Payment")).toBeInTheDocument();
   });

@@ -4,11 +4,12 @@ import { and, eq, inArray } from "drizzle-orm";
 import {
   budgetAccountMembers,
   incomeSources,
-  recurringTransactions,
   debts,
   debtAllocations,
   dismissedWarnings,
   monthlyDebtPlanning,
+  categories,
+  transactions,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { db } from "@/db/config";
@@ -40,6 +41,7 @@ export interface DebtInfo {
   frequency: string;
   description?: string;
   isRecurring: boolean;
+  categoryId?: string;
 }
 
 export interface PaycheckPlanningData {
@@ -199,21 +201,9 @@ export async function getPaycheckPlanningData(
   // Sort paychecks by date
   paychecks.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // Get recurring transactions (debts) for the month
-  const recurringDebts = await db.query.recurringTransactions.findMany({
-    where: and(
-      eq(recurringTransactions.budgetAccountId, budgetAccountId),
-      eq(recurringTransactions.status, "active"),
-      // Include all active recurring transactions - we'll calculate their due dates
-    ),
-  });
-
-  // Get one-time debts - include all debts, not just those due this month
-  const oneTimeDebts = await db.query.debts.findMany({
-    where: and(
-      eq(debts.budgetAccountId, budgetAccountId),
-      // Include all debts, including those from previous months that are still unpaid
-    ),
+  // Get all debts for the budget account
+  const allDebts = await db.query.debts.findMany({
+    where: eq(debts.budgetAccountId, budgetAccountId),
   });
 
   // Get all debt allocations to check payment history
@@ -232,65 +222,8 @@ export async function getPaycheckPlanningData(
     }
   });
 
-  // Process recurring debts with proper due date calculation
-  const recurringDebtsWithDueDates = recurringDebts.map((debt) => {
-    // For recurring debts, calculate due date based on frequency and start date
-    // Don't use monthly planning as it can have incorrect due dates
-
-    const startDate = new Date(debt.startDate);
-    const startDay = startDate.getDate();
-
-    // Create the target month's due date
-    let targetMonth = new Date(year, month - 1, startDay);
-
-    // Check if this debt has been paid in previous months
-    const lastPayment = lastPaymentMap.get(debt.id);
-    if (lastPayment) {
-      // If the debt was paid in a previous month, advance the due date
-      const lastPaymentMonth = lastPayment.getMonth();
-      const lastPaymentYear = lastPayment.getFullYear();
-
-      // Calculate how many months to advance
-      let monthsToAdvance = 0;
-      if (year > lastPaymentYear) {
-        monthsToAdvance =
-          (year - lastPaymentYear) * 12 + (month - lastPaymentMonth - 1);
-      } else if (year === lastPaymentYear && month > lastPaymentMonth + 1) {
-        monthsToAdvance = month - lastPaymentMonth - 1;
-      }
-
-      if (monthsToAdvance > 0) {
-        targetMonth = new Date(
-          targetMonth.getFullYear(),
-          targetMonth.getMonth() + monthsToAdvance,
-          targetMonth.getDate(),
-        );
-      }
-    }
-
-    // If the target month's due date would be in the past, advance it by months
-    let dueDate = targetMonth;
-    while (dueDate < new Date()) {
-      dueDate = new Date(
-        dueDate.getFullYear(),
-        dueDate.getMonth() + 1,
-        dueDate.getDate(),
-      );
-    }
-
-    return {
-      id: debt.id,
-      name: debt.description || "Recurring Payment",
-      amount: Number(debt.amount),
-      dueDate: `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}-${String(dueDate.getDate()).padStart(2, "0")}`,
-      frequency: debt.frequency,
-      description: debt.description || undefined,
-      isRecurring: true,
-    };
-  });
-
-  // Process one-time debts with proper due date calculation
-  const oneTimeDebtsWithDueDates = oneTimeDebts.map(async (debt) => {
+  // Process all debts with proper due date calculation
+  const debtsWithDueDates = allDebts.map(async (debt) => {
     // For one-time debts, we need to calculate the effective due date for this month
     // based on the base due date and payment history, WITHOUT modifying the base debt
 
@@ -392,19 +325,17 @@ export async function getPaycheckPlanningData(
       frequency: "one-time",
       description: debt.name,
       isRecurring: false,
+      categoryId: debt.categoryId || undefined,
     };
   });
 
   // Wait for all async operations to complete
-  const resolvedOneTimeDebts = await Promise.all(oneTimeDebtsWithDueDates);
+  const resolvedDebts = await Promise.all(debtsWithDueDates);
 
-  const allDebts: DebtInfo[] = [
-    ...recurringDebtsWithDueDates,
-    ...resolvedOneTimeDebts,
-  ];
+  const processedDebts: DebtInfo[] = resolvedDebts;
 
   // Generate warnings
-  const warnings = generateWarnings(paychecks, allDebts);
+  const warnings = generateWarnings(paychecks, processedDebts);
 
   // Get dismissed warnings and filter them out
   const dismissedWarnings = await getDismissedWarnings(budgetAccountId);
@@ -419,7 +350,7 @@ export async function getPaycheckPlanningData(
 
   return {
     paychecks,
-    debts: allDebts,
+    debts: processedDebts,
     warnings: filteredWarnings,
   };
 }
@@ -727,18 +658,53 @@ export async function updateDebtAllocation(
           .where(eq(debtAllocations.id, existingAllocation.id));
       }
     }
-  } else {
-    // Remove allocation - payment information is stored directly in the allocation
-    // so deleting the allocation removes everything
-    await db
-      .delete(debtAllocations)
-      .where(
-        and(
-          eq(debtAllocations.debtId, debtId),
-          eq(debtAllocations.paycheckId, paycheckId),
-          eq(debtAllocations.budgetAccountId, budgetAccountId),
-        ),
+  } else if (action === "unallocate") {
+    // First, check if this allocation was marked as paid
+    // If so, we need to delete the corresponding transaction
+    const existingAllocation = await db.query.debtAllocations.findFirst({
+      where: and(
+        eq(debtAllocations.debtId, debtId),
+        eq(debtAllocations.paycheckId, paycheckId),
+        eq(debtAllocations.budgetAccountId, budgetAccountId),
+      ),
+    });
+
+    if (existingAllocation && existingAllocation.isPaid) {
+      // Find the debt to get its name for transaction identification
+      const debt = await db.query.debts.findFirst({
+        where: eq(debts.id, debtId),
+      });
+
+      if (debt) {
+        // Delete the corresponding transaction using the foreign key
+        await db
+          .delete(transactions)
+          .where(
+            and(
+              eq(transactions.budgetAccountId, budgetAccountId),
+              eq(transactions.debtId, debt.id),
+            ),
+          );
+      }
+    }
+
+    // Now remove the allocation
+    try {
+      await db
+        .delete(debtAllocations)
+        .where(
+          and(
+            eq(debtAllocations.debtId, debtId),
+            eq(debtAllocations.paycheckId, paycheckId),
+            eq(debtAllocations.budgetAccountId, budgetAccountId),
+          ),
+        );
+    } catch (error) {
+      console.error("Error deleting debt allocation:", error);
+      throw new Error(
+        `Failed to delete debt allocation: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
+    }
   }
 
   return { success: true };
@@ -781,48 +747,25 @@ export async function getDebtAllocations(budgetAccountId: string) {
 export async function getAllDebtsForBudgetAccount(
   budgetAccountId: string,
 ): Promise<PaycheckPlanningData> {
-  // Get all recurring transactions
-  const recurringDebts = await db.query.recurringTransactions.findMany({
-    where: and(
-      eq(recurringTransactions.budgetAccountId, budgetAccountId),
-      eq(recurringTransactions.status, "active"),
-    ),
-  });
-
-  // Get all one-time debts (no date filtering)
-  const oneTimeDebts = await db.query.debts.findMany({
+  // Get all debts for the budget account
+  const allDebts = await db.query.debts.findMany({
     where: eq(debts.budgetAccountId, budgetAccountId),
   });
 
   // Convert to common format
-  const recurringDebtsWithDueDates = recurringDebts.map((debt) => ({
+  const processedDebts: DebtInfo[] = allDebts.map((debt) => ({
     id: debt.id,
-    name: debt.description || "Recurring Payment",
-    amount: Number(debt.amount),
-    // Fix timezone issue: manually construct date string instead of using toISOString()
-    // This prevents the date from shifting due to timezone conversion
-    dueDate: `${debt.startDate.getFullYear()}-${String(debt.startDate.getMonth() + 1).padStart(2, "0")}-${String(debt.startDate.getDate()).padStart(2, "0")}`,
-    frequency: debt.frequency,
-    description: debt.description || undefined,
-    isRecurring: true,
+    name: debt.name,
+    amount: Number(debt.paymentAmount),
+    dueDate: debt.dueDate,
+    frequency: "one-time",
+    description: debt.name,
+    isRecurring: false,
   }));
-
-  const allDebts: DebtInfo[] = [
-    ...recurringDebtsWithDueDates,
-    ...oneTimeDebts.map((debt) => ({
-      id: debt.id,
-      name: debt.name,
-      amount: Number(debt.paymentAmount),
-      dueDate: debt.dueDate,
-      frequency: "one-time",
-      description: debt.name,
-      isRecurring: false,
-    })),
-  ];
 
   return {
     paychecks: [], // No paychecks needed for debt management
-    debts: allDebts,
+    debts: processedDebts,
     warnings: [], // No warnings needed for debt management
   };
 }
@@ -938,6 +881,8 @@ export async function markPaymentAsPaid(
   budgetAccountId: string,
   debtId: string,
   paymentId: string,
+  paymentAmount?: number,
+  paymentDate?: string,
 ) {
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
@@ -988,9 +933,14 @@ export async function markPaymentAsPaid(
     .set({
       isPaid: true,
       paidAt: new Date(),
-      // Set paymentDate if it's not already set (for payments made without advance scheduling)
+      // Update payment amount and date if provided, otherwise use existing values
+      paymentAmount: paymentAmount
+        ? paymentAmount.toString()
+        : allocation.paymentAmount,
       paymentDate:
-        allocation.paymentDate || new Date().toISOString().split("T")[0],
+        paymentDate ||
+        allocation.paymentDate ||
+        new Date().toISOString().split("T")[0],
       updatedAt: new Date(),
     })
     .where(eq(debtAllocations.id, paymentId));
@@ -1004,60 +954,100 @@ export async function markPaymentAsPaid(
     })
     .where(eq(debts.id, debtId));
 
-  // For recurring debts, we need to create a new monthly planning record for the next month
-  // The current month's due date will remain unchanged in the monthlyDebtPlanning table
-  // preserving historical data
-  // Check if this debt is a recurring transaction
-  const recurringTransaction = await db.query.recurringTransactions.findFirst({
-    where: eq(recurringTransactions.id, debtId),
+  // Create a transaction for this debt payment
+  // First, find or create a "Debts" category for the budget account
+  let debtsCategory = await db.query.categories.findFirst({
+    where: and(
+      eq(categories.budgetAccountId, budgetAccountId),
+      eq(categories.name, "Debts"),
+    ),
   });
 
-  if (
-    recurringTransaction &&
-    recurringTransaction.frequency &&
-    recurringTransaction.frequency !== "one-time"
-  ) {
-    // Calculate the next month
-    const currentDate = new Date();
-    const nextMonth = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth() + 1,
-      1,
-    );
-    const nextYear = nextMonth.getFullYear();
-    const nextMonthNum = nextMonth.getMonth() + 1; // getMonth() returns 0-11, so add 1
-
-    // Create or update the monthly planning for the next month
-    await getOrCreateMonthlyDebtPlanning(
-      budgetAccountId,
-      debtId,
-      nextYear,
-      nextMonthNum,
-    );
-  } else {
-    // This is a one-time debt
-    // DO NOT modify the base debt.dueDate - this preserves payment history
-    // Instead, create monthly planning for the next month to track due date advancement
-
-    // Calculate the next month after the current payment
-    const currentDate = new Date();
-    const nextMonth = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth() + 1,
-      1,
-    );
-    const nextYear = nextMonth.getFullYear();
-    const nextMonthNum = nextMonth.getMonth() + 1; // getMonth() returns 0-11, so add 1
-
-    // Create monthly planning for the next month to track the advanced due date
-    // The base debt.dueDate remains unchanged (August 1st)
-    await getOrCreateMonthlyDebtPlanning(
-      budgetAccountId,
-      debtId,
-      nextYear,
-      nextMonthNum,
-    );
+  // If no "Debts" category exists, create one
+  if (!debtsCategory) {
+    const [newCategory] = await db
+      .insert(categories)
+      .values({
+        id: Math.random().toString(36).substring(2) + Date.now().toString(36),
+        budgetAccountId,
+        name: "Debts",
+        description: "Debt payments and loan repayments",
+        color: "#ef4444", // Red color for debts
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    debtsCategory = newCategory;
   }
+
+  // Determine the payment amount and date for the transaction
+  const finalPaymentAmount =
+    paymentAmount ||
+    Number(allocation.paymentAmount) ||
+    Number(debt.paymentAmount);
+  const finalPaymentDate =
+    paymentDate ||
+    allocation.paymentDate ||
+    new Date().toISOString().split("T")[0];
+
+  // Create the transaction
+  // Use the debt's category if available, otherwise fall back to a "Debts" category
+  let categoryId = debt.categoryId;
+
+  if (!categoryId) {
+    // Fall back to creating/finding a "Debts" category
+    const debtsCategory = await db.query.categories.findFirst({
+      where: and(
+        eq(categories.budgetAccountId, budgetAccountId),
+        eq(categories.name, "Debts"),
+      ),
+    });
+
+    if (debtsCategory) {
+      categoryId = debtsCategory.id;
+    }
+  }
+
+  if (categoryId) {
+    await db.insert(transactions).values({
+      id: Math.random().toString(36).substring(2) + Date.now().toString(36),
+      budgetAccountId,
+      categoryId,
+      createdByUserId: sessionResult.user.id,
+      debtId: debt.id, // Add the foreign key reference
+      amount: finalPaymentAmount.toString(),
+      description: `Debt payment: ${debt.name}`,
+      date: new Date(finalPaymentDate),
+      type: "expense",
+      status: "completed",
+      merchantName: debt.name,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  // For all debts, create a new monthly planning record for the next month
+  // The current month's due date will remain unchanged in the monthlyDebtPlanning table
+  // preserving historical data
+
+  // Calculate the next month after the current payment
+  const currentDate = new Date();
+  const nextMonth = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + 1,
+    1,
+  );
+  const nextYear = nextMonth.getFullYear();
+  const nextMonthNum = nextMonth.getMonth() + 1; // getMonth() returns 0-11, so add 1
+
+  // Create monthly planning for the next month to track the advanced due date
+  // The base debt.dueDate remains unchanged
+  await getOrCreateMonthlyDebtPlanning(
+    budgetAccountId,
+    debtId,
+    nextYear,
+    nextMonthNum,
+  );
 
   return { success: true };
 }
@@ -1149,18 +1139,9 @@ export async function initializeMonthlyDebtPlanning(
   month: number,
 ) {
   // Get all debts for this budget account
-  const recurringDebts = await db.query.recurringTransactions.findMany({
-    where: and(
-      eq(recurringTransactions.budgetAccountId, budgetAccountId),
-      eq(recurringTransactions.status, "active"),
-    ),
-  });
-
-  const oneTimeDebts = await db.query.debts.findMany({
+  const allDebts = await db.query.debts.findMany({
     where: eq(debts.budgetAccountId, budgetAccountId),
   });
-
-  const allDebts = [...recurringDebts, ...oneTimeDebts];
 
   // Get or create monthly planning for each debt
   const monthlyPlanningPromises = allDebts.map((debt) =>

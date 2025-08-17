@@ -31,6 +31,7 @@ export interface CustomDatePickerProps {
   id?: string;
   required?: boolean;
   disabled?: boolean;
+  "data-testid"?: string;
 }
 
 export default function CustomDatePicker({
@@ -43,6 +44,7 @@ export default function CustomDatePicker({
   id,
   required,
   disabled,
+  "data-testid": testId,
 }: CustomDatePickerProps) {
   // Helper function to parse date strings as local dates
   const parseLocalDate = (dateString: string): Date | null => {
@@ -99,10 +101,10 @@ export default function CustomDatePicker({
   // Custom input component to match our styling
   const CustomInput = forwardRef<
     HTMLDivElement,
-    { value?: string; onClick?: () => void }
+    { value?: string; onClick?: () => void; "data-testid"?: string }
   >(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    ({ value: _, onClick }, ref) => (
+    ({ value: _, onClick, "data-testid": testId }, ref) => (
       <div
         ref={ref}
         className={`
@@ -117,6 +119,7 @@ export default function CustomDatePicker({
           type="text"
           id={id}
           name={id}
+          data-testid={testId}
           aria-label={`${label}${required ? " (required)" : ""}`}
           className="block w-full border-0 bg-transparent py-1.5 pl-3 pr-10 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6"
           placeholder="Select or enter date"
@@ -207,7 +210,7 @@ export default function CustomDatePicker({
         <ReactDatePicker
           selected={selectedDate}
           onChange={handleChange}
-          customInput={<CustomInput />}
+          customInput={<CustomInput data-testid={testId} />}
           dateFormat="MMM d, yyyy"
           disabled={disabled}
           showPopperArrow={false}

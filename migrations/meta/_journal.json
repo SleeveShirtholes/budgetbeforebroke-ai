@@ -113,6 +113,20 @@
       "when": 1755054415666,
       "tag": "0015_fine_spyke",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1755383146875,
+      "tag": "0016_small_steel_serpent",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1755384236103,
+      "tag": "0017_smart_blazing_skull",
+      "breakpoints": true
     }
   ]
 }
