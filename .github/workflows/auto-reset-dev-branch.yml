@@ -12,11 +12,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
           
       - name: Reset dev to main
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git checkout dev
+          
+          # Fetch all branches and ensure develop exists
+          git fetch origin
+          
+          # Create develop branch if it doesn't exist, or checkout if it does
+          if git show-ref --verify --quiet refs/remotes/origin/develop; then
+            git checkout develop
+          else
+            git checkout -b develop
+          fi
+          
+          # Reset to match main exactly
           git reset --hard origin/main
-          git push origin dev --force
+          
+          # Force push to update remote develop branch
+          git push origin develop --force
