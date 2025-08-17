@@ -82,7 +82,7 @@ export default async function AdminAnalyticsPage() {
  */
 async function OverviewStats() {
   try {
-    const tables = await getAvailableTables();
+    // const tables = await getAvailableTables();
 
     // Get stats for key tables
     const [

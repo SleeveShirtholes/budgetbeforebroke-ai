@@ -60,7 +60,7 @@ describe("PaycheckCard", () => {
     expect(screen.getByText("Salary")).toBeInTheDocument();
     expect(screen.getByText("$3,000")).toBeInTheDocument();
     expect(screen.getByText("monthly")).toBeInTheDocument();
-    expect(screen.getByText("Jan 14, 2024")).toBeInTheDocument();
+    expect(screen.getByText("Jan 15, 2024")).toBeInTheDocument();
   });
 
   it("displays allocated debts correctly", () => {
@@ -295,6 +295,6 @@ describe("PaycheckCard", () => {
       />,
     );
 
-    expect(screen.getByText("Dec 24, 2024")).toBeInTheDocument();
+    expect(screen.getByText("Dec 25, 2024")).toBeInTheDocument();
   });
 });

@@ -8,8 +8,8 @@ import {
   TrashIcon,
   EyeIcon,
   FunnelIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
+  // ArrowUpIcon,
+  // ArrowDownIcon,
 } from "@heroicons/react/24/outline";
 import Button from "@/components/Button";
 import SearchInput from "@/components/Forms/SearchInput";

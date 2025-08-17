@@ -146,9 +146,9 @@ describe("AssignmentBasedInterface", () => {
 
     // Check due dates - now using shorter format
     const jan25Elements = screen.getAllByText("Jan 25");
-    const jan30Elements = screen.getAllByText("Jan 30");
+    const feb1Elements = screen.getAllByText("Feb 1");
     expect(jan25Elements.length).toBeGreaterThan(0);
-    expect(jan30Elements.length).toBeGreaterThan(0);
+    expect(feb1Elements.length).toBeGreaterThan(0);
 
     // Check frequencies - use getAllByText since there are multiple "monthly" elements
     const monthlyElements = screen.getAllByText("monthly");

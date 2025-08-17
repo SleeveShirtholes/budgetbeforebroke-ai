@@ -9,7 +9,6 @@ import { requireGlobalAdmin } from "@/lib/auth-helpers";
 import { db } from "@/db/config";
 import * as schema from "@/db/schema";
 import { eq, desc, asc, count, sql } from "drizzle-orm";
-import { z } from "zod";
 
 // Define all table schemas with their editable fields
 const TABLE_CONFIGS = {

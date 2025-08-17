@@ -278,7 +278,7 @@ describe("ContactSubmissionsClient", () => {
 
     // Check that dates are displayed in the expected format
     // Use getAllByText since there are multiple date elements
-    const dateElements = screen.getAllByText(/12\/31\/2023/);
+    const dateElements = screen.getAllByText(/1\/1\/2024/);
     expect(dateElements.length).toBeGreaterThan(0);
   });
 

@@ -1,8 +1,5 @@
 import { Suspense } from "react";
 import { getCurrentUserWithAdmin } from "@/lib/auth-helpers";
-import { db } from "@/db/config";
-import { user } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import AdminUserManager from "./components/AdminUserManager";
 import SystemSettings from "./components/SystemSettings";
 

@@ -22,7 +22,8 @@ export default async function AdminDashboard() {
       <div className="border-b border-gray-200 pb-4">
         <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
         <p className="mt-2 text-gray-600">
-          Manage your application's database tables, users, and system settings.
+          Manage your application&apos;s database tables, users, and system
+          settings.
         </p>
       </div>
 
