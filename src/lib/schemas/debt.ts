@@ -8,6 +8,7 @@ export const debtFormSchema = z.object({
     .string()
     .min(1, "Name is required")
     .max(100, "Name must be less than 100 characters"),
+  categoryId: z.string().optional(),
   paymentAmount: z
     .string()
     .min(1, "Payment amount is required")
@@ -23,9 +24,12 @@ export const debtFormSchema = z.object({
     ),
   interestRate: z
     .string()
-    .min(1, "Interest rate is required")
+    .optional()
     .refine(
-      (val) => !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 100,
+      (val) => {
+        if (!val || val === "") return true; // Allow empty/undefined
+        return !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 100;
+      },
       { message: "Interest rate must be a valid number between 0 and 100" },
     ),
   dueDate: z
@@ -33,10 +37,8 @@ export const debtFormSchema = z.object({
     .min(1, "Due date is required")
     .refine((date) => {
       const selectedDate = new Date(date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return selectedDate >= today;
-    }, "Due date must be today or in the future"),
+      return !isNaN(selectedDate.getTime()); // Just ensure it's a valid date
+    }, "Please enter a valid date"),
   hasBalance: z.boolean(),
 });
 

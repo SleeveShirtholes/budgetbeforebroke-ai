@@ -231,6 +231,7 @@ export const categoriesRelations = relations(categories, ({ one, many }) => ({
     references: [budgetAccounts.id],
   }),
   budgetCategories: many(budgetCategories),
+  debts: many(debts),
 }));
 
 // Budget Category Allocation
@@ -281,6 +282,10 @@ export const transactions = pgTable("transaction", {
     onDelete: "set null",
   }),
   plaidTransactionId: text("plaid_transaction_id").unique(),
+  // Debt relationship
+  debtId: text("debt_id").references(() => debts.id, {
+    onDelete: "set null",
+  }),
   // Common fields
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
@@ -312,29 +317,6 @@ export const goals = pgTable("goal", {
     .default("0"),
   targetDate: timestamp("target_date"),
   status: text("status").notNull(), // 'active', 'completed', 'cancelled'
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Recurring Transactions
-export const recurringTransactions = pgTable("recurring_transaction", {
-  id: text("id").primaryKey(),
-  budgetAccountId: text("budget_account_id")
-    .notNull()
-    .references(() => budgetAccounts.id, { onDelete: "cascade" }),
-  categoryId: text("category_id")
-    .notNull()
-    .references(() => categories.id, { onDelete: "cascade" }),
-  createdByUserId: text("created_by_user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  description: text("description"),
-  frequency: text("frequency").notNull(), // 'daily', 'weekly', 'monthly', 'yearly'
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date"),
-  lastProcessed: timestamp("last_processed"),
-  status: text("status").notNull(), // 'active', 'paused', 'completed'
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -430,6 +412,9 @@ export const debts = pgTable("debt", {
   createdByUserId: text("created_by_user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  categoryId: text("category_id").references(() => categories.id, {
+    onDelete: "set null",
+  }),
   name: text("name").notNull(),
   paymentAmount: decimal("payment_amount", {
     precision: 10,
@@ -462,6 +447,10 @@ export const debtsRelations = relations(debts, ({ one, many }) => ({
   budgetAccount: one(budgetAccounts, {
     fields: [debts.budgetAccountId],
     references: [budgetAccounts.id],
+  }),
+  category: one(categories, {
+    fields: [debts.categoryId],
+    references: [categories.id],
   }),
   createdByUser: one(user, {
     fields: [debts.createdByUserId],

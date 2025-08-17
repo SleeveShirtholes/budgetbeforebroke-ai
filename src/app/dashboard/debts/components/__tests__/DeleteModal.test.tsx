@@ -20,15 +20,15 @@ describe("DeleteModal", () => {
       />,
     );
 
-    expect(screen.getByText("Delete Recurring")).toBeInTheDocument();
+    expect(screen.getByText("Delete Debt")).toBeInTheDocument();
     expect(screen.getByText("Cancel")).toBeInTheDocument();
     expect(screen.getByText("Delete")).toBeInTheDocument();
     expect(
-      screen.getByText(/Are you sure you want to delete this recurring/i),
+      screen.getByText(/Are you sure you want to delete this debt/i),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /All payment history associated with this recurring will be permanently removed/i,
+        /All payment history associated with this debt will be permanently removed/i,
       ),
     ).toBeInTheDocument();
   });
@@ -77,7 +77,7 @@ describe("DeleteModal", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /All payment history associated with this recurring will be permanently removed/i,
+        /All payment history associated with this debt will be permanently removed/i,
       ),
     ).toBeInTheDocument();
   });

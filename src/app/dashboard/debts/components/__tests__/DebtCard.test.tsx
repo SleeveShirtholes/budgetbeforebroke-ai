@@ -64,7 +64,7 @@ describe("DebtCard", () => {
       />,
     );
 
-    const editButton = screen.getByLabelText("Edit Recurring");
+    const editButton = screen.getByLabelText("Edit Debt");
     await userEvent.click(editButton);
 
     expect(mockOnEdit).toHaveBeenCalledWith(mockDebt);
@@ -81,7 +81,7 @@ describe("DebtCard", () => {
       />,
     );
 
-    const deleteButton = screen.getByLabelText("Delete Recurring");
+    const deleteButton = screen.getByLabelText("Delete Debt");
     await userEvent.click(deleteButton);
 
     expect(mockOnDelete).toHaveBeenCalledWith(mockDebt.id);
@@ -98,7 +98,7 @@ describe("DebtCard", () => {
       />,
     );
 
-    const payButton = screen.getByLabelText("Pay Recurring");
+    const payButton = screen.getByLabelText("Pay Debt");
     await userEvent.click(payButton);
 
     expect(mockOnPay).toHaveBeenCalledWith(mockDebt.id);

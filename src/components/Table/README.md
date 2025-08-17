@@ -113,7 +113,6 @@ function UserList() {
 Each column with `filterable: true` displays a filter icon in the header. When clicked, it opens a dropdown with:
 
 1. **Operator selector** - Choose from:
-
    - Contains (default)
    - Equals
    - Starts with

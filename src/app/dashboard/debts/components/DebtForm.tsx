@@ -4,11 +4,14 @@ import CustomDatePicker from "@/components/Forms/CustomDatePicker";
 import NumberInput from "@/components/Forms/NumberInput";
 import DecimalInput from "@/components/Forms/DecimalInput";
 import TextField from "@/components/Forms/TextField";
+import CustomSelect from "@/components/Forms/CustomSelect";
 import { debtFormSchema, type DebtFormData } from "@/lib/schemas/debt";
 import { Debt } from "@/types/debt";
+import { useCategories } from "@/hooks/useCategories";
 
 interface DebtFormProps {
   debt?: Debt;
+  budgetAccountId: string;
   onSubmit: (
     data: Omit<DebtFormData, "paymentAmount" | "interestRate"> & {
       paymentAmount: number;
@@ -19,15 +22,19 @@ interface DebtFormProps {
 }
 
 /**
- * Form component for creating or editing a recurring debt.
+ * Form component for creating or editing a debt.
  * Uses react-hook-form with Zod validation for form handling.
  * Provides validation and proper formatting for monetary and percentage values.
  */
 export default function DebtForm({
   debt,
+  budgetAccountId,
   onSubmit,
   isLoading = false,
 }: DebtFormProps) {
+  const { categories, isLoading: categoriesLoading } =
+    useCategories(budgetAccountId);
+
   const {
     register,
     handleSubmit,
@@ -38,6 +45,7 @@ export default function DebtForm({
     resolver: zodResolver(debtFormSchema),
     defaultValues: {
       name: debt?.name || "",
+      categoryId: debt?.categoryId || "",
       paymentAmount:
         debt?.paymentAmount !== undefined ? debt.paymentAmount.toString() : "",
       interestRate:
@@ -58,7 +66,9 @@ export default function DebtForm({
       paymentAmount:
         data.paymentAmount === "" ? 0 : parseFloat(data.paymentAmount),
       interestRate:
-        data.interestRate === "" ? 0 : parseFloat(data.interestRate),
+        data.interestRate === "" || !data.interestRate
+          ? 0
+          : parseFloat(data.interestRate),
     });
   };
 
@@ -69,6 +79,15 @@ export default function DebtForm({
       role="form"
       onSubmit={handleSubmit(handleFormSubmit)}
     >
+      {/* Helpful description for users */}
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-2">
+        <p className="text-sm text-primary-700">
+          <strong>What can you add?</strong> Track any type of debt or recurring
+          payment including credit cards, car loans, student loans, rent,
+          utilities, insurance, subscriptions, and more.
+        </p>
+      </div>
+
       <TextField
         label="Name"
         {...register("name")}
@@ -77,6 +96,23 @@ export default function DebtForm({
         placeholder="e.g., Car Loan, Credit Card"
         id="name"
         disabled={isLoading}
+      />
+
+      <CustomSelect
+        label="Category (Optional)"
+        value={watchedValues.categoryId || ""}
+        onChange={(value) => setValue("categoryId", value)}
+        error={errors.categoryId?.message}
+        placeholder="Select a category"
+        id="category"
+        disabled={isLoading || categoriesLoading}
+        options={[
+          { value: "", label: "No category" },
+          ...(categories?.map((category) => ({
+            value: category.id,
+            label: category.name,
+          })) || []),
+        ]}
       />
 
       <NumberInput
@@ -92,11 +128,10 @@ export default function DebtForm({
       />
 
       <DecimalInput
-        label="Interest Rate"
+        label="Interest Rate (Optional)"
         value={watchedValues.interestRate ?? ""}
         onChange={(value) => setValue("interestRate", value)}
         error={errors.interestRate?.message}
-        required
         placeholder="0.00"
         rightIcon={<span className="text-gray-500">%</span>}
         id="interest-rate"
