@@ -35,7 +35,7 @@ describe("AddEditModal", () => {
       />,
     );
 
-    expect(screen.getByText("Add New Recurring")).toBeInTheDocument();
+    expect(screen.getByText("Add New Debt")).toBeInTheDocument();
     expect(screen.getByText("Add")).toBeInTheDocument();
     expect(screen.getByText("Cancel")).toBeInTheDocument();
   });
@@ -50,7 +50,7 @@ describe("AddEditModal", () => {
       />,
     );
 
-    expect(screen.getByText("Edit Recurring")).toBeInTheDocument();
+    expect(screen.getByText("Edit Debt")).toBeInTheDocument();
     expect(screen.getByText("Save Changes")).toBeInTheDocument();
   });
 

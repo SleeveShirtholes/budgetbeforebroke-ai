@@ -11,7 +11,7 @@ interface PayModalProps {
 }
 
 /**
- * Modal component for recording a payment on a recurring debt.
+ * Modal component for recording a payment on a debt.
  * Wraps the PaymentForm component with modal functionality.
  * Uses react-hook-form with Zod validation for form handling.
  */
@@ -25,7 +25,7 @@ export default function PayModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Pay Recurring"
+      title="Pay Debt"
       maxWidth="sm"
       footerButtons={
         <div className="flex gap-2">

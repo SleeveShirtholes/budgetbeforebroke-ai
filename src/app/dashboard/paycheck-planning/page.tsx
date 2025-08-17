@@ -4,53 +4,48 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import Sortable from "sortablejs";
 import {
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  CurrencyDollarIcon,
-  CalendarDaysIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
+  CurrencyDollarIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
-
-import Button from "@/components/Button";
-import Card from "@/components/Card";
-import Spinner from "@/components/Spinner";
-import Modal from "@/components/Modal";
-import { useBudgetAccount } from "@/stores/budgetAccountStore";
-import { useDebtAllocationManager } from "@/hooks/usePaycheckPlanning";
-import {
-  updateDebtAllocation,
-  markPaymentAsPaid,
-} from "@/app/actions/paycheck-planning";
-import { useToast } from "@/components/Toast";
-import { formatDateSafely } from "@/utils/date";
-
-import DraggablePaycheckCard from "./components/DraggablePaycheckCard";
+import AssignmentBasedInterface from "./components/AssignmentBasedInterface";
 import DebtManagement from "./components/DebtManagement";
 import WarningsPanel from "./components/WarningsPanel";
+import { useToast } from "@/components/Toast";
+import { useBudgetAccount } from "@/stores/budgetAccountStore";
+import { useDebtAllocationManager } from "@/hooks/usePaycheckPlanning";
+import { markPaymentAsPaid } from "@/app/actions/paycheck-planning";
+import { formatDateSafely } from "@/utils/date";
+import Card from "@/components/Card";
+import Button from "@/components/Button";
+import Modal from "@/components/Modal";
+import Spinner from "@/components/Spinner";
 import "@/styles/sortable.css";
 
 /**
  * Enhanced PaycheckPlanningPage Component
  *
- * A comprehensive page for planning paycheck allocation and debt payments with drag-and-drop functionality.
+ * A comprehensive page for planning paycheck allocation and debt payments with assignment-based interface.
  * Features:
  * - Current month view of all paychecks with dates and amounts
- * - Drag-and-drop debt allocation to specific paychecks
+ * - Simple assignment controls for debt allocation to specific paychecks
  * - Real-time remaining balance calculations after debt payments
  * - User-friendly warnings for payment issues
  * - Easy debt payment reallocation
  */
 export default function PaycheckPlanningPage() {
-  const { selectedAccount, isLoading: isAccountsLoading } = useBudgetAccount();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isDebtsModalOpen, setIsDebtsModalOpen] = useState(false);
-  const [movingDebtId, setMovingDebtId] = useState<string | null>(null);
   const [showMobileDetails, setShowMobileDetails] = useState(false);
   const [isWarningsExpanded, setIsWarningsExpanded] = useState(false);
   const { showToast } = useToast();
   const unallocatedDebtsRef = useRef<HTMLDivElement>(null);
+
+  // Get the selected budget account
+  const { selectedAccount, isLoading: isAccountsLoading } = useBudgetAccount();
 
   // Use the new debt allocation manager hook
   const {
@@ -91,9 +86,26 @@ export default function PaycheckPlanningPage() {
     }
   };
 
-  const handleDebtUpdated = async (
+  const handleDebtUnallocated = async (debtId: string, paycheckId: string) => {
+    try {
+      console.log("Attempting to unallocate debt:", { debtId, paycheckId });
+      await originalHandleDebtUnallocated(debtId, paycheckId);
+      showToast("Debt removed successfully", { type: "success" });
+    } catch (error) {
+      console.error("Failed to remove debt:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to remove debt";
+      showToast(errorMessage, { type: "error" });
+    }
+  };
+
+  /**
+   * Handle marking a debt payment as paid
+   * This will mark the payment as paid and schedule the next payment for recurring debts
+   */
+  const handleMarkPaymentAsPaid = async (
     debtId: string,
-    paycheckId: string,
+    paymentId: string,
     paymentAmount?: number,
     paymentDate?: string,
   ) => {
@@ -103,48 +115,13 @@ export default function PaycheckPlanningPage() {
     }
 
     try {
-      await updateDebtAllocation(
+      await markPaymentAsPaid(
         selectedAccount.id,
         debtId,
-        paycheckId,
-        "update",
+        paymentId,
         paymentAmount,
         paymentDate,
       );
-      await Promise.all([mutatePlanningData?.(), mutateAllocations?.()]);
-      const message =
-        paymentAmount && paymentDate
-          ? `Payment updated to $${paymentAmount.toLocaleString()} for ${formatDateSafely(paymentDate, "MMM dd, yyyy")}`
-          : "Debt payment updated successfully";
-      showToast(message, { type: "success" });
-    } catch (error) {
-      console.error("Failed to update debt payment:", error);
-      showToast("Failed to update debt payment", { type: "error" });
-    }
-  };
-
-  const handleDebtUnallocated = async (debtId: string, paycheckId: string) => {
-    try {
-      await originalHandleDebtUnallocated(debtId, paycheckId);
-      showToast("Debt removed successfully", { type: "success" });
-    } catch (error) {
-      console.error("Failed to remove debt:", error);
-      showToast("Failed to remove debt", { type: "error" });
-    }
-  };
-
-  /**
-   * Handle marking a debt payment as paid
-   * This will mark the payment as paid and schedule the next payment for recurring debts
-   */
-  const handleMarkPaymentAsPaid = async (debtId: string, paymentId: string) => {
-    if (!selectedAccount?.id) {
-      showToast("No budget account selected", { type: "error" });
-      return;
-    }
-
-    try {
-      await markPaymentAsPaid(selectedAccount.id, debtId, paymentId);
 
       // Refresh the data to show updated payment status
       await Promise.all([mutatePlanningData?.(), mutateAllocations?.()]);
@@ -153,106 +130,6 @@ export default function PaycheckPlanningPage() {
     } catch (error) {
       console.error("Error marking payment as paid:", error);
       showToast("Failed to mark payment as paid", { type: "error" });
-    }
-  };
-
-  const handleDebtMoved = async (
-    debtId: string,
-    fromPaycheckId: string,
-    toPaycheckId: string,
-    paymentAmount?: number,
-    paymentDate?: string,
-  ) => {
-    if (!selectedAccount?.id) {
-      showToast("No budget account selected", { type: "error" });
-      return;
-    }
-
-    setMovingDebtId(debtId);
-    try {
-      // Handle combined paychecks - extract date keys
-      const fromDateKey = fromPaycheckId.startsWith("combined-")
-        ? fromPaycheckId.replace("combined-", "")
-        : null;
-      const toDateKey = toPaycheckId.startsWith("combined-")
-        ? toPaycheckId.replace("combined-", "")
-        : null;
-
-      if (fromDateKey && toDateKey) {
-        // Moving between combined paychecks
-        // First, unallocate from all paychecks on the source date
-        const fromDateAllocations =
-          allocations?.filter((allocation) => {
-            const paycheck = paychecks?.find(
-              (p) => p.id === allocation.paycheckId,
-            );
-            return (
-              paycheck && format(paycheck.date, "yyyy-MM-dd") === fromDateKey
-            );
-          }) || [];
-
-        await Promise.all(
-          fromDateAllocations.map((allocation) =>
-            updateDebtAllocation(
-              selectedAccount.id,
-              debtId,
-              allocation.paycheckId,
-              "unallocate",
-            ),
-          ),
-        );
-
-        // Then, allocate to the first paycheck on the target date
-        const toDateAllocations =
-          allocations?.filter((allocation) => {
-            const paycheck = paychecks?.find(
-              (p) => p.id === allocation.paycheckId,
-            );
-            return (
-              paycheck && format(paycheck.date, "yyyy-MM-dd") === toDateKey
-            );
-          }) || [];
-
-        if (toDateAllocations.length > 0) {
-          await updateDebtAllocation(
-            selectedAccount.id,
-            debtId,
-            toDateAllocations[0].paycheckId,
-            "allocate",
-            paymentAmount,
-            paymentDate,
-          );
-        }
-      } else {
-        // Moving between individual paychecks
-        await updateDebtAllocation(
-          selectedAccount.id,
-          debtId,
-          fromPaycheckId,
-          "unallocate",
-        );
-        await updateDebtAllocation(
-          selectedAccount.id,
-          debtId,
-          toPaycheckId,
-          "allocate",
-          paymentAmount,
-          paymentDate,
-        );
-      }
-
-      await Promise.all([mutatePlanningData?.(), mutateAllocations?.()]);
-
-      const message =
-        paymentAmount && paymentDate
-          ? `Payment moved to ${formatDateSafely(paymentDate, "MMM dd, yyyy")}`
-          : "Debt moved successfully";
-      showToast(message, { type: "success" });
-    } catch (error) {
-      console.error("Error moving debt:", error);
-      showToast("Failed to move debt", { type: "error" });
-    } finally {
-      setMovingDebtId(null);
     }
   };
 
@@ -268,73 +145,6 @@ export default function PaycheckPlanningPage() {
 
     return planningData.debts.filter((debt) => !allocatedDebtIds.has(debt.id));
   }, [planningData?.debts, allocations]);
-
-  // Custom handlers for combined paychecks
-  const handleCombinedDebtAllocated = async (
-    debtId: string,
-    dateKey: string,
-    paymentAmount?: number,
-    paymentDate?: string,
-  ) => {
-    if (!allocations || !paychecks) return;
-
-    // Find all allocations for this date
-    const dateAllocations = allocations.filter((allocation) => {
-      const paycheck = paychecks.find((p) => p.id === allocation.paycheckId);
-      return paycheck && format(paycheck.date, "yyyy-MM-dd") === dateKey;
-    });
-
-    if (dateAllocations.length === 0) return;
-
-    // Allocate to the first paycheck on this date (or distribute evenly)
-    const targetAllocation = dateAllocations[0];
-
-    try {
-      await originalHandleDebtAllocated(
-        debtId,
-        targetAllocation.paycheckId,
-        paymentAmount,
-        paymentDate,
-      );
-      const message =
-        paymentAmount && paymentDate
-          ? `Payment of $${paymentAmount.toLocaleString()} scheduled for ${formatDateSafely(paymentDate, "MMM dd, yyyy")}`
-          : `Debt allocated to ${formatDateSafely(dateKey, "MMM dd")} paycheck`;
-      showToast(message, { type: "success" });
-    } catch (error) {
-      console.error("Failed to allocate debt to combined paycheck:", error);
-      showToast("Failed to allocate debt", { type: "error" });
-    }
-  };
-
-  const handleCombinedDebtUnallocated = async (
-    debtId: string,
-    dateKey: string,
-  ) => {
-    if (!allocations || !paychecks) return;
-
-    // Find all allocations for this date
-    const dateAllocations = allocations.filter((allocation) => {
-      const paycheck = paychecks.find((p) => p.id === allocation.paycheckId);
-      return paycheck && format(paycheck.date, "yyyy-MM-dd") === dateKey;
-    });
-
-    // Remove from all paychecks on this date
-    try {
-      await Promise.all(
-        dateAllocations.map((allocation) =>
-          originalHandleDebtUnallocated(debtId, allocation.paycheckId),
-        ),
-      );
-      showToast(
-        `Debt removed from ${formatDateSafely(dateKey, "MMM dd")} paycheck`,
-        { type: "success" },
-      );
-    } catch (error) {
-      console.error("Failed to remove debt from combined paycheck:", error);
-      showToast("Failed to remove debt", { type: "error" });
-    }
-  };
 
   // Navigation handlers
   const goToPreviousMonth = () => {
@@ -728,137 +538,42 @@ export default function PaycheckPlanningPage() {
 
       {/* Main Content - Column Layout */}
       <div className="space-y-4">
-        {/* Debts Section - Above Paychecks */}
-        <div className="space-y-3">
-          <div className="space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Available Debts
-            </h2>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-              {unallocatedDebts.length > 0 && (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-sm text-gray-500">
-                    {unallocatedDebts.length} to allocate
-                  </span>
-                </div>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsDebtsModalOpen(true)}
-                className="flex items-center justify-center space-x-1 px-3 py-2 sm:px-2 sm:py-1 text-sm sm:text-xs w-full sm:w-auto"
-              >
-                <CurrencyDollarIcon className="h-4 w-4 sm:h-3 sm:w-3" />
-                <span>Manage Debts</span>
-              </Button>
-            </div>
-          </div>
+        {/* Button Group - Manage Debts and Warnings */}
+        <div className="flex justify-center lg:justify-end">
+          {/* Warnings Button - First in group */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsWarningsExpanded(!isWarningsExpanded)}
+            className="text-amber-700 border-amber-300 hover:bg-amber-50 hover:border-amber-400 rounded-r-none border-r-0 hover:z-10"
+          >
+            <ExclamationTriangleIcon className="h-4 w-4" />
+            <span>
+              {warnings.length} warning{warnings.length !== 1 ? "s" : ""}
+            </span>
+          </Button>
 
-          {unallocatedDebts.length === 0 ? (
-            <Card className="p-6">
-              <div className="text-center py-4">
-                <CurrencyDollarIcon className="mx-auto h-8 w-8 text-gray-400 mb-3" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  No Debts to Allocate
-                </h3>
-                <p className="text-base text-gray-600">
-                  All debts have been allocated to paychecks.
-                </p>
-              </div>
-            </Card>
-          ) : (
-            <div
-              ref={unallocatedDebtsRef}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
-            >
-              {unallocatedDebts.map((debt) => {
-                // Check if debt is past due
-                const isPastDue = new Date(debt.dueDate) < new Date();
-
-                return (
-                  <div
-                    key={debt.id}
-                    data-debt-id={debt.id}
-                    data-debt-name={debt.name}
-                    data-debt-amount={debt.amount}
-                    data-debt-due-date={debt.dueDate}
-                    className={`cursor-move hover:shadow-md transition-all duration-200 border-2 border-dashed rounded-md p-3 ${
-                      isPastDue
-                        ? "border-red-300 bg-red-50 hover:bg-red-100 hover:border-red-400"
-                        : "border-yellow-300 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-400"
-                    }`}
-                  >
-                    <div className="space-y-2">
-                      {/* Header with status indicator */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2 min-w-0 flex-1">
-                          <div
-                            className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                              isPastDue ? "bg-red-500" : "bg-yellow-500"
-                            }`}
-                          ></div>
-                          <h3 className="text-sm font-semibold text-gray-900 truncate">
-                            {debt.name}
-                          </h3>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-bold text-gray-900">
-                            ${debt.amount.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Details and past due warning */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center space-x-2">
-                          <CalendarDaysIcon className="h-3 w-3 text-gray-500" />
-                          <p className="text-xs font-medium text-gray-700">
-                            {formatDateSafely(debt.dueDate, "MMM dd, yyyy")}
-                          </p>
-                          <span className="text-gray-400">•</span>
-                          <span className="text-xs font-medium text-gray-700 capitalize">
-                            {debt.frequency}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {/* Manage Debts Button - Second in group (right side) */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsDebtsModalOpen(true)}
+            className="flex items-center space-x-2 rounded-l-none hover:z-10"
+          >
+            <CurrencyDollarIcon className="h-4 w-4" />
+            <span>Manage Debts</span>
+          </Button>
         </div>
 
-        {/* Paychecks Section - Column Layout */}
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-            <h2 className="text-2xl font-semibold text-gray-900">
-              Paychecks for {format(selectedDate, "MMMM yyyy")}
-            </h2>
-            {warnings.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsWarningsExpanded(!isWarningsExpanded)}
-                className="flex items-center justify-center space-x-1 px-3 py-2 sm:px-2 sm:py-1 text-sm sm:text-xs w-full sm:w-auto text-amber-700 border-amber-300 hover:bg-amber-50 hover:border-amber-400"
-              >
-                <ExclamationTriangleIcon className="h-4 w-4 sm:h-3 sm:w-3" />
-                <span>
-                  {warnings.length} warning{warnings.length !== 1 ? "s" : ""}
-                </span>
-              </Button>
-            )}
-          </div>
-
-          {/* Warnings Panel - Below Button when expanded */}
-          {isWarningsExpanded && warnings.length > 0 && (
-            <div className="mt-4">
+        {/* Warnings Section */}
+        {warnings.length > 0 && (
+          <div className="space-y-3">
+            {isWarningsExpanded && (
               <WarningsPanel
                 warnings={warnings}
                 budgetAccountId={selectedAccount.id}
                 onWarningDismissed={async () => {
                   try {
-                    // Refresh the data when a warning is dismissed
                     await Promise.all([
                       mutatePlanningData?.(),
                       mutateAllocations?.(),
@@ -870,154 +585,19 @@ export default function PaycheckPlanningPage() {
                   }
                 }}
               />
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          {paychecks.length === 0 ? (
-            <Card>
-              <div className="text-center py-4">
-                <CalendarDaysIcon className="mx-auto h-10 w-10 text-gray-400 mb-2" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No Paychecks Found
-                </h3>
-                <p className="text-gray-600 mb-3">
-                  No paychecks are scheduled for{" "}
-                  {format(selectedDate, "MMMM yyyy")}.
-                </p>
-                <Button variant="primary" href="/dashboard/income">
-                  Add Income Source
-                </Button>
-              </div>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {(() => {
-                // Group paychecks by date
-                const paychecksByDate = new Map<
-                  string,
-                  {
-                    paychecks: typeof paychecks;
-                    allocations: typeof allocations;
-                  }
-                >();
-
-                allocations?.forEach((allocation) => {
-                  const paycheck = paychecks.find(
-                    (p) => p.id === allocation.paycheckId,
-                  );
-                  if (!paycheck) return;
-
-                  const dateKey = format(paycheck.date, "yyyy-MM-dd");
-                  if (!paychecksByDate.has(dateKey)) {
-                    paychecksByDate.set(dateKey, {
-                      paychecks: [],
-                      allocations: [],
-                    });
-                  }
-                  const dateGroup = paychecksByDate.get(dateKey);
-                  if (dateGroup && dateGroup.allocations) {
-                    dateGroup.paychecks.push(paycheck);
-                    dateGroup.allocations.push(allocation);
-                  }
-                });
-
-                return Array.from(paychecksByDate.entries())
-                  .map(([dateKey, group]) => {
-                    if (!group || group.paychecks.length === 0) return null;
-
-                    if (group.paychecks.length === 1) {
-                      // Single paycheck on this date, render normally
-                      const paycheck = group.paychecks[0];
-                      const allocation = group.allocations?.[0];
-
-                      if (!allocation) return null;
-
-                      return (
-                        <DraggablePaycheckCard
-                          key={allocation.paycheckId}
-                          paycheck={paycheck}
-                          allocation={allocation}
-                          unallocatedDebts={unallocatedDebts}
-                          onDebtAllocated={handleDebtAllocated}
-                          onDebtUnallocated={handleDebtUnallocated}
-                          onDebtUpdated={handleDebtUpdated}
-                          onDebtMoved={handleDebtMoved}
-                          movingDebtId={movingDebtId}
-                          onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
-                        />
-                      );
-                    } else {
-                      // Multiple paychecks on the same date, combine them
-                      const totalAmount = group.paychecks.reduce(
-                        (sum, p) => sum + p.amount,
-                        0,
-                      );
-                      const combinedNames = group.paychecks
-                        .map((p) => p.name)
-                        .join(" + ");
-                      const firstPaycheck = group.paychecks[0];
-
-                      // Combine all allocated debts from all paychecks on this date
-                      const combinedAllocatedDebts =
-                        group.allocations?.flatMap((a) => a.allocatedDebts) ||
-                        [];
-                      const totalAllocated = combinedAllocatedDebts.reduce(
-                        (sum, debt) => sum + debt.amount,
-                        0,
-                      );
-
-                      const combinedAllocation = {
-                        paycheckId: `combined-${dateKey}`,
-                        paycheckDate: firstPaycheck.date, // Use Date object directly
-                        paycheckAmount: totalAmount,
-                        allocatedDebts: combinedAllocatedDebts,
-                        remainingAmount: totalAmount - totalAllocated,
-                      };
-
-                      const combinedPaycheck = {
-                        id: `combined-${dateKey}`,
-                        name: combinedNames,
-                        amount: totalAmount,
-                        date: firstPaycheck.date, // Use Date object directly
-                        frequency: firstPaycheck.frequency,
-                        userId: firstPaycheck.userId,
-                      };
-
-                      return (
-                        <DraggablePaycheckCard
-                          key={`combined-${dateKey}`}
-                          paycheck={combinedPaycheck}
-                          allocation={combinedAllocation}
-                          unallocatedDebts={unallocatedDebts}
-                          onDebtAllocated={(
-                            debtId,
-                            paycheckId,
-                            paymentAmount,
-                            paymentDate,
-                          ) =>
-                            handleCombinedDebtAllocated(
-                              debtId,
-                              dateKey,
-                              paymentAmount,
-                              paymentDate,
-                            )
-                          }
-                          onDebtUnallocated={(debtId) =>
-                            handleCombinedDebtUnallocated(debtId, dateKey)
-                          }
-                          onDebtUpdated={handleDebtUpdated}
-                          onDebtMoved={handleDebtMoved}
-                          movingDebtId={movingDebtId}
-                          onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
-                        />
-                      );
-                    }
-                  })
-                  .filter(Boolean);
-              })()}
-            </div>
-          )}
-        </div>
+        {/* Assignment-Based Interface */}
+        <AssignmentBasedInterface
+          paychecks={paychecks}
+          allocations={allocations || []}
+          unallocatedDebts={unallocatedDebts}
+          onDebtAllocated={handleDebtAllocated}
+          onDebtUnallocated={handleDebtUnallocated}
+          onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
+        />
       </div>
 
       {/* Debts Modal */}

@@ -42,8 +42,8 @@ describe.skip("PaymentModal", () => {
     render(<PaymentModal {...defaultProps} />);
 
     expect(screen.getByText("Payment Details")).toBeInTheDocument();
-    expect(screen.getByLabelText("Payment Amount *")).toBeInTheDocument();
-    expect(screen.getByLabelText("Payment Date *")).toBeInTheDocument();
+    expect(screen.getByLabelText("Payment Amount")).toBeInTheDocument();
+    expect(screen.getByLabelText("Payment Date")).toBeInTheDocument();
   });
 
   it("does not render when closed", () => {
@@ -74,8 +74,8 @@ describe.skip("PaymentModal", () => {
     render(<PaymentModal {...defaultProps} />);
 
     // Fill out the form - user enters the actual amount they want to pay
-    await user.type(screen.getByLabelText("Payment Amount *"), "300");
-    await user.type(screen.getByLabelText("Payment Date *"), "2024-02-10");
+    await user.type(screen.getByLabelText("Payment Amount"), "300");
+    await user.type(screen.getByLabelText("Payment Date"), "2024-02-10");
 
     // Submit the form
     const submitButton = screen.getByRole("button", {
@@ -100,8 +100,8 @@ describe.skip("PaymentModal", () => {
     );
 
     // Fill out and submit the form
-    await user.type(screen.getByLabelText("Payment Amount *"), "300");
-    await user.type(screen.getByLabelText("Payment Date *"), "2024-02-10");
+    await user.type(screen.getByLabelText("Payment Amount"), "300");
+    await user.type(screen.getByLabelText("Payment Date"), "2024-02-10");
 
     const submitButton = screen.getByRole("button", {
       name: "Confirm Payment",
@@ -117,8 +117,8 @@ describe.skip("PaymentModal", () => {
     render(<PaymentModal {...defaultProps} />);
 
     // Fill out the form
-    await user.type(screen.getByLabelText("Payment Amount *"), "300");
-    await user.type(screen.getByLabelText("Payment Date *"), "2024-02-10");
+    await user.type(screen.getByLabelText("Payment Amount"), "300");
+    await user.type(screen.getByLabelText("Payment Date"), "2024-02-10");
 
     // Submit the form
     const submitButton = screen.getByRole("button", {
@@ -165,8 +165,8 @@ describe.skip("PaymentModal", () => {
     render(<PaymentModal {...defaultProps} />);
 
     // Fill out the form with decimal amount
-    await user.type(screen.getByLabelText("Payment Amount *"), "299.99");
-    await user.type(screen.getByLabelText("Payment Date *"), "2024-02-10");
+    await user.type(screen.getByLabelText("Payment Amount"), "299.99");
+    await user.type(screen.getByLabelText("Payment Date"), "2024-02-10");
 
     // Submit the form
     const submitButton = screen.getByRole("button", {
@@ -211,8 +211,8 @@ describe.skip("PaymentModal", () => {
     render(<PaymentModal {...defaultProps} />);
 
     // Fill out the form with amount exceeding debt
-    await user.type(screen.getByLabelText("Payment Amount *"), "600");
-    await user.type(screen.getByLabelText("Payment Date *"), "2024-02-10");
+    await user.type(screen.getByLabelText("Payment Amount"), "600");
+    await user.type(screen.getByLabelText("Payment Date"), "2024-02-10");
 
     // Submit the form
     const submitButton = screen.getByRole("button", {
@@ -255,13 +255,13 @@ describe.skip("PaymentModal", () => {
     render(<PaymentModal {...defaultProps} />);
 
     // Fill out the form
-    await user.type(screen.getByLabelText("Payment Amount *"), "300");
-    await user.type(screen.getByLabelText("Payment Date *"), "2024-02-10");
+    await user.type(screen.getByLabelText("Payment Amount"), "300");
+    await user.type(screen.getByLabelText("Payment Date"), "2024-02-10");
 
     // Verify form values are maintained
-    expect(screen.getByLabelText("Payment Amount *")).toHaveValue(300); // The actual amount entered by user
+    expect(screen.getByLabelText("Payment Amount")).toHaveValue(300); // The actual amount entered by user
     // The date input should have the typed value
-    expect(screen.getByLabelText("Payment Date *")).toHaveValue("2024-02-10");
+    expect(screen.getByLabelText("Payment Date")).toHaveValue("2024-02-10");
 
     // Cancel and reopen should reset form
     const cancelButton = screen.getByRole("button", { name: "Cancel" });
@@ -275,8 +275,8 @@ describe.skip("PaymentModal", () => {
     render(<PaymentModal {...defaultProps} />);
 
     // Fill out the form with amount exceeding debt
-    await user.type(screen.getByLabelText("Payment Amount *"), "600");
-    await user.type(screen.getByLabelText("Payment Date *"), "2024-02-10");
+    await user.type(screen.getByLabelText("Payment Amount"), "600");
+    await user.type(screen.getByLabelText("Payment Date"), "2024-02-10");
 
     // Should show credit created
     expect(screen.getByText("Credit Created:")).toBeInTheDocument();

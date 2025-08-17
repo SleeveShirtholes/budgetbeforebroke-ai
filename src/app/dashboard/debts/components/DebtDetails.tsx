@@ -7,7 +7,7 @@ interface DebtDetailsProps {
 }
 
 /**
- * Displays detailed information about a recurring debt.
+ * Displays detailed information about a debt.
  * Shows the debt name, balance, interest rate, and due date.
  * Supports text highlighting for search functionality.
  */
@@ -35,7 +35,7 @@ export default function DebtDetails({ debt, search }: DebtDetailsProps) {
           </span>
           <span className="text-base font-semibold text-gray-900">
             <HighlightedText
-              text={`${debt.interestRate}%`}
+              text={debt.interestRate > 0 ? `${debt.interestRate}%` : "N/A"}
               highlight={search}
             />
           </span>

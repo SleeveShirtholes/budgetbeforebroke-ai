@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useDebts } from "@/hooks/useDebts";
 import { useBudgetAccount } from "@/stores/budgetAccountStore";
 import { ToastProvider } from "@/components/Toast";
-import RecurringPage from "../page";
+import DebtsPage from "../page";
 
 // Mock the useDebts hook
 jest.mock("@/hooks/useDebts");
@@ -22,7 +22,7 @@ jest.mock("swr", () => ({
   mutate: jest.fn(),
 }));
 
-describe("RecurringPage", () => {
+describe("DebtsPage", () => {
   const mockDebts = [
     {
       id: "1",
@@ -101,7 +101,7 @@ describe("RecurringPage", () => {
   };
 
   it("renders the page with debts", async () => {
-    renderWithProviders(<RecurringPage />);
+    renderWithProviders(<DebtsPage />);
 
     await waitFor(() => {
       expect(screen.getByText("Car Loan")).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe("RecurringPage", () => {
       isLoading: true,
     });
 
-    renderWithProviders(<RecurringPage />);
+    renderWithProviders(<DebtsPage />);
     expect(screen.getByTestId("spinner")).toBeInTheDocument();
   });
 
@@ -126,7 +126,7 @@ describe("RecurringPage", () => {
       error: new Error("Failed to load"),
     });
 
-    renderWithProviders(<RecurringPage />);
+    renderWithProviders(<DebtsPage />);
     expect(
       screen.getByText("Error loading debts. Please try again."),
     ).toBeInTheDocument();
@@ -138,15 +138,15 @@ describe("RecurringPage", () => {
       debts: [],
     });
 
-    renderWithProviders(<RecurringPage />);
+    renderWithProviders(<DebtsPage />);
     expect(screen.getByText("No debts found")).toBeInTheDocument();
   });
 
   it("filters debts based on search", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<RecurringPage />);
+    renderWithProviders(<DebtsPage />);
 
-    const searchInput = screen.getByPlaceholderText("Search recurring...");
+    const searchInput = screen.getByPlaceholderText("Search debts...");
     await user.type(searchInput, "Car");
 
     await waitFor(() => {
@@ -158,51 +158,51 @@ describe("RecurringPage", () => {
     });
   });
 
-  it("opens add modal when Add Recurring button is clicked", async () => {
+  it("opens add modal when Add Debt button is clicked", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<RecurringPage />);
+    renderWithProviders(<DebtsPage />);
 
-    const addButton = screen.getByText("Add Recurring");
+    const addButton = screen.getByText("Add Debt");
     await user.click(addButton);
 
     await waitFor(() => {
-      expect(screen.getByText("Add New Recurring")).toBeInTheDocument();
+      expect(screen.getByText("Add New Debt")).toBeInTheDocument();
     });
   });
 
   it("opens edit modal when edit button is clicked", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<RecurringPage />);
+    renderWithProviders(<DebtsPage />);
 
-    const editButton = screen.getByLabelText("Edit Recurring");
+    const editButton = screen.getByLabelText("Edit Debt");
     await user.click(editButton);
 
     await waitFor(() => {
-      expect(screen.getByText("Edit Recurring")).toBeInTheDocument();
+      expect(screen.getByText("Edit Debt")).toBeInTheDocument();
     });
   });
 
   it("opens delete modal when delete button is clicked", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<RecurringPage />);
+    renderWithProviders(<DebtsPage />);
 
-    const deleteButton = screen.getByLabelText("Delete Recurring");
+    const deleteButton = screen.getByLabelText("Delete Debt");
     await user.click(deleteButton);
 
     await waitFor(() => {
-      expect(screen.getByText("Delete Recurring")).toBeInTheDocument();
+      expect(screen.getByText("Delete Debt")).toBeInTheDocument();
     });
   });
 
   it("opens pay modal when pay button is clicked", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<RecurringPage />);
+    renderWithProviders(<DebtsPage />);
 
     const payButton = screen.getByText("Record Payment");
     await user.click(payButton);
 
     await waitFor(() => {
-      expect(screen.getByText("Pay Recurring")).toBeInTheDocument();
+      expect(screen.getByText("Pay Debt")).toBeInTheDocument();
     });
   });
 });

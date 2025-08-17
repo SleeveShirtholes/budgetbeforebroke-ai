@@ -17,14 +17,14 @@ import DeleteModal from "./components/DeleteModal";
 import PayModal from "./components/PayModal";
 
 /**
- * RecurringPage Component
+ * DebtsPage Component
  *
- * A page component that manages recurring debts and payments using SWR for data fetching
+ * A page component that manages debts and payments using SWR for data fetching
  * and server actions for database operations. It provides functionality to:
- * - View a list of recurring debts with their details
- * - Add new recurring debts
- * - Edit existing recurring debts
- * - Delete recurring debts
+ * - View a list of debts with their details
+ * - Add new debts
+ * - Edit existing debts
+ * - Delete debts
  * - Record payments against debts
  * - Search and filter debts
  *
@@ -32,7 +32,7 @@ import PayModal from "./components/PayModal";
  * for form handling. Each debt includes details like name, balance, interest rate,
  * due date, and payment history.
  */
-function RecurringPage() {
+function DebtsPage() {
   // Get the selected budget account
   const { selectedAccount, isLoading: isAccountsLoading } = useBudgetAccount();
 
@@ -268,7 +268,7 @@ function RecurringPage() {
             <SearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Search recurring..."
+              placeholder="Search debts..."
               className="w-full lg:w-80"
             />
           </div>
@@ -279,7 +279,7 @@ function RecurringPage() {
             disabled={isSubmitting}
           >
             <PlusIcon className="h-5 w-5 mr-2" />
-            Add Recurring
+            Add Debt
           </Button>
         </div>
 
@@ -308,6 +308,7 @@ function RecurringPage() {
         <AddEditModal
           isOpen={modalOpen}
           onClose={closeModal}
+          budgetAccountId={selectedAccount?.id || ""}
           onSubmit={handleSubmit}
           editingDebt={editingDebt}
           isLoading={isSubmitting}
@@ -330,4 +331,4 @@ function RecurringPage() {
   );
 }
 
-export default RecurringPage;
+export default DebtsPage;

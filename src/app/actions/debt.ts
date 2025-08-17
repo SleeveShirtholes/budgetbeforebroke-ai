@@ -24,6 +24,7 @@ export type CreateDebtInput = {
   interestRate: number;
   dueDate: string;
   hasBalance?: boolean;
+  categoryId?: string;
 };
 
 /**
@@ -35,6 +36,7 @@ export type UpdateDebtInput = {
   paymentAmount: number;
   interestRate: number;
   dueDate: string;
+  categoryId?: string;
 };
 
 /**
@@ -54,6 +56,7 @@ export type Debt = {
   id: string;
   budgetAccountId: string;
   createdByUserId: string;
+  categoryId?: string;
   name: string;
   paymentAmount: number;
   interestRate: number;
@@ -122,6 +125,7 @@ export async function getDebts(budgetAccountId?: string) {
       id: debts.id,
       budgetAccountId: debts.budgetAccountId,
       createdByUserId: debts.createdByUserId,
+      categoryId: debts.categoryId,
       name: debts.name,
       paymentAmount: debts.paymentAmount,
       interestRate: debts.interestRate,
@@ -152,6 +156,7 @@ export async function getDebts(budgetAccountId?: string) {
         id: row.id,
         budgetAccountId: row.budgetAccountId,
         createdByUserId: row.createdByUserId,
+        categoryId: row.categoryId || undefined,
         name: row.name,
         paymentAmount: Number(row.paymentAmount),
         interestRate: Number(row.interestRate),
@@ -226,6 +231,7 @@ export async function createDebt(
     id: debtId,
     budgetAccountId: accountId,
     createdByUserId: sessionResult.user.id,
+    categoryId: data.categoryId,
     name: data.name,
     paymentAmount: data.paymentAmount.toString(),
     interestRate: data.interestRate.toString(),
@@ -282,6 +288,7 @@ export async function updateDebt(
     .update(debts)
     .set({
       name: data.name,
+      categoryId: data.categoryId,
       paymentAmount: data.paymentAmount.toString(),
       interestRate: data.interestRate.toString(),
       dueDate: data.dueDate, // Now a date string in YYYY-MM-DD format
@@ -434,11 +441,21 @@ export async function createDebtPayment(
   });
 
   // Create a transaction for this payment
+  // Use the debt's category if available, otherwise use the "Debts" category we found/created
+  let categoryId = existingDebt.categoryId;
+
+  if (!categoryId) {
+    // Use the "Debts" category we found or created earlier
+    categoryId = debtsCategory.id;
+  }
+
+  // Always create a transaction since we now have a category
   await db.insert(transactions).values({
     id: randomUUID(),
     budgetAccountId: accountId,
-    categoryId: debtsCategory.id,
+    categoryId,
     createdByUserId: sessionResult.user.id,
+    debtId: existingDebt.id, // Add the foreign key reference
     amount: paymentAmount.toString(), // always positive, use type field to distinguish expense/income
     description: `Debt payment: ${existingDebt.name}`,
     date: new Date(data.date),

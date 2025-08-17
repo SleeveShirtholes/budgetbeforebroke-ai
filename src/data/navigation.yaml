@@ -21,10 +21,6 @@ transactions:
       href: /dashboard/transactions
       icon: Bars4Icon
       description: View your complete transaction history and record new expenses or income
-    - label: Recurring
-      href: /dashboard/transactions/recurring
-      icon: ArrowPathIcon
-      description: Manage your recurring transactions
 
 analytics:
   label: Analytics
@@ -45,6 +41,10 @@ account:
       href: /dashboard/categories
       icon: FolderIcon
       description: Manage your categories
+    - label: Manage Debts
+      href: /dashboard/debts
+      icon: ArrowPathIcon
+      description: Manage your debts and payments
 
 support:
   label: Support

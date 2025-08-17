@@ -9,7 +9,7 @@ import {
 } from "@/lib/schemas/debt";
 
 /**
- * Form component for recording a payment on a recurring debt.
+ * Form component for recording a payment on a debt.
  * Uses react-hook-form with Zod validation for form handling.
  * Provides proper formatting for monetary values and date selection.
  */

@@ -116,7 +116,9 @@ jest.mock("../components/SignInMethods", () => {
     methods?: Array<{ type: string; provider: string }>;
   }) => (
     <div data-testid="sign-in-methods">
-      {methods?.map((method) => <div key={method.type}>{method.provider}</div>)}
+      {methods?.map((method) => (
+        <div key={method.type}>{method.provider}</div>
+      ))}
     </div>
   );
   SignInMethods.displayName = "SignInMethods";
