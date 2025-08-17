@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { format } from "date-fns";
+import Sortable from "sortablejs";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -40,6 +41,7 @@ export default function PaycheckPlanningPage() {
   const [showMobileDetails, setShowMobileDetails] = useState(false);
   const [isWarningsExpanded, setIsWarningsExpanded] = useState(false);
   const { showToast } = useToast();
+  const unallocatedDebtsRef = useRef<HTMLDivElement>(null);
 
   // Get the selected budget account
   const { selectedAccount, isLoading: isAccountsLoading } = useBudgetAccount();
@@ -163,6 +165,28 @@ export default function PaycheckPlanningPage() {
   const goToCurrentMonth = () => {
     setSelectedDate(new Date());
   };
+
+  // Set up SortableJS for unallocated debts
+  useEffect(() => {
+    if (!unallocatedDebtsRef.current) return;
+
+    const sortable = Sortable.create(unallocatedDebtsRef.current, {
+      group: {
+        name: "debts",
+        pull: "clone", // Allow items to be pulled from this list
+        put: false, // Don't allow items to be put back into this list
+      },
+      sort: false, // Disable sorting within the unallocated debts list
+      animation: 150,
+      ghostClass: "sortable-ghost",
+      chosenClass: "sortable-chosen",
+      dragClass: "sortable-drag",
+    });
+
+    return () => {
+      sortable.destroy();
+    };
+  }, [unallocatedDebts]);
 
   // Loading states
   if (isAccountsLoading) {
