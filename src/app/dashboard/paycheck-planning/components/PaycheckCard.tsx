@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { format } from "date-fns";
 import {
   CurrencyDollarIcon,
   CalendarDaysIcon,
@@ -56,7 +55,9 @@ export default function PaycheckCard({
               </h3>
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <CalendarDaysIcon className="h-4 w-4" />
-                <span>{format(allocation.paycheckDate, "MMM dd, yyyy")}</span>
+                <span>
+                  {formatDateSafely(allocation.paycheckDate, "MMM dd, yyyy")}
+                </span>
                 <span>•</span>
                 <span>{paycheck?.frequency || "Unknown"}</span>
               </div>

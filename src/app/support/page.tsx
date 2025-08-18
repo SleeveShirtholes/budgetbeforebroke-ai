@@ -32,7 +32,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import Spinner from "@/components/Spinner";
 import { format } from "date-fns";
-import { NewRequestFormData } from "./components/NewRequestModal";
+import { NewRequestFormData } from "./types";
 
 /**
  * Support Page Component
@@ -57,6 +57,7 @@ export default function Support() {
   const { data } = authClient.useSession();
   // Extract userId from the session data
   const userId = data?.user?.id;
+
   // UI state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [issueView, setIssueView] = useState<"my" | "public">("my");
@@ -70,8 +71,8 @@ export default function Support() {
     mutate,
     isLoading,
   } = useSWR(["supportRequests", issueView, statusView, userId], async () => {
-    // Fix: Only filter for 'Closed' status, otherwise fetch all non-closed for 'open'
-    const status = statusView === "closed" ? "Closed" : undefined;
+    // Fix: Use proper status filtering - "Closed" for closed, "open" for open (excludes closed)
+    const status = statusView === "closed" ? "Closed" : "open";
 
     // Fix: Allow unauthenticated users to view public requests
     if (issueView === "my") {
@@ -83,7 +84,7 @@ export default function Support() {
   });
 
   // SWR for comments for all requests
-  const { data: allComments = [] } = useSWR(
+  const { data: allComments = [], mutate: mutateComments } = useSWR(
     [
       "supportComments",
       rawRequests.map((r: unknown) => (r as { id: string }).id),
@@ -215,8 +216,22 @@ export default function Support() {
 
   // Create a new support request (now expects form data, not event)
   const handleCreateRequest = async (data: NewRequestFormData) => {
-    if (!data.title.trim() || !data.description.trim()) return;
-    if (!userId) return; // Ensure user is authenticated
+    console.log("handleCreateRequest called with data:", data);
+    if (!data.title.trim() || !data.description.trim()) {
+      console.log("Validation failed: title or description is empty");
+      return;
+    }
+    if (!userId) {
+      console.log("Validation failed: no userId");
+      return; // Ensure user is authenticated
+    }
+    console.log("Calling createSupportRequest with:", {
+      title: data.title,
+      description: data.description,
+      category: data.category,
+      isPublic: data.isPublic,
+      userId: userId,
+    });
     await createSupportRequest({
       title: data.title,
       description: data.description,
@@ -224,9 +239,11 @@ export default function Support() {
       isPublic: data.isPublic,
       userId: userId,
     });
+    console.log("createSupportRequest completed");
     setIsModalOpen(false);
     // Await mutate to ensure UI updates after mutation
     await mutate();
+    console.log("mutate completed");
   };
 
   // Add a comment to a support request
@@ -238,8 +255,10 @@ export default function Support() {
       text: comment.trim(),
       userId: userId,
     });
-    // Await mutate to ensure UI updates after mutation
+    // Refresh both support requests and comments data
     await mutate();
+    // Also refresh the comments data specifically
+    await mutateComments();
   };
 
   // Upvote a support request

@@ -277,7 +277,8 @@ describe("ContactSubmissionsClient", () => {
     render(<ContactSubmissionsClient initialSubmissions={mockSubmissions} />);
 
     // Check that dates are displayed in the expected format
-    // Use getAllByText since there are multiple date elements
+    // The formatDate function uses toLocaleString() which includes time
+    // The mock data has dates from 2023, so we look for "12/31/2023"
     const dateElements = screen.getAllByText(/12\/31\/2023/);
     expect(dateElements.length).toBeGreaterThan(0);
   });

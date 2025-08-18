@@ -58,3 +58,11 @@ export interface SupportRequest {
 export interface TableSupportRequest extends SupportRequest {
   [key: string]: unknown; // Index signature for table compatibility
 }
+
+// Define the type for new request form data (without status since it's always "Open")
+export interface NewRequestFormData {
+  title: string;
+  description: string;
+  category: SupportCategory;
+  isPublic: boolean;
+}

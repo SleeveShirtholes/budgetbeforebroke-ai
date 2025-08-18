@@ -46,6 +46,6 @@ describe("RootLayout", () => {
     // Check that Footer is present in the ToastProvider children
     const footer = toastChildren[2]; // Footer should be the third child (after main and CookieConsentBanner)
     expect(footer).toBeDefined();
-    expect(footer.type.name).toBe("Footer");
+    expect(footer.type.name).toBe("ConditionalFooter");
   });
 });

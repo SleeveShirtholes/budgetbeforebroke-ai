@@ -24,6 +24,8 @@ export const user = pgTable("user", {
     .notNull(),
   image: text("image"),
   phoneNumber: text("phone_number"),
+  // Global admin role for accessing admin panel
+  isGlobalAdmin: boolean("is_global_admin").notNull().default(false),
   defaultBudgetAccountId: text("default_budget_account_id").references(
     () => budgetAccounts.id,
   ),

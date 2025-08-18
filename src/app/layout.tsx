@@ -7,7 +7,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { SWRConfig } from "swr";
-import Footer from "@/components/Footer";
+import ConditionalFooter from "@/components/ConditionalFooter";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,12 +28,6 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // In a real app, you would:
-  // 1. Load navigation data from YAML file on the server
-  // 2. Pass it to the Header component as props
-  // 3. Remove the static import in the Header component
-  // await getNavigationData(); // Example of server data loading
-
   return (
     <html lang="en">
       <body className={`bg-pastel-gradient ${inter.className}`}>
@@ -48,7 +43,29 @@ export default async function RootLayout({
               <main className="pt-0">{children}</main>
             </Suspense>
             <CookieConsentBanner />
-            <Footer />
+            <ConditionalFooter />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: "#363636",
+                  color: "#fff",
+                },
+                success: {
+                  duration: 3000,
+                  style: {
+                    background: "#10B981",
+                  },
+                },
+                error: {
+                  duration: 5000,
+                  style: {
+                    background: "#EF4444",
+                  },
+                },
+              }}
+            />
           </ToastProvider>
         </SWRConfig>
       </body>

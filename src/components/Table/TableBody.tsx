@@ -4,8 +4,8 @@ import { Fragment, ReactNode, useState } from "react";
 
 import { ChevronRightIcon } from "@heroicons/react/20/solid";
 import { ColumnDef } from "./types";
-import HighlightedText from "./HighlightedText";
 import RowActions from "./RowActions";
+import TruncatedCell from "./TruncatedCell";
 
 /**
  * Renders the body of the table including data rows, expandable detail panels, and row actions.
@@ -149,15 +149,20 @@ export default function TableBody<T extends Record<string, unknown>>({
                 {columns.map((column) => (
                   <td
                     key={column.key}
-                    className="px-4 py-4 text-sm text-gray-700"
+                    className={`px-4 py-4 text-sm text-gray-700 ${
+                      column.width ? column.width : "w-32"
+                    }`}
                   >
-                    {column.accessor ? (
+                    {column.cell ? (
+                      column.cell({ getValue: () => row[column.key] })
+                    ) : column.accessor ? (
                       column.accessor(row)
                     ) : row[column.key] !== undefined &&
                       row[column.key] !== null ? (
-                      <HighlightedText
-                        text={String(row[column.key])}
-                        highlight={searchQuery}
+                      <TruncatedCell
+                        content={String(row[column.key])}
+                        maxWidth={200}
+                        searchQuery={searchQuery}
                       />
                     ) : (
                       ""

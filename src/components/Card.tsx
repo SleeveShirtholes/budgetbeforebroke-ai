@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, HTMLAttributes } from "react";
 
 /**
  * Card component that provides a flexible container with different styling options.
@@ -9,7 +9,7 @@ import { ReactNode } from "react";
  * @param {"none" | "sm" | "md" | "lg"} [padding="md"] - The amount of padding to apply to the card
  * @returns {JSX.Element} A styled card container
  */
-interface CardProps {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   variant?: "default" | "outline" | "filled";
@@ -21,6 +21,7 @@ const Card = ({
   className = "",
   variant = "default",
   padding = "md",
+  ...rest
 }: CardProps) => {
   // Base styles that are always applied to the card
   const baseStyles = "rounded-xl shadow";
@@ -50,7 +51,11 @@ const Card = ({
     .filter(Boolean)
     .join(" ");
 
-  return <div className={combinedStyles}>{children}</div>;
+  return (
+    <div className={combinedStyles} {...rest}>
+      {children}
+    </div>
+  );
 };
 
 export default Card;

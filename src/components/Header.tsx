@@ -9,6 +9,7 @@ import {
   UserIcon,
   Bars3Icon,
   XMarkIcon,
+  CogIcon,
 } from "@heroicons/react/24/outline";
 import { useEffect, useRef, useState } from "react";
 
@@ -17,6 +18,36 @@ import { authClient } from "@/lib/auth-client";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+/**
+ * Custom hook to get user with admin status
+ */
+function useUserWithAdmin() {
+  const { data: session } = authClient.useSession();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkAdminStatus() {
+      if (session?.user?.id) {
+        try {
+          const response = await fetch("/api/auth/check-admin");
+          if (response.ok) {
+            const { isGlobalAdmin } = await response.json();
+            setIsAdmin(isGlobalAdmin);
+          }
+        } catch (error) {
+          console.error("Error checking admin status:", error);
+        }
+      }
+      setIsLoading(false);
+    }
+
+    checkAdminStatus();
+  }, [session?.user?.id]);
+
+  return { session, isAdmin, isLoading };
+}
 
 /**
  * Header component that displays the main navigation bar with dropdown menus and user profile.
@@ -36,7 +67,7 @@ export default function Header() {
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
 
-  const { data: session } = authClient.useSession();
+  const { session, isAdmin } = useUserWithAdmin();
 
   // Only use the session user image if it exists
   const userAvatar = session?.user?.image || undefined;
@@ -234,6 +265,18 @@ export default function Header() {
                       <UserIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-500" />
                       Profile
                     </Link>
+                    {/* Admin link - only show if user is admin */}
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        className="group flex items-center px-4 py-2 mx-1 my-1 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                        role="menuitem"
+                        onClick={() => setIsUserDropdownOpen(false)}
+                      >
+                        <CogIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-500" />
+                        Admin Panel
+                      </Link>
+                    )}
                   </div>
                   <div className="py-2 px-1" role="menu">
                     <button
@@ -261,6 +304,40 @@ export default function Header() {
             ref={mobileMenuRef}
             className="lg:hidden border-t border-accent-200 bg-white/95 backdrop-blur-sm max-h-[calc(100vh-4rem)] overflow-y-auto"
           >
+            {/* User Profile Section */}
+            <div className="px-4 py-3 border-b border-accent-200">
+              <div className="flex items-center space-x-3">
+                <Avatar src={userAvatar} name={userName} size={40} />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {userName}
+                  </p>
+                  <p className="text-sm text-gray-500">{userEmail}</p>
+                </div>
+              </div>
+              <div className="mt-3 space-y-1">
+                <Link
+                  href="/profile"
+                  className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <UserIcon className="mr-3 h-5 w-5 text-gray-400" />
+                  Profile
+                </Link>
+                {/* Admin link - only show if user is admin */}
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <CogIcon className="mr-3 h-5 w-5 text-gray-400" />
+                    Admin Panel
+                  </Link>
+                )}
+              </div>
+            </div>
+
             <nav className="space-y-4">
               {(
                 Object.entries(navigationData) as [

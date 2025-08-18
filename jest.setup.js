@@ -26,6 +26,20 @@ jest.mock("resend", () => ({
   })),
 }));
 
+// Mock react-hot-toast for tests
+jest.mock("react-hot-toast", () => {
+  const React = require("react");
+  return {
+    Toaster: () => React.createElement("div", { "data-testid": "toaster" }),
+    toast: {
+      success: jest.fn(),
+      error: jest.fn(),
+      loading: jest.fn(),
+      dismiss: jest.fn(),
+    },
+  };
+});
+
 // Configure testing-library
 import { configure } from "@testing-library/react";
 
@@ -122,29 +136,30 @@ const mockCanvasContext = {
 };
 
 // Mock HTMLCanvasElement
-Object.defineProperty(global.HTMLCanvasElement.prototype, "getContext", {
-  value: jest.fn(() => mockCanvasContext),
-});
+if (typeof HTMLCanvasElement !== "undefined") {
+  Object.defineProperty(global.HTMLCanvasElement.prototype, "getContext", {
+    value: jest.fn(() => mockCanvasContext),
+  });
 
-Object.defineProperty(global.HTMLCanvasElement.prototype, "toBlob", {
-  value: jest.fn(),
-});
+  Object.defineProperty(global.HTMLCanvasElement.prototype, "toBlob", {
+    value: jest.fn(),
+  });
+  Object.defineProperty(
+    global.HTMLCanvasElement.prototype,
+    "getBoundingClientRect",
+    {
+      value: jest.fn(() => ({ width: 100, height: 100, top: 0, left: 0 })),
+    },
+  );
 
-Object.defineProperty(
-  global.HTMLCanvasElement.prototype,
-  "getBoundingClientRect",
-  {
-    value: jest.fn(() => ({ width: 100, height: 100, top: 0, left: 0 })),
-  },
-);
+  // Mock canvas width and height
+  Object.defineProperty(global.HTMLCanvasElement.prototype, "width", {
+    get: () => 100,
+    set: jest.fn(),
+  });
 
-// Mock canvas width and height
-Object.defineProperty(global.HTMLCanvasElement.prototype, "width", {
-  get: () => 100,
-  set: jest.fn(),
-});
-
-Object.defineProperty(global.HTMLCanvasElement.prototype, "height", {
-  get: () => 100,
-  set: jest.fn(),
-});
+  Object.defineProperty(global.HTMLCanvasElement.prototype, "height", {
+    get: () => 100,
+    set: jest.fn(),
+  });
+}

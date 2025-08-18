@@ -44,6 +44,7 @@
     "react-datepicker": "^8.3.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.61.1",
+    "react-hot-toast": "^2.6.0",
     "react-plaid-link": "^4.0.1",
     "resend": "^4.5.1",
     "sortablejs": "^1.15.6",

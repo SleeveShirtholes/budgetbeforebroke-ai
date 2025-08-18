@@ -5,173 +5,366 @@ import {
   upvoteSupportRequest,
   downvoteSupportRequest,
   updateSupportRequestStatus,
+  getAllSupportRequestsForAdmin,
+  canEditSupportRequest,
+  updateSupportRequest,
 } from "../supportRequests";
-
 import { db } from "@/db/config";
-import crypto from "crypto";
+import { supportRequests } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { getCurrentUserWithAdmin } from "@/lib/auth-helpers";
 
-// Mock dependencies
+// Mock the database
 jest.mock("@/db/config", () => ({
   db: {
     select: jest.fn(),
     insert: jest.fn(),
     update: jest.fn(),
+    from: jest.fn(),
+    leftJoin: jest.fn(),
+    where: jest.fn(),
+    orderBy: jest.fn(),
+    values: jest.fn(),
+    set: jest.fn(),
   },
 }));
 
-// Mock crypto.randomUUID
-const mockUUID: `${string}-${string}-${string}-${string}-${string}` =
-  "mock-uuid-12345-1234-1234-1234-123456789abc";
-jest.spyOn(crypto, "randomUUID").mockImplementation(() => mockUUID);
+// Mock auth helpers
+jest.mock("@/lib/auth-helpers", () => ({
+  getCurrentUserWithAdmin: jest.fn(),
+}));
+
+const mockDb = db as jest.Mocked<typeof db>;
+
+// Helper function to create a mock update that returns the set values
+// const createMockUpdate = () => {
+//   const mockWhere = jest.fn().mockResolvedValue(undefined);
+//   const mockSet = jest.fn().mockReturnValue({
+//     where: mockWhere,
+//   });
+
+//   // Store the values passed to set() so we can access them in tests
+//   mockSet.mockImplementation((values) => {
+//     mockSet.lastCallValues = values;
+//     return mockSet;
+//   });
+
+//   const mockUpdate = {
+//     set: mockSet,
+//   };
+//   mockDb.update.mockReturnValue(mockUpdate as unknown as ReturnType<typeof mockDb.update>);
+//   return mockUpdate;
+// };
 
 describe("SupportRequests Actions", () => {
-  const mockSupportRequest = {
-    id: "request-1",
-    title: "Test Support Request",
-    description: "This is a test support request",
-    category: "Issue",
-    status: "Open",
-    isPublic: true,
-    userId: "user-1",
-    upvotes: 5,
-    downvotes: 1,
-    lastUpdated: new Date("2024-01-01T00:00:00Z"),
-    createdAt: new Date("2024-01-01T00:00:00Z"),
-    user: "Test User",
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Setup select mock chain
+    const mockSelect = {
+      from: jest.fn().mockReturnValue({
+        leftJoin: jest.fn().mockReturnValue({
+          where: jest.fn().mockReturnValue({
+            orderBy: jest.fn().mockResolvedValue([]),
+          }),
+        }),
+      }),
+    };
+    mockDb.select.mockReturnValue(
+      mockSelect as unknown as ReturnType<typeof mockDb.select>,
+    );
+
+    // Setup insert mock chain
+    const mockInsert = {
+      values: jest.fn().mockResolvedValue(undefined),
+    };
+    mockDb.insert.mockReturnValue(
+      mockInsert as unknown as ReturnType<typeof mockDb.insert>,
+    );
+
+    // Setup default update mock chain (can be overridden by specific tests)
+    const mockUpdate = {
+      set: jest.fn().mockReturnValue({
+        where: jest.fn().mockResolvedValue(undefined),
+      }),
+    };
+    mockDb.update.mockReturnValue(
+      mockUpdate as unknown as ReturnType<typeof mockDb.update>,
+    );
   });
 
   describe("getPublicSupportRequests", () => {
-    it("should fetch public support requests without status filter", async () => {
-      const mockQueryBuilder = {
-        from: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockResolvedValue([mockSupportRequest]),
-      };
-      (db.select as jest.Mock).mockReturnValueOnce(mockQueryBuilder);
+    it("should fetch public support requests", async () => {
+      const mockRequests = [
+        {
+          id: "req-1",
+          title: "Test Request",
+          description: "Test Description",
+          category: "Issue",
+          status: "Open",
+          isPublic: true,
+          userId: "user-1",
+          upvotes: 0,
+          downvotes: 0,
+          lastUpdated: new Date(),
+          createdAt: new Date(),
+          user: "Test User",
+        },
+      ];
+
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          leftJoin: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue({
+              orderBy: jest.fn().mockResolvedValue(mockRequests),
+            }),
+          }),
+        }),
+      } as unknown as ReturnType<typeof mockDb.select>);
+
       const result = await getPublicSupportRequests();
-      expect(result).toEqual([mockSupportRequest]);
+      expect(result).toEqual(mockRequests);
     });
-    it("should fetch public support requests with status filter", async () => {
-      const mockQueryBuilder = {
-        from: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockResolvedValue([mockSupportRequest]),
-      };
-      (db.select as jest.Mock).mockReturnValueOnce(mockQueryBuilder);
-      const result = await getPublicSupportRequests("Open");
-      expect(result).toEqual([mockSupportRequest]);
-    });
-    it("should handle empty requests array", async () => {
-      const mockQueryBuilder = {
-        from: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockResolvedValue([]),
-      };
-      (db.select as jest.Mock).mockReturnValueOnce(mockQueryBuilder);
-      const result = await getPublicSupportRequests();
-      expect(result).toEqual([]);
-      expect(db.select).toHaveBeenCalledTimes(1);
+
+    it("should filter by status when provided", async () => {
+      const mockRequests = [
+        {
+          id: "req-1",
+          title: "Test Request",
+          description: "Test Description",
+          category: "Issue",
+          status: "Closed",
+          isPublic: true,
+          userId: "user-1",
+          upvotes: 0,
+          downvotes: 0,
+          lastUpdated: new Date(),
+          createdAt: new Date(),
+          user: "Test User",
+        },
+      ];
+
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          leftJoin: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue({
+              orderBy: jest.fn().mockResolvedValue(mockRequests),
+            }),
+          }),
+        }),
+      } as unknown as ReturnType<typeof mockDb.select>);
+
+      const result = await getPublicSupportRequests("Closed");
+      expect(result).toEqual(mockRequests);
     });
   });
 
   describe("getMySupportRequests", () => {
-    it("should fetch user's support requests without status filter", async () => {
-      const mockQueryBuilder = {
-        from: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockResolvedValue([mockSupportRequest]),
-      };
-      (db.select as jest.Mock).mockReturnValueOnce(mockQueryBuilder);
+    it("should fetch user's support requests", async () => {
+      const mockRequests = [
+        {
+          id: "req-1",
+          title: "My Request",
+          description: "My Description",
+          category: "Feature Request",
+          status: "Open",
+          isPublic: false,
+          userId: "user-1",
+          upvotes: 0,
+          downvotes: 0,
+          lastUpdated: new Date(),
+          createdAt: new Date(),
+          user: "My User",
+        },
+      ];
+
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          leftJoin: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue({
+              orderBy: jest.fn().mockResolvedValue(mockRequests),
+            }),
+          }),
+        }),
+      } as unknown as ReturnType<typeof mockDb.select>);
+
       const result = await getMySupportRequests("user-1");
-      expect(result).toEqual([mockSupportRequest]);
+      expect(result).toEqual(mockRequests);
     });
-    it("should fetch user's support requests with status filter", async () => {
-      const mockQueryBuilder = {
-        from: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockResolvedValue([mockSupportRequest]),
-      };
-      (db.select as jest.Mock).mockReturnValueOnce(mockQueryBuilder);
-      const result = await getMySupportRequests("user-1", "Closed");
-      expect(result).toEqual([mockSupportRequest]);
-    });
-    it("should return empty array when userId is not provided", async () => {
+
+    it("should return empty array for invalid userId", async () => {
       const result = await getMySupportRequests("");
       expect(result).toEqual([]);
     });
-    it("should handle empty requests array", async () => {
-      const mockQueryBuilder = {
-        from: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockResolvedValue([]),
-      };
-      (db.select as jest.Mock).mockReturnValueOnce(mockQueryBuilder);
-      const result = await getMySupportRequests("user-1");
-      expect(result).toEqual([]);
-      expect(db.select).toHaveBeenCalledTimes(1);
+
+    it("should filter by status when provided", async () => {
+      const mockRequests = [
+        {
+          id: "req-1",
+          title: "My Request",
+          description: "My Description",
+          category: "Feature Request",
+          status: "Closed",
+          isPublic: false,
+          userId: "user-1",
+          upvotes: 0,
+          downvotes: 0,
+          lastUpdated: new Date(),
+          createdAt: new Date(),
+          user: "My User",
+        },
+      ];
+
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          leftJoin: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue({
+              orderBy: jest.fn().mockResolvedValue(mockRequests),
+            }),
+          }),
+        }),
+      } as unknown as ReturnType<typeof mockDb.select>);
+
+      const result = await getMySupportRequests("user-1", "Closed");
+      expect(result).toEqual(mockRequests);
+    });
+  });
+
+  describe("getAllSupportRequestsForAdmin", () => {
+    it("should fetch all support requests for admin", async () => {
+      (getCurrentUserWithAdmin as jest.Mock).mockResolvedValue({
+        id: "admin-1",
+        isGlobalAdmin: true,
+      });
+
+      const mockRequests = [
+        {
+          id: "req-1",
+          title: "Admin Request",
+          description: "Admin Description",
+          category: "General Question",
+          status: "Open",
+          isPublic: true,
+          userId: "user-1",
+          upvotes: 0,
+          downvotes: 0,
+          lastUpdated: new Date(),
+          createdAt: new Date(),
+          user: "Admin User",
+        },
+      ];
+
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          leftJoin: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnValue({
+              orderBy: jest.fn().mockResolvedValue(mockRequests),
+            }),
+          }),
+        }),
+      } as unknown as ReturnType<typeof mockDb.select>);
+
+      const result = await getAllSupportRequestsForAdmin();
+      expect(result).toEqual(mockRequests);
+    });
+
+    it("should throw error for non-admin users", async () => {
+      (getCurrentUserWithAdmin as jest.Mock).mockResolvedValue({
+        id: "user-1",
+        isGlobalAdmin: false,
+      });
+
+      await expect(getAllSupportRequestsForAdmin()).rejects.toThrow(
+        "Global admin access required",
+      );
+    });
+  });
+
+  describe("canEditSupportRequest", () => {
+    it("should return true for global admin", async () => {
+      (getCurrentUserWithAdmin as jest.Mock).mockResolvedValue({
+        id: "admin-1",
+        isGlobalAdmin: true,
+      });
+
+      const result = await canEditSupportRequest("req-1");
+      expect(result).toBe(true);
+    });
+
+    it("should return true for request creator", async () => {
+      (getCurrentUserWithAdmin as jest.Mock).mockResolvedValue({
+        id: "user-1",
+        isGlobalAdmin: false,
+      });
+
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockResolvedValue([{ userId: "user-1" }]),
+        }),
+      } as unknown as ReturnType<typeof mockDb.select>);
+
+      const result = await canEditSupportRequest("req-1");
+      expect(result).toBe(true);
+    });
+
+    it("should return false for non-creator non-admin", async () => {
+      (getCurrentUserWithAdmin as jest.Mock).mockResolvedValue({
+        id: "user-2",
+        isGlobalAdmin: false,
+      });
+
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockResolvedValue([{ userId: "user-1" }]),
+        }),
+      } as unknown as ReturnType<typeof mockDb.select>);
+
+      const result = await canEditSupportRequest("req-1");
+      expect(result).toBe(false);
+    });
+
+    it("should return false for unauthenticated user", async () => {
+      (getCurrentUserWithAdmin as jest.Mock).mockResolvedValue(null);
+
+      const result = await canEditSupportRequest("req-1");
+      expect(result).toBe(false);
     });
   });
 
   describe("createSupportRequest", () => {
-    it("should create a new support request successfully", async () => {
-      const mockInsert = {
-        values: jest.fn().mockResolvedValue(undefined),
-      };
-      (db.insert as jest.Mock).mockReturnValue(mockInsert);
+    it("should create a new support request", async () => {
       const requestData = {
-        title: "New Support Request",
-        description: "This is a new support request",
-        category: "Feature Request",
+        title: "New Request",
+        description: "New Description",
+        category: "Issue",
         isPublic: true,
         userId: "user-1",
       };
-      const result = await createSupportRequest(requestData);
-      expect(result).toEqual({
-        id: mockUUID,
-        title: "New Support Request",
-        description: "This is a new support request",
-        category: "Feature Request",
-        status: "Open",
-        isPublic: true,
-        userId: "user-1",
-        upvotes: 0,
-        downvotes: 0,
-        lastUpdated: expect.any(Date),
-        createdAt: expect.any(Date),
-      });
-      expect(db.insert).toHaveBeenCalledTimes(1);
-      expect(mockInsert.values).toHaveBeenCalledWith({
-        id: mockUUID,
-        title: "New Support Request",
-        description: "This is a new support request",
-        category: "Feature Request",
-        status: "Open",
-        isPublic: true,
-        userId: "user-1",
-        upvotes: 0,
-        downvotes: 0,
-        lastUpdated: expect.any(Date),
-        createdAt: expect.any(Date),
-      });
+
+      await createSupportRequest(requestData);
+
+      expect(mockDb.insert).toHaveBeenCalledWith(supportRequests);
+      expect(mockDb.insert().values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "New Request",
+          description: "New Description",
+          category: "Issue",
+          isPublic: true,
+          userId: "user-1",
+          status: "Open",
+        }),
+      );
     });
-    it("should throw error when userId is not provided", async () => {
+
+    it("should throw error for missing userId", async () => {
       const requestData = {
-        title: "New Support Request",
-        description: "This is a new support request",
-        category: "Feature Request",
+        title: "New Request",
+        description: "New Description",
+        category: "Issue",
         isPublic: true,
         userId: "",
       };
+
       await expect(createSupportRequest(requestData)).rejects.toThrow(
         "Authentication required to create support request",
       );
@@ -179,47 +372,110 @@ describe("SupportRequests Actions", () => {
   });
 
   describe("upvoteSupportRequest", () => {
-    it("should increment upvotes for a support request", async () => {
-      const mockUpdate = {
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue(undefined),
-        }),
-      };
-      (db.update as jest.Mock).mockReturnValue(mockUpdate);
-      await upvoteSupportRequest("request-1");
-      expect(db.update).toHaveBeenCalledTimes(1);
-      expect(mockUpdate.set).toHaveBeenCalledTimes(1);
+    it("should increment upvotes", async () => {
+      await upvoteSupportRequest("req-1");
+
+      expect(mockDb.update).toHaveBeenCalledWith(supportRequests);
+      expect(mockDb.update().set).toHaveBeenCalled();
+      expect(mockDb.update().set().where).toHaveBeenCalledWith(
+        eq(supportRequests.id, "req-1"),
+      );
     });
   });
 
   describe("downvoteSupportRequest", () => {
-    it("should increment downvotes for a support request", async () => {
-      const mockUpdate = {
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue(undefined),
-        }),
-      };
-      (db.update as jest.Mock).mockReturnValue(mockUpdate);
-      await downvoteSupportRequest("request-1");
-      expect(db.update).toHaveBeenCalledTimes(1);
-      expect(mockUpdate.set).toHaveBeenCalledTimes(1);
+    it("should increment downvotes", async () => {
+      await downvoteSupportRequest("req-1");
+
+      expect(mockDb.update).toHaveBeenCalledWith(supportRequests);
+      expect(mockDb.update().set).toHaveBeenCalled();
+      expect(mockDb.update().set().where).toHaveBeenCalledWith(
+        eq(supportRequests.id, "req-1"),
+      );
     });
   });
 
   describe("updateSupportRequestStatus", () => {
-    it("should update the status of a support request", async () => {
-      const mockUpdate = {
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue(undefined),
-        }),
-      };
-      (db.update as jest.Mock).mockReturnValue(mockUpdate);
-      await updateSupportRequestStatus("request-1", "Closed");
-      expect(db.update).toHaveBeenCalledTimes(1);
-      expect(mockUpdate.set).toHaveBeenCalledWith({
-        status: "Closed",
-        lastUpdated: expect.any(Date),
+    it("should update status for authorized user", async () => {
+      (getCurrentUserWithAdmin as jest.Mock).mockResolvedValue({
+        id: "admin-1",
+        isGlobalAdmin: true,
       });
+
+      await updateSupportRequestStatus("req-1", "Closed");
+
+      expect(mockDb.update).toHaveBeenCalledWith(supportRequests);
+      expect(mockDb.update().set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "Closed",
+          lastUpdated: expect.any(Date),
+        }),
+      );
+      expect(mockDb.update().set().where).toHaveBeenCalledWith(
+        eq(supportRequests.id, "req-1"),
+      );
+    });
+
+    it("should throw error for unauthorized user", async () => {
+      (getCurrentUserWithAdmin as jest.Mock).mockResolvedValue({
+        id: "user-2",
+        isGlobalAdmin: false,
+      });
+
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockResolvedValue([{ userId: "user-1" }]),
+        }),
+      } as unknown as ReturnType<typeof mockDb.select>);
+
+      await expect(
+        updateSupportRequestStatus("req-1", "Closed"),
+      ).rejects.toThrow("You don't have permission to edit this request");
+    });
+  });
+
+  describe("updateSupportRequest", () => {
+    it("should update request for authorized user", async () => {
+      (getCurrentUserWithAdmin as jest.Mock).mockResolvedValue({
+        id: "admin-1",
+        isGlobalAdmin: true,
+      });
+
+      const updates = {
+        title: "Updated Title",
+        description: "Updated Description",
+      };
+
+      await updateSupportRequest("req-1", updates);
+
+      expect(mockDb.update).toHaveBeenCalledWith(supportRequests);
+      expect(mockDb.update().set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Updated Title",
+          description: "Updated Description",
+          lastUpdated: expect.any(Date),
+        }),
+      );
+      expect(mockDb.update().set().where).toHaveBeenCalledWith(
+        eq(supportRequests.id, "req-1"),
+      );
+    });
+
+    it("should throw error for unauthorized user", async () => {
+      (getCurrentUserWithAdmin as jest.Mock).mockResolvedValue({
+        id: "user-2",
+        isGlobalAdmin: false,
+      });
+
+      mockDb.select.mockReturnValue({
+        from: jest.fn().mockReturnValue({
+          where: jest.fn().mockResolvedValue([{ userId: "user-1" }]),
+        }),
+      } as unknown as ReturnType<typeof mockDb.select>);
+
+      await expect(
+        updateSupportRequest("req-1", { title: "New Title" }),
+      ).rejects.toThrow("You don't have permission to edit this request");
     });
   });
 });

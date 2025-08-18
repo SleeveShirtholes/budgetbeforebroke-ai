@@ -204,4 +204,43 @@ describe("Table Component", () => {
       });
     });
   });
+
+  it("has proper horizontal scrolling container", () => {
+    render(<Table data={mockData} columns={columns} />);
+
+    // Find the table wrapper with overflow-x-auto
+    const tableWrapper = screen.getByRole("table").closest(".overflow-x-auto");
+    expect(tableWrapper).toBeInTheDocument();
+
+    // Verify the table is properly contained within the scrolling container
+    const table = screen.getByRole("table");
+    expect(tableWrapper).toContainElement(table);
+
+    // Verify the table has the correct width constraints
+    expect(table).toHaveClass("w-full");
+  });
+
+  it("renders custom cell content when cell property is provided", () => {
+    const customColumns: ColumnDef<TestData>[] = [
+      {
+        key: "name",
+        header: "Name",
+        cell: ({ getValue }) => (
+          <span data-testid="custom-cell">{getValue()}</span>
+        ),
+      },
+      {
+        key: "age",
+        header: "Age",
+        sortable: true,
+      },
+    ];
+
+    render(<Table data={mockData} columns={customColumns} />);
+
+    // Check that custom cell content is rendered
+    const customCells = screen.getAllByTestId("custom-cell");
+    expect(customCells).toHaveLength(mockData.length);
+    expect(customCells[0]).toHaveTextContent("John Doe");
+  });
 });

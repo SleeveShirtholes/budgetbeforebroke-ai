@@ -27,7 +27,6 @@ describe("NewRequestModal", () => {
       screen.getByPlaceholderText("Briefly describe your issue"),
     ).toBeInTheDocument();
     expect(screen.getByText("Category")).toBeInTheDocument();
-    expect(screen.getByText("Status")).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText(
         "Provide a detailed description of the problem or request...",
@@ -49,6 +48,16 @@ describe("NewRequestModal", () => {
       { target: { value: "Test Title" } },
     );
 
+    // Select a category - use the CustomSelect component properly
+    const categorySelect = screen.getByLabelText("Category (required)");
+    fireEvent.click(categorySelect);
+
+    // Wait for the dropdown to appear and select an option
+    await waitFor(() => {
+      const featureRequestOption = screen.getByText("Feature Request");
+      fireEvent.click(featureRequestOption);
+    });
+
     fireEvent.change(
       screen.getByPlaceholderText(
         "Provide a detailed description of the problem or request...",
@@ -64,8 +73,7 @@ describe("NewRequestModal", () => {
       expect(mockOnSubmit).toHaveBeenCalledWith({
         title: "Test Title",
         description: "Test Description",
-        category: "Issue",
-        status: "Open",
+        category: "Feature Request",
         isPublic: false,
       });
     });

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { supportCategoriesOptions, supportStatusOptions } from "../types";
+import { supportCategoriesOptions, NewRequestFormData } from "../types";
 import Button from "@/components/Button";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import Modal from "@/components/Modal";
@@ -16,11 +16,8 @@ const newRequestSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   category: z.enum(["Feature Request", "Issue", "General Question"]),
-  status: z.enum(["Open", "In Progress", "Closed"]),
   isPublic: z.boolean(),
 });
-
-export type NewRequestFormData = z.infer<typeof newRequestSchema>;
 
 /**
  * Props for the NewRequestModal component (react-hook-form version)
@@ -72,18 +69,22 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({
       title: "",
       description: "",
       category: "Issue",
-      status: "Open",
       isPublic: false,
     },
   });
 
   // Handle form submission
   const handleFormSubmit = async (data: NewRequestFormData) => {
+    console.log("Form submission started with data:", data);
     setLoading(true);
     try {
+      console.log("Calling onSubmit with data:", data);
       await onSubmit(data);
+      console.log("onSubmit completed successfully");
       reset();
       onClose();
+    } catch (error) {
+      console.error("Error in form submission:", error);
     } finally {
       setLoading(false);
     }
@@ -116,7 +117,10 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({
         className="space-y-4"
         id="new-request-form"
         data-testid="new-request-form"
-        onSubmit={handleSubmit(handleFormSubmit)}
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit(handleFormSubmit)(e);
+        }}
       >
         {/* Title field */}
         <TextField
@@ -140,22 +144,6 @@ const NewRequestModal: React.FC<NewRequestModalProps> = ({
               onChange={field.onChange}
               required
               error={errors.category?.message}
-            />
-          )}
-        />
-        {/* Status select */}
-        <Controller
-          name="status"
-          control={control}
-          render={({ field }) => (
-            <CustomSelect
-              label="Status"
-              id="request-status"
-              options={supportStatusOptions}
-              value={field.value}
-              onChange={field.onChange}
-              required
-              error={errors.status?.message}
             />
           )}
         />

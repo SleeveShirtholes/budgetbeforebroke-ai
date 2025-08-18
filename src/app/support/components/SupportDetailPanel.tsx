@@ -6,13 +6,15 @@ import {
 import { SupportRequest, SupportStatus } from "../types";
 
 import Button from "@/components/Button";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import AddCommentForm from "./AddCommentForm";
+import { canEditSupportRequest } from "@/app/actions/supportRequests";
 
 /**
  * SupportDetailPanel
  *
  * Displays the details, voting, metadata, description, comments, and add comment form for a support request.
+ * Only shows editing controls for users who have permission to edit the request.
  */
 interface SupportDetailPanelProps {
   request: SupportRequest;
@@ -33,6 +35,28 @@ const SupportDetailPanel: React.FC<SupportDetailPanelProps> = ({
 }) => {
   const [commentLoading, setCommentLoading] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
+  const [permissionLoading, setPermissionLoading] = useState(true);
+
+  // Use external loading state if provided, otherwise use internal state
+  const isCommentLoading = commentLoading;
+
+  // Check if the current user can edit this request
+  useEffect(() => {
+    const checkPermission = async () => {
+      try {
+        const hasPermission = await canEditSupportRequest(row.id);
+        setCanEdit(hasPermission);
+      } catch (error) {
+        console.error("Error checking permission:", error);
+        setCanEdit(false);
+      } finally {
+        setPermissionLoading(false);
+      }
+    };
+
+    checkPermission();
+  }, [row.id]);
 
   const handleAddComment = async (comment: string) => {
     setCommentLoading(true);
@@ -45,6 +69,19 @@ const SupportDetailPanel: React.FC<SupportDetailPanelProps> = ({
       setCommentLoading(false);
     }
   };
+
+  // Don't render until permission check is complete
+  if (permissionLoading) {
+    return (
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 my-2">
+        <div className="animate-pulse">
+          <div className="h-4 bg-gray-200 rounded mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 my-2">
@@ -90,15 +127,29 @@ const SupportDetailPanel: React.FC<SupportDetailPanelProps> = ({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-gray-500">Status:</span>
-          <CustomSelect
-            id={`status-select-${row.id}`}
-            options={supportStatusOptions}
-            value={row.status}
-            onChange={(newStatusValue) =>
-              onStatusChange(row.id, newStatusValue as SupportStatus)
-            }
-            fullWidth={false}
-          />
+          {canEdit ? (
+            <CustomSelect
+              id={`status-select-${row.id}`}
+              options={supportStatusOptions}
+              value={row.status}
+              onChange={(newStatusValue) =>
+                onStatusChange(row.id, newStatusValue as SupportStatus)
+              }
+              fullWidth={false}
+            />
+          ) : (
+            <span
+              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                row.status === "Open"
+                  ? "bg-green-100 text-green-800"
+                  : row.status === "In Progress"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : "bg-red-100 text-red-800"
+              }`}
+            >
+              {row.status}
+            </span>
+          )}
         </div>
         <div>
           <span className="text-gray-500">Visibility:</span>{" "}
@@ -164,7 +215,7 @@ const SupportDetailPanel: React.FC<SupportDetailPanelProps> = ({
           )}
           <AddCommentForm
             onSubmit={handleAddComment}
-            loading={commentLoading}
+            loading={isCommentLoading}
           />
         </div>
       </div>
