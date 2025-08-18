@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, HTMLAttributes } from "react";
 
 /**
  * Card component that provides a flexible container with different styling options.
@@ -9,12 +9,11 @@ import { ReactNode } from "react";
  * @param {"none" | "sm" | "md" | "lg"} [padding="md"] - The amount of padding to apply to the card
  * @returns {JSX.Element} A styled card container
  */
-interface CardProps {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   variant?: "default" | "outline" | "filled";
   padding?: "none" | "sm" | "md" | "lg";
-  [key: string]: ReactNode | string | undefined; // Allow additional props like data-testid
 }
 
 const Card = ({

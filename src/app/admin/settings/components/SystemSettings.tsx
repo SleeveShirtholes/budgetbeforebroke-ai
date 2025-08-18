@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "react-hot-toast";
 import Button from "@/components/Button";
 import TextField from "@/components/Forms/TextField";
 import CustomSelect from "@/components/Forms/CustomSelect";
@@ -38,8 +39,7 @@ export default function SystemSettings() {
 
   const handleSaveSettings = () => {
     // This would typically save to a settings table or configuration file
-    console.log("Saving settings:", settings);
-    alert(
+    toast.success(
       "Settings saved successfully! (This is a demo - actual implementation would save to database)",
     );
   };

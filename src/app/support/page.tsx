@@ -58,9 +58,6 @@ export default function Support() {
   // Extract userId from the session data
   const userId = data?.user?.id;
 
-  console.log("Support component - session data:", data);
-  console.log("Support component - userId:", userId);
-
   // UI state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [issueView, setIssueView] = useState<"my" | "public">("my");

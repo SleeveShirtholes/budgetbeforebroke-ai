@@ -84,20 +84,6 @@ export default function TableManager({
   const handleEdit = (record: Record<string, unknown>) => {
     if (isReadonly) return;
 
-    console.log("Editing record:", record);
-    console.log("Record keys:", Object.keys(record));
-    console.log("Record values:", Object.values(record));
-
-    // Log each field to see what's causing the [object Object] issue
-    Object.entries(record).forEach(([key, value]) => {
-      console.log(`Field ${key}:`, {
-        value,
-        type: typeof value,
-        isObject: typeof value === "object" && value !== null,
-        constructor: value?.constructor?.name,
-      });
-    });
-
     setSelectedRecord(record);
     setModalMode("edit");
   };

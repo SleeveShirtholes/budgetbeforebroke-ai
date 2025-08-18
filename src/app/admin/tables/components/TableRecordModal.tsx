@@ -52,6 +52,103 @@ const SELECT_OPTIONS: Record<string, string[]> = {
 };
 
 /**
+ * Utility function to convert complex objects to meaningful string representations
+ */
+function objectToString(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (typeof item === "object" && item !== null) {
+          if ("name" in item && typeof item.name === "string") return item.name;
+          if ("title" in item && typeof item.title === "string")
+            return item.title;
+          if ("id" in item && typeof item.id === "string") return item.id;
+        }
+        return String(item);
+      })
+      .join(", ");
+  }
+
+  if (typeof value === "object" && value !== null) {
+    // Check if the object has a property with the same name as the field
+    if ("value" in value && typeof value.value === "string") {
+      return value.value;
+    }
+    if ("name" in value && typeof value.name === "string") {
+      return value.name;
+    }
+    if ("title" in value && typeof value.title === "string") {
+      return value.title;
+    }
+    if ("text" in value && typeof value.text === "string") {
+      return value.text;
+    }
+    if ("label" in value && typeof value.label === "string") {
+      return value.label;
+    }
+    if ("id" in value && typeof value.id === "string") {
+      return value.id;
+    }
+
+    // Try to find any string property
+    const stringProps = Object.entries(value)
+      .filter(([, val]) => typeof val === "string" && val.length > 0)
+      .map(([, val]) => `${val}`)
+      .join(", ");
+
+    if (stringProps) {
+      return stringProps;
+    }
+
+    // Try to find any primitive property that might be useful
+    const primitiveProps = Object.entries(value)
+      .filter(
+        ([, val]) =>
+          typeof val === "string" ||
+          typeof val === "number" ||
+          typeof val === "boolean",
+      )
+      .map(([key, val]) => `${key}: ${val}`)
+      .join(", ");
+
+    if (primitiveProps) {
+      return primitiveProps;
+    }
+
+    // Check if it's an empty object
+    if (Object.keys(value).length === 0) {
+      return "Object with keys: ";
+    }
+
+    // Last resort: try JSON.stringify but limit length
+    try {
+      const jsonStr = JSON.stringify(value);
+      return jsonStr.length > 100 ? jsonStr.substring(0, 100) + "..." : jsonStr;
+    } catch {
+      const keys = Object.keys(value);
+      return keys.length > 0
+        ? `Object with keys: ${keys.join(", ")}`
+        : "[Empty Object]";
+    }
+  }
+
+  return String(value);
+}
+
+/**
  * Modal component for viewing, creating, and editing table records
  */
 export default function TableRecordModal({
@@ -62,28 +159,6 @@ export default function TableRecordModal({
   onClose,
   onSave,
 }: Props) {
-  console.log("TableRecordModal received:", {
-    tableName,
-    schema,
-    record,
-    mode,
-  });
-
-  // Debug: Log the actual record structure
-  if (record) {
-    console.log("Record structure:", {
-      keys: Object.keys(record),
-      values: Object.entries(record).map(([key, value]) => ({
-        key,
-        value,
-        type: typeof value,
-        isObject: typeof value === "object" && value !== null,
-        constructor: value?.constructor?.name,
-        toString: value?.toString?.(),
-      })),
-    });
-  }
-
   const [isPending, startTransition] = useTransition();
   const [formData, setFormData] = useState<Record<string, unknown>>(() => {
     if (mode === "create" || !record) {
@@ -100,17 +175,8 @@ export default function TableRecordModal({
     // For edit mode, process the record data to handle complex types
     const processedData: Record<string, unknown> = {};
 
-    console.log("Processing record data for edit mode:", { record, schema });
-
     for (const field of schema.fields) {
       const rawValue = record[field.name];
-
-      console.log(`Processing field ${field.name}:`, {
-        rawValue,
-        type: typeof rawValue,
-        isObject: typeof rawValue === "object" && rawValue !== null,
-        fieldType: field.type,
-      });
 
       if (rawValue === null || rawValue === undefined) {
         processedData[field.name] = "";
@@ -127,173 +193,19 @@ export default function TableRecordModal({
         // Handle the case where the value is literally the string "[object Object]"
         processedData[field.name] = "";
       } else if (typeof rawValue === "object" && rawValue !== null) {
-        // Handle objects by extracting meaningful string values
-        console.log(`Processing object field ${field.name}:`, {
-          objectKeys: Object.keys(rawValue),
-          objectValues: Object.values(rawValue),
-          hasFieldName: field.name in rawValue,
-          fieldValue: rawValue[field.name as keyof typeof rawValue],
-        });
-
-        // First, check if the object has a property with the same name as the field
-        if (field.name in rawValue) {
-          const fieldValue = rawValue[field.name as keyof typeof rawValue];
-          if (
-            typeof fieldValue === "string" ||
-            typeof fieldValue === "number" ||
-            typeof fieldValue === "boolean"
-          ) {
-            processedData[field.name] = fieldValue;
-            continue;
-          }
-        }
-
-        // Check if the object has a property that matches the field name in different cases
-        const fieldNameLower = field.name.toLowerCase();
-        const matchingKey = Object.keys(rawValue).find(
-          (key) =>
-            key.toLowerCase() === fieldNameLower ||
-            key.toLowerCase().replace(/[^a-z0-9]/g, "") ===
-              fieldNameLower.replace(/[^a-z0-9]/g, ""),
-        );
-
-        if (matchingKey) {
-          const fieldValue = rawValue[matchingKey as keyof typeof rawValue];
-          if (
-            typeof fieldValue === "string" ||
-            typeof fieldValue === "number" ||
-            typeof fieldValue === "boolean"
-          ) {
-            processedData[field.name] = fieldValue;
-            continue;
-          }
-        }
-
-        // Check if this might be a primitive value wrapped in an object
-        if (Object.keys(rawValue).length === 1) {
-          const [, val] = Object.entries(rawValue)[0];
-          if (
-            typeof val === "string" ||
-            typeof val === "number" ||
-            typeof val === "boolean"
-          ) {
-            processedData[field.name] = val;
-            continue;
-          }
-        }
-
-        if ("value" in rawValue && typeof rawValue.value === "string") {
-          processedData[field.name] = rawValue.value;
-        } else if ("name" in rawValue && typeof rawValue.name === "string") {
-          processedData[field.name] = rawValue.name;
-        } else if ("title" in rawValue && typeof rawValue.title === "string") {
-          processedData[field.name] = rawValue.title;
-        } else if ("text" in rawValue && typeof rawValue.text === "string") {
-          processedData[field.name] = rawValue.text;
-        } else if ("label" in rawValue && typeof rawValue.label === "string") {
-          processedData[field.name] = rawValue.label;
-        } else if ("id" in rawValue && typeof rawValue.id === "string") {
-          processedData[field.name] = rawValue.id;
-        } else if (Array.isArray(rawValue)) {
-          // Handle arrays by joining with commas
-          processedData[field.name] = rawValue
-            .map((item) => {
-              if (typeof item === "string") return item;
-              if (typeof item === "object" && item !== null) {
-                if ("name" in item && typeof item.name === "string")
-                  return item.name;
-                if ("title" in item && typeof item.title === "string")
-                  return item.title;
-                if ("id" in item && typeof item.id === "string") return item.id;
-              }
-              return String(item);
-            })
-            .join(", ");
-        } else {
-          // For other objects, try to get a meaningful representation
-          try {
-            // Check if the object has a toString method that returns something useful
-            const stringValue = rawValue.toString();
-            if (
-              stringValue !== "[object Object]" &&
-              stringValue !== "[object Array]"
-            ) {
-              processedData[field.name] = stringValue;
-            } else {
-              // Try to find any string property
-              const stringProps = Object.entries(rawValue)
-                .filter(([, val]) => typeof val === "string" && val.length > 0)
-                .map(([, val]) => `${val}`)
-                .join(", ");
-
-              if (stringProps) {
-                processedData[field.name] = stringProps;
-              } else {
-                // Try to find any primitive property that might be useful
-                const primitiveProps = Object.entries(rawValue)
-                  .filter(
-                    ([, val]) =>
-                      typeof val === "string" ||
-                      typeof val === "number" ||
-                      typeof val === "boolean",
-                  )
-                  .map(([key, val]) => `${key}: ${val}`)
-                  .join(", ");
-
-                if (primitiveProps) {
-                  processedData[field.name] = primitiveProps;
-                } else {
-                  // Check if it's an empty object
-                  if (Object.keys(rawValue).length === 0) {
-                    processedData[field.name] = "Object with keys: ";
-                  } else {
-                    // Last resort: try JSON.stringify but limit length
-                    const jsonStr = JSON.stringify(rawValue);
-                    processedData[field.name] =
-                      jsonStr.length > 100
-                        ? jsonStr.substring(0, 100) + "..."
-                        : jsonStr;
-                  }
-                }
-              }
-            }
-          } catch {
-            // If all else fails, try to extract any useful information
-            try {
-              const keys = Object.keys(rawValue);
-              if (keys.length > 0) {
-                processedData[field.name] =
-                  `Object with keys: ${keys.join(", ")}`;
-              } else {
-                processedData[field.name] = "[Empty Object]";
-              }
-            } catch {
-              processedData[field.name] = "[Complex Object]";
-            }
-          }
-        }
+        processedData[field.name] = objectToString(rawValue);
       } else {
         processedData[field.name] = rawValue;
       }
     }
 
-    console.log("Processed form data:", processedData);
     return processedData;
   });
-
-  // Debug: Log form data changes
-  console.log("Current form data:", formData);
 
   const isViewMode = mode === "view";
   const isCreateMode = mode === "create";
 
   const handleFieldChange = (fieldName: string, value: unknown) => {
-    console.log(`handleFieldChange called for ${fieldName}:`, {
-      value,
-      type: typeof value,
-      currentFormData: formData[fieldName],
-    });
-
     // Get the original field type to handle conversions properly
     const field = schema.fields.find((f) => f.name === fieldName);
 
@@ -328,23 +240,10 @@ export default function TableRecordModal({
       }
     }
 
-    console.log(`Setting ${fieldName} to:`, {
-      processedValue,
-      type: typeof processedValue,
-    });
-
-    setFormData((prev) => {
-      const newData = {
-        ...prev,
-        [fieldName]: processedValue,
-      };
-      console.log(`New form data for ${fieldName}:`, {
-        oldValue: prev[fieldName],
-        newValue: processedValue,
-        newData,
-      });
-      return newData;
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [fieldName]: processedValue,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
