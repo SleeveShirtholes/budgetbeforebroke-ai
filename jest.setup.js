@@ -26,6 +26,20 @@ jest.mock("resend", () => ({
   })),
 }));
 
+// Mock react-hot-toast for tests
+jest.mock("react-hot-toast", () => {
+  const React = require("react");
+  return {
+    Toaster: () => React.createElement("div", { "data-testid": "toaster" }),
+    toast: {
+      success: jest.fn(),
+      error: jest.fn(),
+      loading: jest.fn(),
+      dismiss: jest.fn(),
+    },
+  };
+});
+
 // Configure testing-library
 import { configure } from "@testing-library/react";
 

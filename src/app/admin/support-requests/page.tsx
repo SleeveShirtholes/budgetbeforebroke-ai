@@ -5,24 +5,15 @@ import {
   SupportStatus,
   TableSupportRequest,
   supportStatusOptions,
-  SupportCategory, // re-add for type assertion
-  // Comment, // removed unused
-} from "./types";
+  SupportCategory,
+} from "@/app/support/types";
 import React, { useState } from "react";
 import Table, { ColumnDef } from "@/components/Table";
 
-import NewRequestModal from "./components/NewRequestModal";
-import SupportDetailPanel from "./components/SupportDetailPanel";
-import SupportFilters from "./components/SupportFilters";
-import SupportHeader from "./components/SupportHeader";
-import SupportTableHeader from "./components/SupportTableHeader";
+import SupportDetailPanel from "@/app/support/components/SupportDetailPanel";
 import useSWR from "swr";
 import {
-  getPublicSupportRequests,
-  getMySupportRequests,
-  createSupportRequest,
-  upvoteSupportRequest,
-  downvoteSupportRequest,
+  getAllSupportRequestsForAdmin,
   updateSupportRequestStatus,
 } from "@/app/actions/supportRequests";
 import {
@@ -32,38 +23,26 @@ import {
 import { authClient } from "@/lib/auth-client";
 import Spinner from "@/components/Spinner";
 import { format } from "date-fns";
-import { NewRequestFormData } from "./types";
+import CustomSelect from "@/components/Forms/CustomSelect";
 
 /**
- * Support Page Component
+ * Admin Support Requests Page Component
  *
- * A comprehensive support ticket management system that allows users to:
- * - View and filter support requests (both personal and public)
- * - Create new support requests
- * - Add comments to existing requests
- * - Vote on support requests
- * - Track request status and updates
+ * A comprehensive support ticket management system for administrators that allows:
+ * - View and filter all support requests (both open and closed)
+ * - Add admin comments to existing requests
+ * - Change request status
+ * - Track request updates
  *
  * The component manages several pieces of state:
  * - requests: List of all support requests
- * - isModalOpen: Controls visibility of new request modal
- * - newRequest: Form data for creating new requests
- * - issueView: Toggle between personal and public requests
  * - statusView: Toggle between open and closed requests
- * - showPagination: Controls visibility of table pagination (external to Table)
+ * - showPagination: Controls visibility of table pagination
  */
-export default function Support() {
+export default function AdminSupportRequests() {
   // Get the current user's session
   const { data } = authClient.useSession();
-  // Extract userId from the session data
-  const userId = data?.user?.id;
-
-  console.log("Support component - session data:", data);
-  console.log("Support component - userId:", userId);
-
   // UI state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [issueView, setIssueView] = useState<"my" | "public">("my");
   const [statusView, setStatusView] = useState<"open" | "closed">("open");
   // Pagination state for Table
   const [showPagination, setShowPagination] = useState(true);
@@ -73,17 +52,10 @@ export default function Support() {
     data: rawRequests = [],
     mutate,
     isLoading,
-  } = useSWR(["supportRequests", issueView, statusView, userId], async () => {
-    // Fix: Use proper status filtering - "Closed" for closed, "open" for open (excludes closed)
+  } = useSWR(["adminSupportRequests", statusView], async () => {
+    // Fix: Use the updated getAllSupportRequestsForAdmin function with proper filtering
     const status = statusView === "closed" ? "Closed" : "open";
-
-    // Fix: Allow unauthenticated users to view public requests
-    if (issueView === "my") {
-      if (!userId) return [];
-      return getMySupportRequests(userId, status);
-    } else {
-      return getPublicSupportRequests(status);
-    }
+    return getAllSupportRequestsForAdmin(status);
   });
 
   // SWR for comments for all requests
@@ -165,12 +137,8 @@ export default function Support() {
   // Table title
   const tableTitle =
     statusView === "closed"
-      ? issueView === "my"
-        ? "My Closed Issues"
-        : "Closed Public Issues"
-      : issueView === "my"
-        ? "My Open Issues"
-        : "All Public Issues";
+      ? "Closed Support Requests"
+      : "Open & In Progress Support Requests";
 
   // Table columns (ID removed from main table)
   const columns: ColumnDef<SupportRequest>[] = [
@@ -187,6 +155,7 @@ export default function Support() {
       ),
     },
     { key: "category", header: "Category", sortable: true, filterable: true },
+    { key: "user", header: "User", sortable: true, filterable: true },
     { key: "upvotes", header: "Upvotes", sortable: true },
     {
       key: "status",
@@ -217,65 +186,19 @@ export default function Support() {
     },
   ];
 
-  // Create a new support request (now expects form data, not event)
-  const handleCreateRequest = async (data: NewRequestFormData) => {
-    console.log("handleCreateRequest called with data:", data);
-    if (!data.title.trim() || !data.description.trim()) {
-      console.log("Validation failed: title or description is empty");
-      return;
-    }
-    if (!userId) {
-      console.log("Validation failed: no userId");
-      return; // Ensure user is authenticated
-    }
-    console.log("Calling createSupportRequest with:", {
-      title: data.title,
-      description: data.description,
-      category: data.category,
-      isPublic: data.isPublic,
-      userId: userId,
-    });
-    await createSupportRequest({
-      title: data.title,
-      description: data.description,
-      category: data.category,
-      isPublic: data.isPublic,
-      userId: userId,
-    });
-    console.log("createSupportRequest completed");
-    setIsModalOpen(false);
-    // Await mutate to ensure UI updates after mutation
-    await mutate();
-    console.log("mutate completed");
-  };
-
   // Add a comment to a support request
   const handleAddComment = async (requestId: string, comment: string) => {
     if (!comment.trim()) return;
-    if (!userId) return; // Ensure user is authenticated
+    if (!data?.user?.id) return; // Ensure user is authenticated
     await addSupportComment({
       requestId,
       text: comment.trim(),
-      userId: userId,
+      userId: data.user.id,
     });
     // Refresh both support requests and comments data
     await mutate();
     // Also refresh the comments data specifically
     await mutateComments();
-  };
-
-  // Upvote a support request
-  const handleUpvote = async (requestId: string) => {
-    await upvoteSupportRequest(requestId);
-    // Await mutate to ensure UI updates after mutation
-    await mutate();
-  };
-
-  // Downvote a support request
-  const handleDownvote = async (requestId: string) => {
-    await downvoteSupportRequest(requestId);
-    // Await mutate to ensure UI updates after mutation
-    await mutate();
   };
 
   // Change status of a support request
@@ -302,41 +225,61 @@ export default function Support() {
 
   return (
     <div className="container mx-auto p-2">
-      <SupportHeader />
-      <SupportFilters
-        issueView={issueView}
-        onIssueViewChange={setIssueView}
-        onCreateRequest={() => setIsModalOpen(true)}
-      />
+      {/* Header - same as support page */}
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800">
+          Admin Support Center
+        </h1>
+        <p className="text-gray-600 mt-1">
+          Manage all support requests with administrative privileges.
+        </p>
+      </header>
+
+      {/* Table Section - same structure as support page */}
       <section className="mb-12">
-        <SupportTableHeader
-          tableTitle={tableTitle}
-          statusView={statusView}
-          onStatusViewChange={setStatusView}
-        />
-        <Table<TableSupportRequest>
-          data={requests}
-          columns={columns as ColumnDef<TableSupportRequest>[]}
-          pageSize={5}
-          showPagination={showPagination}
-          onPaginationChange={setShowPagination}
-          detailPanel={(row) => (
-            <SupportDetailPanel
-              request={row}
-              onUpvote={handleUpvote}
-              onDownvote={handleDownvote}
-              onStatusChange={handleStatusChange}
-              onAddComment={handleAddComment}
-              supportStatusOptions={supportStatusOptions}
-            />
-          )}
-        />
+        {/* Table Header - same as support page */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-2">
+          <h2 className="text-2xl font-semibold text-gray-700">{tableTitle}</h2>
+          <CustomSelect
+            options={[
+              { label: "Open & In Progress", value: "open" },
+              { label: "Closed", value: "closed" },
+            ]}
+            value={statusView}
+            onChange={(val) => setStatusView(val as "open" | "closed")}
+            id="status-dropdown"
+            aria-label="Status Filter"
+            fullWidth={false}
+          />
+        </div>
+
+        {/* Table - same as support page but with admin detail panel */}
+        <div className="max-w-5xl">
+          <Table<TableSupportRequest>
+            data={requests}
+            columns={columns as ColumnDef<TableSupportRequest>[]}
+            pageSize={5}
+            showPagination={showPagination}
+            onPaginationChange={setShowPagination}
+            detailPanel={(row) => (
+              <SupportDetailPanel
+                request={row}
+                onUpvote={() => {}} // No upvoting in admin view
+                onDownvote={() => {}} // No downvoting in admin view
+                onStatusChange={handleStatusChange}
+                onAddComment={handleAddComment}
+                supportStatusOptions={supportStatusOptions}
+              />
+            )}
+          />
+        </div>
+
+        {requests.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No support requests found.</p>
+          </div>
+        )}
       </section>
-      <NewRequestModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateRequest}
-      />
     </div>
   );
 }

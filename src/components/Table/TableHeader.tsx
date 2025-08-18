@@ -8,6 +8,7 @@ import {
 import { ColumnDef, FilterValue, FiltersState, SortingState } from "./types";
 
 import ColumnFilter from "./ColumnFilter";
+import TruncatedCell from "./TruncatedCell";
 
 /**
  * Renders the header row of the table with support for sorting and filtering.
@@ -79,7 +80,7 @@ export default function TableHeader<T>({
           <th
             key={column.key}
             className={`px-4 py-3 text-left text-sm font-medium text-secondary-700 ${
-              column.width ? column.width : ""
+              column.width ? column.width : "w-32"
             }`}
           >
             <div className="flex items-center space-x-2">
@@ -98,9 +99,9 @@ export default function TableHeader<T>({
                 className={`flex-grow flex items-center ${column.sortable ? "cursor-pointer" : ""}`}
                 onClick={() => column.sortable && handleSort(column)}
               >
-                <span>{column.header}</span>
+                <TruncatedCell content={column.header} />
                 {column.sortable && (
-                  <div className="ml-1">
+                  <div className="ml-1 flex-shrink-0">
                     {sorting.column === column.key ? (
                       sorting.direction === "asc" ? (
                         <ChevronUpIcon

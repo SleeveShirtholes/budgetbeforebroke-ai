@@ -9,14 +9,14 @@ import TableManager from "../components/TableManager";
 import Breadcrumb from "@/components/Breadcrumb";
 
 interface Props {
-  params: { tableName: string };
-  searchParams?: {
+  params: Promise<{ tableName: string }>;
+  searchParams?: Promise<{
     page?: string;
     search?: string;
     sort?: string;
     direction?: "asc" | "desc";
     view?: "readonly" | "edit";
-  };
+  }>;
 }
 
 /**
@@ -24,12 +24,13 @@ interface Props {
  * Provides full CRUD operations for any database table
  */
 export default async function TablePage({ params, searchParams }: Props) {
-  const { tableName } = params;
-  const page = parseInt(searchParams?.page || "1");
-  const search = searchParams?.search || "";
-  const sort = searchParams?.sort;
-  const direction = searchParams?.direction || "desc";
-  const isReadonly = searchParams?.view === "readonly";
+  const { tableName } = await params;
+  const resolvedSearchParams = await searchParams;
+  const page = parseInt(resolvedSearchParams?.page || "1");
+  const search = resolvedSearchParams?.search || "";
+  const sort = resolvedSearchParams?.sort;
+  const direction = resolvedSearchParams?.direction || "desc";
+  const isReadonly = resolvedSearchParams?.view === "readonly";
 
   // Validate table name
   const validTableNames = [
@@ -63,26 +64,19 @@ export default async function TablePage({ params, searchParams }: Props) {
     notFound();
   }
 
-  // Generate breadcrumb items
-  const breadcrumbItems = [
-    { label: "Admin", href: "/admin" },
-    { label: "Database Tables", href: "/admin/tables" },
-    {
-      label: tableName.replace(/([A-Z])/g, " $1").trim(),
-      href: `/admin/tables/${tableName}`,
-      current: true,
-    },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <Breadcrumb items={breadcrumbItems} />
+      <Breadcrumb />
 
       {/* Header */}
       <div className="border-b border-gray-200 pb-4">
         <h1 className="text-3xl font-bold text-gray-900">
-          {tableName.replace(/([A-Z])/g, " $1").trim()} Management
+          {tableName
+            .replace(/([A-Z])/g, " $1")
+            .trim()
+            .replace(/^\w/, (c) => c.toUpperCase())}{" "}
+          Management
         </h1>
         <p className="mt-2 text-gray-600">
           {isReadonly
@@ -130,21 +124,12 @@ async function TableManagerWrapper({
       getTableSchema(tableName),
     ]);
 
-    if (!tableDataResult.success) {
+    if (!tableDataResult.success || !tableDataResult.data) {
       return (
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
           <p className="text-red-600">
-            Error loading table data: {tableDataResult.error}
-          </p>
-        </div>
-      );
-    }
-
-    if (!schemaResult.success) {
-      return (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <p className="text-red-600">
-            Error loading table schema: {schemaResult.error}
+            Error loading table data:{" "}
+            {tableDataResult.error || "No data available"}
           </p>
         </div>
       );
@@ -157,8 +142,6 @@ async function TableManagerWrapper({
         pagination={tableDataResult.pagination}
         schema={schemaResult.data}
         initialSearch={search}
-        initialSort={sort}
-        initialDirection={direction}
         isReadonly={isReadonly}
       />
     );

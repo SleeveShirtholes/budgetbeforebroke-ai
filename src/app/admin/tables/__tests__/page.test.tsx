@@ -11,22 +11,17 @@ jest.mock("@/app/actions/admin", () => ({
   getAvailableTables: jest.fn(),
 }));
 
-// Mock SearchInput component
-jest.mock("@/components/Forms/SearchInput", () => {
-  return function MockSearchInput({ placeholder, defaultValue }: any) {
-    return (
-      <input
-        data-testid="search-input"
-        placeholder={placeholder}
-        defaultValue={defaultValue}
-      />
-    );
-  };
-});
-
 // Mock Link component
 jest.mock("next/link", () => {
-  return function MockLink({ children, href, className }: any) {
+  return function MockLink({
+    children,
+    href,
+    className,
+  }: {
+    children: React.ReactNode;
+    href?: string;
+    className?: string;
+  }) {
     return (
       <div data-testid="link" data-href={href} className={className}>
         {children}
@@ -67,7 +62,7 @@ describe("TablesPage", () => {
   });
 
   it("renders the tables page header", async () => {
-    const component = await TablesPage({ searchParams: {} });
+    const component = await TablesPage();
     render(component);
 
     expect(screen.getByText("Database Tables")).toBeInTheDocument();
@@ -76,17 +71,6 @@ describe("TablesPage", () => {
         "Manage all database tables in your application. Click on any table to view and edit its data.",
       ),
     ).toBeInTheDocument();
-  });
-
-  it("displays search input", async () => {
-    const component = await TablesPage({ searchParams: {} });
-    render(component);
-
-    expect(screen.getByTestId("search-input")).toBeInTheDocument();
-    expect(screen.getByTestId("search-input")).toHaveAttribute(
-      "placeholder",
-      "Search tables...",
-    );
   });
 
   it.skip("displays all available tables", async () => {
@@ -142,28 +126,9 @@ describe("TablesPage", () => {
     });
   });
 
-  it("filters tables based on search term", async () => {
-    const component = await TablesPage({ searchParams: { search: "user" } });
-    render(component);
-
-    expect(screen.getByTestId("search-input")).toHaveAttribute("value", "user");
-  });
-
-  it.skip("shows no tables found message when filtered results are empty", async () => {
-    // Mock empty results
-    mockGetAvailableTables.mockResolvedValue([]);
-
-    const component = await TablesPage({
-      searchParams: { search: "nonexistent" },
-    });
-    render(component);
-
-    await waitFor(() => {
-      expect(screen.getByText("No tables found")).toBeInTheDocument();
-      expect(
-        screen.getByText("Try adjusting your search term."),
-      ).toBeInTheDocument();
-    });
+  it.skip("shows no tables found message when no tables exist", async () => {
+    // This test is skipped because it requires proper async component testing
+    // which is complex with Suspense and async components in the test environment
   });
 
   it.skip("handles errors gracefully", async () => {

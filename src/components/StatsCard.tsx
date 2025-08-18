@@ -33,7 +33,7 @@ export default function StatsCard({
   trendDirection,
 }: StatsCardProps) {
   return (
-    <Card variant="default">
+    <Card variant="default" data-testid="stats-card">
       {/* Main content container with title, value, and optional icon */}
       <div className="flex items-center justify-between">
         <div>

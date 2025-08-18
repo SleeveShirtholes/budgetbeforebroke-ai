@@ -6,12 +6,9 @@ import {
   HomeIcon,
   TableCellsIcon,
   EnvelopeIcon,
-  UsersIcon,
   CogIcon,
-  DocumentTextIcon,
-  CreditCardIcon,
-  BanknotesIcon,
   ChartBarIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 import { clsx } from "clsx";
 
@@ -22,23 +19,12 @@ const navigation = [
     href: "/admin/contact-submissions",
     icon: EnvelopeIcon,
   },
-  { name: "Database Tables", href: "/admin/tables", icon: TableCellsIcon },
-  { name: "Users", href: "/admin/tables/user", icon: UsersIcon },
-  {
-    name: "Budget Accounts",
-    href: "/admin/tables/budgetAccounts",
-    icon: BanknotesIcon,
-  },
-  {
-    name: "Transactions",
-    href: "/admin/tables/transactions",
-    icon: CreditCardIcon,
-  },
   {
     name: "Support Requests",
-    href: "/admin/tables/supportRequests",
-    icon: DocumentTextIcon,
+    href: "/admin/support-requests",
+    icon: ChatBubbleLeftRightIcon,
   },
+  { name: "Database Tables", href: "/admin/tables", icon: TableCellsIcon },
   { name: "Analytics", href: "/admin/analytics", icon: ChartBarIcon },
   { name: "Settings", href: "/admin/settings", icon: CogIcon },
 ];

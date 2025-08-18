@@ -14,7 +14,7 @@ const mockPaycheck = {
 
 const mockAllocation = {
   paycheckId: "paycheck-1",
-  paycheckDate: new Date("2024-01-15"),
+  paycheckDate: new Date(2024, 0, 15), // Month is 0-indexed, so 0 = January
   paycheckAmount: 3000,
   allocatedDebts: [
     {
@@ -282,9 +282,10 @@ describe("PaycheckCard", () => {
   });
 
   it("handles different date formats correctly", () => {
+    // Create a date explicitly in local timezone to avoid timezone issues
     const differentDateAllocation = {
       ...mockAllocation,
-      paycheckDate: new Date("2024-12-25"),
+      paycheckDate: new Date(2024, 11, 25), // Month is 0-indexed, so 11 = December
     };
 
     render(
@@ -295,6 +296,7 @@ describe("PaycheckCard", () => {
       />,
     );
 
+    // The component formats dates as "MMM dd, yyyy" so Dec 25, 2024 becomes "Dec 25, 2024"
     expect(screen.getByText("Dec 25, 2024")).toBeInTheDocument();
   });
 });

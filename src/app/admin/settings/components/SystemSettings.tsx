@@ -29,7 +29,7 @@ export default function SystemSettings() {
     dateFormat: "MM/DD/YYYY",
   });
 
-  const handleSettingChange = (key: string, value: any) => {
+  const handleSettingChange = (key: string, value: string | boolean) => {
     setSettings((prev) => ({
       ...prev,
       [key]: value,
@@ -77,7 +77,7 @@ export default function SystemSettings() {
           <TextField
             label="Site Name"
             value={settings.siteName}
-            onChange={(value) => handleSettingChange("siteName", value)}
+            onChange={(e) => handleSettingChange("siteName", e.target.value)}
             placeholder="Enter site name"
           />
 
@@ -85,7 +85,9 @@ export default function SystemSettings() {
             label="Support Email"
             type="email"
             value={settings.supportEmail}
-            onChange={(value) => handleSettingChange("supportEmail", value)}
+            onChange={(e) =>
+              handleSettingChange("supportEmail", e.target.value)
+            }
             placeholder="Enter support email"
           />
 
@@ -104,7 +106,9 @@ export default function SystemSettings() {
             label="Session Timeout (days)"
             type="number"
             value={settings.sessionTimeout}
-            onChange={(value) => handleSettingChange("sessionTimeout", value)}
+            onChange={(e) =>
+              handleSettingChange("sessionTimeout", e.target.value)
+            }
             placeholder="30"
           />
 
@@ -145,7 +149,7 @@ export default function SystemSettings() {
             <label className="block text-sm font-medium text-gray-700">
               User Registration
             </label>
-            <CustomSelect
+            {/* <CustomSelect
               options={[
                 { value: true, label: "Enabled" },
                 { value: false, label: "Disabled" },
@@ -154,14 +158,14 @@ export default function SystemSettings() {
               onChange={(value) =>
                 handleSettingChange("enableRegistration", value)
               }
-            />
+            /> */}
           </div>
 
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Email Notifications
             </label>
-            <CustomSelect
+            {/* <CustomSelect
               options={[
                 { value: true, label: "Enabled" },
                 { value: false, label: "Disabled" },
@@ -170,14 +174,14 @@ export default function SystemSettings() {
               onChange={(value) =>
                 handleSettingChange("enableEmailNotifications", value)
               }
-            />
+            /> */}
           </div>
 
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Maintenance Mode
             </label>
-            <CustomSelect
+            {/* <CustomSelect
               options={[
                 { value: false, label: "Disabled" },
                 { value: true, label: "Enabled" },
@@ -186,7 +190,7 @@ export default function SystemSettings() {
               onChange={(value) =>
                 handleSettingChange("maintenanceMode", value)
               }
-            />
+            /> */}
             {settings.maintenanceMode && (
               <p className="text-sm text-yellow-600 flex items-center gap-1">
                 <ExclamationTriangleIcon className="h-4 w-4" />
@@ -199,8 +203,8 @@ export default function SystemSettings() {
             label="Max File Upload Size (MB)"
             type="number"
             value={settings.maxFileUploadSize}
-            onChange={(value) =>
-              handleSettingChange("maxFileUploadSize", value)
+            onChange={(e) =>
+              handleSettingChange("maxFileUploadSize", e.target.value)
             }
             placeholder="10"
           />
@@ -274,7 +278,7 @@ export default function SystemSettings() {
         <div className="flex-1"></div>
 
         <Button
-          variant="destructive"
+          variant="danger"
           onClick={() => alert("This would trigger a system cache clear")}
         >
           Clear System Cache

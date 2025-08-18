@@ -14,6 +14,7 @@ interface CardProps {
   className?: string;
   variant?: "default" | "outline" | "filled";
   padding?: "none" | "sm" | "md" | "lg";
+  [key: string]: ReactNode | string | undefined; // Allow additional props like data-testid
 }
 
 const Card = ({
@@ -21,6 +22,7 @@ const Card = ({
   className = "",
   variant = "default",
   padding = "md",
+  ...rest
 }: CardProps) => {
   // Base styles that are always applied to the card
   const baseStyles = "rounded-xl shadow";
@@ -50,7 +52,11 @@ const Card = ({
     .filter(Boolean)
     .join(" ");
 
-  return <div className={combinedStyles}>{children}</div>;
+  return (
+    <div className={combinedStyles} {...rest}>
+      {children}
+    </div>
+  );
 };
 
 export default Card;

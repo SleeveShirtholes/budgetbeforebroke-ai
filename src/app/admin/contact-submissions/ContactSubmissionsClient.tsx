@@ -46,6 +46,7 @@ export default function ContactSubmissionsClient({
     supportName: string;
     supportEmail: string;
   } | null>(null);
+  const [isSendingFollowUp, setIsSendingFollowUp] = useState(false);
 
   const toggleExpanded = (submissionId: string) => {
     const newExpanded = new Set(expandedSubmissions);
@@ -100,6 +101,7 @@ export default function ContactSubmissionsClient({
   const handleSendFollowUp = async () => {
     if (!followUpData) return;
 
+    setIsSendingFollowUp(true);
     try {
       const result = await sendFollowUpEmailToUser(
         followUpData.submissionId,
@@ -129,6 +131,8 @@ export default function ContactSubmissionsClient({
       }
     } catch (error) {
       console.error("Error sending follow-up email:", error);
+    } finally {
+      setIsSendingFollowUp(false);
     }
   };
 
@@ -227,15 +231,24 @@ export default function ContactSubmissionsClient({
                   disabled={
                     !followUpData.message ||
                     !followUpData.supportName ||
-                    !followUpData.supportEmail
+                    !followUpData.supportEmail ||
+                    isSendingFollowUp
                   }
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
                 >
-                  Send Email
+                  {isSendingFollowUp ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Email"
+                  )}
                 </Button>
                 <Button
                   onClick={() => setFollowUpData(null)}
                   variant="secondary"
+                  disabled={isSendingFollowUp}
                   className="flex-1"
                 >
                   Cancel
@@ -470,13 +483,16 @@ function ContactSubmissionCard({
               variant="secondary"
               size="sm"
               disabled={loadingConversations}
+              className="flex items-center gap-2"
             >
-              {loadingConversations
-                ? "Loading..."
-                : showConversations
-                  ? "Hide"
-                  : "Show"}{" "}
-              Conversations
+              {loadingConversations ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                  Loading...
+                </>
+              ) : (
+                <>{showConversations ? "Hide" : "Show"} Conversations</>
+              )}
             </Button>
           </div>
 
@@ -554,9 +570,16 @@ function ContactSubmissionCard({
             <Button
               onClick={handleUpdate}
               disabled={isUpdating}
-              className="flex-1"
+              className="flex-1 flex items-center justify-center gap-2"
             >
-              {isUpdating ? "Updating..." : "Update Status"}
+              {isUpdating ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Updating...
+                </>
+              ) : (
+                "Update Status"
+              )}
             </Button>
 
             {status !== "closed" && (

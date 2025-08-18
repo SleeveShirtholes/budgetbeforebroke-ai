@@ -6,19 +6,12 @@ import {
   PencilIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
-import SearchInput from "@/components/Forms/SearchInput";
 
 /**
  * Database tables listing page
  * Shows all available tables with their configuration and provides access to manage them
  */
-export default async function TablesPage({
-  searchParams,
-}: {
-  searchParams?: { search?: string };
-}) {
-  const search = searchParams?.search || "";
-
+export default async function TablesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -30,20 +23,9 @@ export default async function TablesPage({
         </p>
       </div>
 
-      {/* Search */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="max-w-md">
-          <SearchInput
-            placeholder="Search tables..."
-            defaultValue={search}
-            className="w-full"
-          />
-        </div>
-      </div>
-
       {/* Tables Grid */}
       <Suspense fallback={<TablesLoading />}>
-        <TablesGrid searchTerm={search} />
+        <TablesGrid />
       </Suspense>
     </div>
   );
@@ -52,20 +34,11 @@ export default async function TablesPage({
 /**
  * Component that displays the grid of available tables
  */
-async function TablesGrid({ searchTerm }: { searchTerm: string }) {
+async function TablesGrid() {
   try {
     const tables = await getAvailableTables();
 
-    // Filter tables based on search term
-    const filteredTables = searchTerm
-      ? tables.filter(
-          (table) =>
-            table.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            table.displayName.toLowerCase().includes(searchTerm.toLowerCase()),
-        )
-      : tables;
-
-    if (filteredTables.length === 0) {
+    if (tables.length === 0) {
       return (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-center py-12">
@@ -74,9 +47,7 @@ async function TablesGrid({ searchTerm }: { searchTerm: string }) {
               No tables found
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm
-                ? "Try adjusting your search term."
-                : "No database tables are available."}
+              No database tables are available.
             </p>
           </div>
         </div>
@@ -85,7 +56,7 @@ async function TablesGrid({ searchTerm }: { searchTerm: string }) {
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTables.map((table) => (
+        {tables.map((table) => (
           <div
             key={table.name}
             className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border border-gray-200"

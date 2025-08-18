@@ -38,7 +38,7 @@ export default function AdminUserManager() {
     startTransition(async () => {
       try {
         // This is a placeholder - you'd implement a proper user search server action
-        toast.info("User search functionality would be implemented here");
+        toast.success("User search functionality would be implemented here");
 
         // Placeholder found user for demo
         setFoundUser({
@@ -108,7 +108,7 @@ export default function AdminUserManager() {
               label=""
               placeholder="Enter user email address"
               value={searchEmail}
-              onChange={setSearchEmail}
+              onChange={(e) => setSearchEmail(e.target.value)}
               disabled={isPending}
               type="email"
             />
@@ -162,7 +162,7 @@ export default function AdminUserManager() {
                 handleToggleAdminStatus(foundUser.id, foundUser.isGlobalAdmin)
               }
               disabled={isPending}
-              variant={foundUser.isGlobalAdmin ? "destructive" : "primary"}
+              variant={foundUser.isGlobalAdmin ? "danger" : "primary"}
             >
               {foundUser.isGlobalAdmin ? "Remove Admin" : "Make Admin"}
             </Button>
@@ -204,10 +204,10 @@ export default function AdminUserManager() {
                   </div>
                 </div>
                 <Button
+                  variant="danger"
                   onClick={() => handleToggleAdminStatus(user.id, true)}
                   disabled={isPending}
-                  variant="destructive"
-                  size="sm"
+                  className="text-sm"
                 >
                   Remove Admin
                 </Button>

@@ -7,6 +7,7 @@ import {
   TableCellsIcon,
   EnvelopeIcon,
   CogIcon,
+  ChatBubbleLeftRightIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import Button from "@/components/Button";
@@ -71,6 +72,18 @@ export default async function AdminDashboard() {
             <div className="text-left">
               <div className="font-medium">Contact Support</div>
               <div className="text-sm text-gray-500">Manage submissions</div>
+            </div>
+          </Button>
+
+          <Button
+            href="/admin/support-requests"
+            variant="outline"
+            className="justify-start h-auto p-4"
+          >
+            <ChatBubbleLeftRightIcon className="h-6 w-6 mr-3 text-orange-600" />
+            <div className="text-left">
+              <div className="font-medium">Support Requests</div>
+              <div className="text-sm text-gray-500">Manage user requests</div>
             </div>
           </Button>
 
@@ -147,10 +160,10 @@ async function StatsOverview() {
         {stats.map((stat) => (
           <StatsCard
             key={stat.name}
-            name={stat.name}
+            title={stat.name}
             value={stat.value}
-            icon={stat.icon}
-            color={stat.color}
+            // icon={stat.icon}
+            // color={stat.color}
           />
         ))}
       </div>

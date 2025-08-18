@@ -29,6 +29,7 @@ export interface ColumnDef<T> {
   key: string;
   header: string;
   accessor?: (row: T) => ReactNode;
+  cell?: ({ getValue }: { getValue: () => unknown }) => ReactNode;
   sortable?: boolean;
   filterable?: boolean;
   width?: string;

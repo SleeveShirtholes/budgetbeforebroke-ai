@@ -1,38 +1,31 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "react-hot-toast";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import Button from "@/components/Button";
 import TextField from "@/components/Forms/TextField";
 import TextArea from "@/components/Forms/TextArea";
-import CustomSelect from "@/components/Forms/CustomSelect";
 import NumberInput from "@/components/Forms/NumberInput";
 import DecimalInput from "@/components/Forms/DecimalInput";
-import DatePicker from "@/components/Forms/DatePicker";
+import CustomSelect from "@/components/Forms/CustomSelect";
+import CustomDatePicker from "@/components/Forms/CustomDatePicker";
+// import type { TableSchema } from "@/lib/types";
 import {
   createTableRecord,
   updateTableRecord,
   type TableName,
 } from "@/app/actions/admin";
-import { toast } from "react-hot-toast";
-
-interface TableSchema {
-  tableName: string;
-  fields: Array<{
-    name: string;
-    type: string;
-    required: boolean;
-  }>;
-  editableFields: string[];
-  searchFields: string[];
-}
+import type { TableSchema } from "@/types/admin";
 
 interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  mode: "view" | "edit" | "create";
   tableName: TableName;
   schema: TableSchema;
-  record: Record<string, any> | null;
-  mode: "view" | "edit" | "create";
-  onClose: () => void;
+  record: Record<string, unknown> | null;
+  onSave: () => void;
 }
 
 // Define select options for various fields
@@ -67,32 +60,291 @@ export default function TableRecordModal({
   record,
   mode,
   onClose,
+  onSave,
 }: Props) {
+  console.log("TableRecordModal received:", {
+    tableName,
+    schema,
+    record,
+    mode,
+  });
+
+  // Debug: Log the actual record structure
+  if (record) {
+    console.log("Record structure:", {
+      keys: Object.keys(record),
+      values: Object.entries(record).map(([key, value]) => ({
+        key,
+        value,
+        type: typeof value,
+        isObject: typeof value === "object" && value !== null,
+        constructor: value?.constructor?.name,
+        toString: value?.toString?.(),
+      })),
+    });
+  }
+
   const [isPending, startTransition] = useTransition();
-  const [formData, setFormData] = useState<Record<string, any>>(() => {
-    if (mode === "create") {
+  const [formData, setFormData] = useState<Record<string, unknown>>(() => {
+    if (mode === "create" || !record) {
       // Initialize with empty values for create mode
-      return schema.editableFields.reduce(
+      return schema.fields.reduce(
         (acc, field) => {
-          acc[field] = "";
+          acc[field.name] = field.defaultValue || "";
           return acc;
         },
-        {} as Record<string, any>,
+        {} as Record<string, unknown>,
       );
     }
 
-    // For view/edit mode, use existing record data
-    return record || {};
+    // For edit mode, process the record data to handle complex types
+    const processedData: Record<string, unknown> = {};
+
+    console.log("Processing record data for edit mode:", { record, schema });
+
+    for (const field of schema.fields) {
+      const rawValue = record[field.name];
+
+      console.log(`Processing field ${field.name}:`, {
+        rawValue,
+        type: typeof rawValue,
+        isObject: typeof rawValue === "object" && rawValue !== null,
+        fieldType: field.type,
+      });
+
+      if (rawValue === null || rawValue === undefined) {
+        processedData[field.name] = "";
+      } else if (field.type === "date" && rawValue instanceof Date) {
+        processedData[field.name] = rawValue;
+      } else if (field.type === "boolean") {
+        processedData[field.name] = Boolean(rawValue);
+      } else if (field.type === "number" || field.type === "decimal") {
+        processedData[field.name] = Number(rawValue) || 0;
+      } else if (
+        typeof rawValue === "string" &&
+        rawValue === "[object Object]"
+      ) {
+        // Handle the case where the value is literally the string "[object Object]"
+        processedData[field.name] = "";
+      } else if (typeof rawValue === "object" && rawValue !== null) {
+        // Handle objects by extracting meaningful string values
+        console.log(`Processing object field ${field.name}:`, {
+          objectKeys: Object.keys(rawValue),
+          objectValues: Object.values(rawValue),
+          hasFieldName: field.name in rawValue,
+          fieldValue: rawValue[field.name as keyof typeof rawValue],
+        });
+
+        // First, check if the object has a property with the same name as the field
+        if (field.name in rawValue) {
+          const fieldValue = rawValue[field.name as keyof typeof rawValue];
+          if (
+            typeof fieldValue === "string" ||
+            typeof fieldValue === "number" ||
+            typeof fieldValue === "boolean"
+          ) {
+            processedData[field.name] = fieldValue;
+            continue;
+          }
+        }
+
+        // Check if the object has a property that matches the field name in different cases
+        const fieldNameLower = field.name.toLowerCase();
+        const matchingKey = Object.keys(rawValue).find(
+          (key) =>
+            key.toLowerCase() === fieldNameLower ||
+            key.toLowerCase().replace(/[^a-z0-9]/g, "") ===
+              fieldNameLower.replace(/[^a-z0-9]/g, ""),
+        );
+
+        if (matchingKey) {
+          const fieldValue = rawValue[matchingKey as keyof typeof rawValue];
+          if (
+            typeof fieldValue === "string" ||
+            typeof fieldValue === "number" ||
+            typeof fieldValue === "boolean"
+          ) {
+            processedData[field.name] = fieldValue;
+            continue;
+          }
+        }
+
+        // Check if this might be a primitive value wrapped in an object
+        if (Object.keys(rawValue).length === 1) {
+          const [, val] = Object.entries(rawValue)[0];
+          if (
+            typeof val === "string" ||
+            typeof val === "number" ||
+            typeof val === "boolean"
+          ) {
+            processedData[field.name] = val;
+            continue;
+          }
+        }
+
+        if ("value" in rawValue && typeof rawValue.value === "string") {
+          processedData[field.name] = rawValue.value;
+        } else if ("name" in rawValue && typeof rawValue.name === "string") {
+          processedData[field.name] = rawValue.name;
+        } else if ("title" in rawValue && typeof rawValue.title === "string") {
+          processedData[field.name] = rawValue.title;
+        } else if ("text" in rawValue && typeof rawValue.text === "string") {
+          processedData[field.name] = rawValue.text;
+        } else if ("label" in rawValue && typeof rawValue.label === "string") {
+          processedData[field.name] = rawValue.label;
+        } else if ("id" in rawValue && typeof rawValue.id === "string") {
+          processedData[field.name] = rawValue.id;
+        } else if (Array.isArray(rawValue)) {
+          // Handle arrays by joining with commas
+          processedData[field.name] = rawValue
+            .map((item) => {
+              if (typeof item === "string") return item;
+              if (typeof item === "object" && item !== null) {
+                if ("name" in item && typeof item.name === "string")
+                  return item.name;
+                if ("title" in item && typeof item.title === "string")
+                  return item.title;
+                if ("id" in item && typeof item.id === "string") return item.id;
+              }
+              return String(item);
+            })
+            .join(", ");
+        } else {
+          // For other objects, try to get a meaningful representation
+          try {
+            // Check if the object has a toString method that returns something useful
+            const stringValue = rawValue.toString();
+            if (
+              stringValue !== "[object Object]" &&
+              stringValue !== "[object Array]"
+            ) {
+              processedData[field.name] = stringValue;
+            } else {
+              // Try to find any string property
+              const stringProps = Object.entries(rawValue)
+                .filter(([, val]) => typeof val === "string" && val.length > 0)
+                .map(([, val]) => `${val}`)
+                .join(", ");
+
+              if (stringProps) {
+                processedData[field.name] = stringProps;
+              } else {
+                // Try to find any primitive property that might be useful
+                const primitiveProps = Object.entries(rawValue)
+                  .filter(
+                    ([, val]) =>
+                      typeof val === "string" ||
+                      typeof val === "number" ||
+                      typeof val === "boolean",
+                  )
+                  .map(([key, val]) => `${key}: ${val}`)
+                  .join(", ");
+
+                if (primitiveProps) {
+                  processedData[field.name] = primitiveProps;
+                } else {
+                  // Check if it's an empty object
+                  if (Object.keys(rawValue).length === 0) {
+                    processedData[field.name] = "Object with keys: ";
+                  } else {
+                    // Last resort: try JSON.stringify but limit length
+                    const jsonStr = JSON.stringify(rawValue);
+                    processedData[field.name] =
+                      jsonStr.length > 100
+                        ? jsonStr.substring(0, 100) + "..."
+                        : jsonStr;
+                  }
+                }
+              }
+            }
+          } catch {
+            // If all else fails, try to extract any useful information
+            try {
+              const keys = Object.keys(rawValue);
+              if (keys.length > 0) {
+                processedData[field.name] =
+                  `Object with keys: ${keys.join(", ")}`;
+              } else {
+                processedData[field.name] = "[Empty Object]";
+              }
+            } catch {
+              processedData[field.name] = "[Complex Object]";
+            }
+          }
+        }
+      } else {
+        processedData[field.name] = rawValue;
+      }
+    }
+
+    console.log("Processed form data:", processedData);
+    return processedData;
   });
+
+  // Debug: Log form data changes
+  console.log("Current form data:", formData);
 
   const isViewMode = mode === "view";
   const isCreateMode = mode === "create";
 
-  const handleFieldChange = (fieldName: string, value: any) => {
-    setFormData((prev) => ({
-      ...prev,
-      [fieldName]: value,
-    }));
+  const handleFieldChange = (fieldName: string, value: unknown) => {
+    console.log(`handleFieldChange called for ${fieldName}:`, {
+      value,
+      type: typeof value,
+      currentFormData: formData[fieldName],
+    });
+
+    // Get the original field type to handle conversions properly
+    const field = schema.fields.find((f) => f.name === fieldName);
+
+    let processedValue = value;
+
+    // Handle type-specific conversions
+    if (field) {
+      switch (field.type) {
+        case "boolean":
+          processedValue = value === "true" || value === true;
+          break;
+        case "number":
+        case "decimal":
+          processedValue =
+            typeof value === "string"
+              ? parseFloat(value) || 0
+              : Number(value) || 0;
+          break;
+        case "date":
+          processedValue = value ? new Date(value as string) : null;
+          break;
+        case "string":
+        case "text":
+        case "email":
+        case "select":
+          // For string fields, ensure we always have a string value
+          processedValue =
+            value === null || value === undefined ? "" : String(value);
+          break;
+        default:
+          processedValue = value;
+      }
+    }
+
+    console.log(`Setting ${fieldName} to:`, {
+      processedValue,
+      type: typeof processedValue,
+    });
+
+    setFormData((prev) => {
+      const newData = {
+        ...prev,
+        [fieldName]: processedValue,
+      };
+      console.log(`New form data for ${fieldName}:`, {
+        oldValue: prev[fieldName],
+        newValue: processedValue,
+        newData,
+      });
+      return newData;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,13 +358,19 @@ export default function TableRecordModal({
         if (isCreateMode) {
           result = await createTableRecord(tableName, formData);
         } else {
-          result = await updateTableRecord(tableName, record!.id, formData);
+          const recordId = record?.id;
+          if (typeof recordId !== "string") {
+            toast.error("Invalid record ID");
+            return;
+          }
+          result = await updateTableRecord(tableName, recordId, formData);
         }
 
         if (result.success) {
           toast.success(
             `Record ${isCreateMode ? "created" : "updated"} successfully`,
           );
+          onSave(); // Call onSave callback as expected by tests
           onClose();
         } else {
           toast.error(
@@ -141,7 +399,7 @@ export default function TableRecordModal({
 
     // For view mode or non-editable fields, show read-only display
     if (!isEditable) {
-      let displayValue = value;
+      let displayValue: React.ReactNode;
 
       if (value === null || value === undefined || value === "") {
         displayValue = <span className="text-gray-400 italic">null</span>;
@@ -163,6 +421,9 @@ export default function TableRecordModal({
             <pre className="whitespace-pre-wrap text-sm">{value}</pre>
           </div>
         );
+      } else {
+        // Convert any other value to string
+        displayValue = String(value);
       }
 
       return (
@@ -179,9 +440,9 @@ export default function TableRecordModal({
 
     // For editable fields, render appropriate input
     const commonProps = {
+      id: field.name,
       label: field.name.replace(/([A-Z])/g, " $1").trim(),
-      value: value,
-      onChange: (newValue: any) => handleFieldChange(field.name, newValue),
+      value: String(value || ""),
       required: field.required,
       disabled: isPending,
     };
@@ -195,11 +456,13 @@ export default function TableRecordModal({
             </label>
             <CustomSelect
               options={[
-                { value: true, label: "True" },
-                { value: false, label: "False" },
+                { value: "true", label: "True" },
+                { value: "false", label: "False" },
               ]}
-              value={value}
-              onChange={(newValue) => handleFieldChange(field.name, newValue)}
+              value={String(value)}
+              onChange={(newValue) =>
+                handleFieldChange(field.name, newValue === "true")
+              }
               disabled={isPending}
             />
           </div>
@@ -214,7 +477,7 @@ export default function TableRecordModal({
             </label>
             <CustomSelect
               options={options.map((opt) => ({ value: opt, label: opt }))}
-              value={value}
+              value={String(value)}
               onChange={(newValue) => handleFieldChange(field.name, newValue)}
               disabled={isPending}
               placeholder={`Select ${commonProps.label.toLowerCase()}`}
@@ -223,41 +486,82 @@ export default function TableRecordModal({
         );
 
       case "number":
-        return <NumberInput key={field.name} {...commonProps} />;
+        return (
+          <NumberInput
+            key={field.name}
+            {...commonProps}
+            onChange={(value) => handleFieldChange(field.name, value)}
+          />
+        );
 
       case "decimal":
-        return <DecimalInput key={field.name} {...commonProps} />;
+        return (
+          <DecimalInput
+            key={field.name}
+            {...commonProps}
+            onChange={(value) => handleFieldChange(field.name, value)}
+          />
+        );
 
       case "date":
         return (
-          <DatePicker
+          <CustomDatePicker
             key={field.name}
             {...commonProps}
-            value={value ? new Date(value) : null}
+            value={value ? String(value) : undefined}
             onChange={(date) => handleFieldChange(field.name, date)}
           />
         );
 
       case "text":
-        return <TextArea key={field.name} {...commonProps} rows={4} />;
+        return (
+          <TextArea
+            key={field.name}
+            {...commonProps}
+            rows={4}
+            onChange={(event) =>
+              handleFieldChange(field.name, event.target.value)
+            }
+          />
+        );
 
       case "email":
-        return <TextField key={field.name} {...commonProps} type="email" />;
+        return (
+          <TextField
+            key={field.name}
+            {...commonProps}
+            type="email"
+            onChange={(event) =>
+              handleFieldChange(field.name, event.target.value)
+            }
+          />
+        );
 
       default:
-        return <TextField key={field.name} {...commonProps} />;
+        return (
+          <TextField
+            key={field.name}
+            {...commonProps}
+            onChange={(event) =>
+              handleFieldChange(field.name, event.target.value)
+            }
+          />
+        );
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
+        {/* Backdrop */}
         <div
-          className="fixed inset-0 bg-black bg-opacity-25"
+          className="fixed inset-0 transition-opacity"
+          style={{ backgroundColor: "rgba(17, 24, 39, 0.5)" }}
           onClick={onClose}
         />
 
-        <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+        {/* Modal Content */}
+        <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden z-10 transform transition-all">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">
@@ -267,7 +571,9 @@ export default function TableRecordModal({
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={isPending}
+              className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={isPending ? "Please wait..." : "Close"}
             >
               <XMarkIcon className="h-6 w-6" />
             </button>
@@ -303,6 +609,7 @@ export default function TableRecordModal({
                 variant="outline"
                 onClick={onClose}
                 disabled={isPending}
+                className="min-w-[100px]"
               >
                 {isViewMode ? "Close" : "Cancel"}
               </Button>
@@ -311,13 +618,16 @@ export default function TableRecordModal({
                 <Button
                   type="submit"
                   disabled={isPending}
-                  className="min-w-[100px]"
+                  className="min-w-[100px] flex items-center justify-center gap-2"
                 >
-                  {isPending
-                    ? "Saving..."
-                    : isCreateMode
-                      ? "Create"
-                      : "Save Changes"}
+                  {isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      {isCreateMode ? "Creating..." : "Saving..."}
+                    </>
+                  ) : (
+                    <>{isCreateMode ? "Create" : "Save Changes"}</>
+                  )}
                 </Button>
               )}
             </div>

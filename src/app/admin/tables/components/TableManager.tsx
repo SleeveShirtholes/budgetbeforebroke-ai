@@ -8,44 +8,25 @@ import {
   TrashIcon,
   EyeIcon,
   FunnelIcon,
+  // ViewColumnsIcon,
+  // Squares2X2Icon,
   // ArrowUpIcon,
   // ArrowDownIcon,
 } from "@heroicons/react/24/outline";
 import Button from "@/components/Button";
 import SearchInput from "@/components/Forms/SearchInput";
-import Table from "@/components/Table/Table";
+import TruncatedCell from "@/components/Table/TruncatedCell";
 import { deleteTableRecord, type TableName } from "@/app/actions/admin";
 import TableRecordModal from "./TableRecordModal";
 import { toast } from "react-hot-toast";
-
-interface TableSchema {
-  tableName: string;
-  fields: Array<{
-    name: string;
-    type: string;
-    required: boolean;
-  }>;
-  editableFields: string[];
-  searchFields: string[];
-}
-
-interface Pagination {
-  page: number;
-  pageSize: number;
-  totalItems: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
+import type { TableSchema, Pagination } from "@/types/admin";
 
 interface Props {
   tableName: TableName;
-  data: Record<string, any>[];
+  data: Record<string, unknown>[];
   pagination: Pagination;
   schema: TableSchema;
   initialSearch: string;
-  initialSort?: string;
-  initialDirection: "asc" | "desc";
   isReadonly: boolean;
 }
 
@@ -58,8 +39,6 @@ export default function TableManager({
   pagination,
   schema,
   initialSearch,
-  initialSort,
-  initialDirection,
   isReadonly,
 }: Props) {
   const router = useRouter();
@@ -68,12 +47,13 @@ export default function TableManager({
 
   const [selectedRecord, setSelectedRecord] = useState<Record<
     string,
-    any
+    unknown
   > | null>(null);
   const [modalMode, setModalMode] = useState<"view" | "edit" | "create" | null>(
     null,
   );
   const [searchTerm, setSearchTerm] = useState(initialSearch);
+  // const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
 
   // Handle search
   const handleSearch = (newSearchTerm: string) => {
@@ -88,24 +68,6 @@ export default function TableManager({
     router.push(`/admin/tables/${tableName}?${params.toString()}`);
   };
 
-  // Handle sorting
-  const handleSort = (field: string) => {
-    const params = new URLSearchParams(searchParams);
-    const currentSort = params.get("sort");
-    const currentDirection = params.get("direction") || "desc";
-
-    if (currentSort === field) {
-      // Toggle direction
-      params.set("direction", currentDirection === "asc" ? "desc" : "asc");
-    } else {
-      // New field
-      params.set("sort", field);
-      params.set("direction", "asc");
-    }
-
-    router.push(`/admin/tables/${tableName}?${params.toString()}`);
-  };
-
   // Handle pagination
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams);
@@ -114,13 +76,28 @@ export default function TableManager({
   };
 
   // Handle record actions
-  const handleView = (record: Record<string, any>) => {
+  const handleView = (record: Record<string, unknown>) => {
     setSelectedRecord(record);
     setModalMode("view");
   };
 
-  const handleEdit = (record: Record<string, any>) => {
+  const handleEdit = (record: Record<string, unknown>) => {
     if (isReadonly) return;
+
+    console.log("Editing record:", record);
+    console.log("Record keys:", Object.keys(record));
+    console.log("Record values:", Object.values(record));
+
+    // Log each field to see what's causing the [object Object] issue
+    Object.entries(record).forEach(([key, value]) => {
+      console.log(`Field ${key}:`, {
+        value,
+        type: typeof value,
+        isObject: typeof value === "object" && value !== null,
+        constructor: value?.constructor?.name,
+      });
+    });
+
     setSelectedRecord(record);
     setModalMode("edit");
   };
@@ -131,7 +108,7 @@ export default function TableManager({
     setModalMode("create");
   };
 
-  const handleDelete = async (record: Record<string, any>) => {
+  const handleDelete = async (record: Record<string, unknown>) => {
     if (isReadonly) return;
 
     const confirmed = window.confirm(
@@ -142,7 +119,13 @@ export default function TableManager({
 
     startTransition(async () => {
       try {
-        const result = await deleteTableRecord(tableName, record.id);
+        const recordId = record.id;
+        if (typeof recordId !== "string") {
+          toast.error("Invalid record ID");
+          return;
+        }
+
+        const result = await deleteTableRecord(tableName, recordId);
         if (result.success) {
           toast.success("Record deleted successfully");
           router.refresh(); // Refresh the page to show updated data
@@ -168,10 +151,11 @@ export default function TableManager({
 
     const sampleRecord = data[0];
     const columns = Object.keys(sampleRecord).map((key) => ({
+      key,
       id: key,
       header: key.replace(/([A-Z])/g, " $1").trim(),
       accessorKey: key,
-      cell: ({ getValue }: any) => {
+      cell: ({ getValue }: { getValue: () => unknown }) => {
         const value = getValue();
 
         // Handle different data types
@@ -195,9 +179,9 @@ export default function TableManager({
 
         if (typeof value === "string" && value.length > 50) {
           return (
-            <span title={value} className="truncate block max-w-xs">
+            <div className="truncate" title={value}>
               {value.substring(0, 50)}...
-            </span>
+            </div>
           );
         }
 
@@ -213,10 +197,11 @@ export default function TableManager({
     return columns;
   };
 
-  const columns = generateColumns();
+  // Generate columns for the table
+  generateColumns();
 
   // Generate row actions
-  const getRowActions = (record: Record<string, any>) => {
+  const getRowActions = (record: Record<string, unknown>) => {
     const actions = [
       {
         label: "View",
@@ -243,48 +228,109 @@ export default function TableManager({
     return actions;
   };
 
+  const renderFieldValue = (key: string, value: unknown) => {
+    if (value === null || value === undefined) {
+      return <span className="text-gray-400 italic">null</span>;
+    }
+
+    if (typeof value === "boolean") {
+      return (
+        <span
+          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+            value ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+          }`}
+        >
+          {value ? "True" : "False"}
+        </span>
+      );
+    }
+
+    if (typeof value === "string") {
+      // Use TruncatedCell for strings with a reasonable character limit
+      return (
+        <TruncatedCell content={value} maxWidth={200} className="text-sm" />
+      );
+    }
+
+    if (value instanceof Date) {
+      return value.toLocaleDateString();
+    }
+
+    // For other types, convert to string and truncate if needed
+    const stringValue = String(value);
+    if (stringValue.length > 50) {
+      return (
+        <TruncatedCell
+          content={stringValue}
+          maxWidth={200}
+          className="text-sm"
+        />
+      );
+    }
+
+    return <span className="text-sm">{stringValue}</span>;
+  };
+
   return (
     <div className="space-y-6">
       {/* Controls */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-gray-900">
-              {schema.tableName.replace(/([A-Z])/g, " $1").trim()} Records
+              {schema.tableName
+                .replace(/([A-Z])/g, " $1")
+                .trim()
+                .replace(/^\w/, (c) => c.toUpperCase())}{" "}
+              Records
             </h2>
             <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-sm">
               {pagination.totalItems} total
             </span>
           </div>
 
-          {!isReadonly && schema.editableFields.length > 0 && (
-            <Button onClick={handleCreate} className="flex items-center gap-2">
-              <PlusIcon className="h-4 w-4" />
-              Add New Record
-            </Button>
-          )}
-        </div>
-
-        {/* Search */}
-        {schema.searchFields.length > 0 && (
           <div className="flex items-center gap-4">
-            <div className="flex-1 max-w-md">
-              <SearchInput
-                placeholder={`Search ${schema.searchFields.join(", ")}...`}
-                value={searchTerm}
-                onChange={handleSearch}
-                className="w-full"
-              />
-            </div>
-            {searchTerm && (
+            {/* Add New Record Button */}
+            {!isReadonly && schema.editableFields.length > 0 && (
               <Button
-                variant="outline"
-                onClick={() => handleSearch("")}
-                className="text-sm"
+                onClick={handleCreate}
+                className="flex items-center gap-2"
               >
-                Clear
+                <PlusIcon className="h-4 w-4" />
+                Add New Record
               </Button>
             )}
+          </div>
+        </div>
+
+        {/* Search Bar - Positioned below the main controls */}
+        {schema.searchFields.length > 0 && (
+          <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-200">
+            <div className="text-sm text-gray-600">
+              Search across:{" "}
+              <span className="font-medium">
+                {schema.searchFields.join(", ")}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-80">
+                <SearchInput
+                  placeholder={`Search ${schema.searchFields.join(", ")}...`}
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="w-full"
+                />
+              </div>
+              {searchTerm && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleSearch("")}
+                  className="text-sm"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -311,14 +357,42 @@ export default function TableManager({
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table
-              data={data}
-              columns={columns}
-              actions={getRowActions}
-              showPagination={true}
-              pageSize={pagination.pageSize}
-            />
+          <div className="p-6 space-y-4">
+            {data.map((record, index) => (
+              <div
+                key={index}
+                className="bg-gray-50 rounded-lg border border-gray-200 p-6 shadow-sm"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {Object.entries(record).map(([key, value]) => (
+                    <div key={key} className="space-y-1">
+                      <dt className="text-sm font-medium text-gray-500 capitalize">
+                        {key.replace(/([A-Z])/g, " $1").trim()}
+                      </dt>
+                      <dd className="text-sm text-gray-900">
+                        {renderFieldValue(key, value)}
+                      </dd>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Row Actions */}
+                <div className="mt-4 pt-4 border-t border-gray-200 flex justify-end space-x-2">
+                  {getRowActions(record).map((action, actionIndex) => (
+                    <button
+                      key={actionIndex}
+                      onClick={action.onClick}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    >
+                      {action.icon && (
+                        <span className="mr-2">{action.icon}</span>
+                      )}
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -385,11 +459,13 @@ export default function TableManager({
       {/* Modal */}
       {modalMode && (
         <TableRecordModal
+          isOpen={!!modalMode}
           tableName={tableName}
           schema={schema}
           record={selectedRecord}
           mode={modalMode}
           onClose={handleModalClose}
+          onSave={handleModalClose}
         />
       )}
     </div>

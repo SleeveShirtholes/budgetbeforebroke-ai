@@ -357,9 +357,11 @@ export default function Table<T extends Record<string, unknown>>({
       </div>
 
       {/* Desktop table layout */}
-      <div className="hidden lg:block overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-        <div className="min-w-full">
-          <table className={`w-full divide-y divide-gray-200 ${className}`}>
+      <div className="hidden lg:block rounded-lg border border-gray-200 shadow-sm">
+        <div className="overflow-x-auto">
+          <table
+            className={`w-full divide-y divide-gray-200 table-fixed ${className}`}
+          >
             <TableHeader<T>
               columns={columns}
               sorting={sorting}
