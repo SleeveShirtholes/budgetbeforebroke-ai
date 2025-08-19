@@ -97,14 +97,17 @@ describe("EditDebtModal", () => {
     const submitButton = screen.getByRole("button", { name: "Save Changes" });
     await user.click(submitButton);
 
-    expect(mockUpdateDebt).toHaveBeenCalledWith({
-      id: "123e4567-e89b-12d3-a456-426614174000",
-      name: "Updated Debt Name",
-      paymentAmount: 750,
-      interestRate: 5.5, // From the mock debt data
-      dueDate: "2025-12-15", // Keep original date
-      categoryId: "category-1", // From the mock debt data
-    });
+    expect(mockUpdateDebt).toHaveBeenCalledWith(
+      {
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        name: "Updated Debt Name",
+        paymentAmount: 750,
+        interestRate: 5.5, // From the mock debt data
+        dueDate: "2025-12-15", // Keep original date
+        categoryId: "category-1", // From the mock debt data
+      },
+      "test-account-id",
+    );
   });
 
   it("calls onDebtUpdated after successful submission", async () => {
@@ -182,14 +185,17 @@ describe("EditDebtModal", () => {
     const submitButton = screen.getByRole("button", { name: "Save Changes" });
     await user.click(submitButton);
 
-    expect(mockUpdateDebt).toHaveBeenCalledWith({
-      id: "123e4567-e89b-12d3-a456-426614174000",
-      name: "Test Debt",
-      paymentAmount: 499.99,
-      interestRate: 5.5, // From the mock debt data
-      dueDate: "2025-12-15",
-      categoryId: "category-1", // From the mock debt data
-    });
+    expect(mockUpdateDebt).toHaveBeenCalledWith(
+      {
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        name: "Test Debt",
+        paymentAmount: 499.99,
+        interestRate: 5.5, // From the mock debt data
+        dueDate: "2025-12-15",
+        categoryId: "category-1", // From the mock debt data
+      },
+      "test-account-id",
+    );
   });
 
   it("shows loading state during submission", async () => {
@@ -241,14 +247,17 @@ describe("EditDebtModal", () => {
     const submitButton = screen.getByRole("button", { name: "Save Changes" });
     await user.click(submitButton);
 
-    expect(mockUpdateDebt).toHaveBeenCalledWith({
-      id: "123e4567-e89b-12d3-a456-426614174000",
-      name: "Credit Card & Bills (2024) - $500",
-      paymentAmount: 500,
-      interestRate: 5.5, // From the mock debt data
-      dueDate: "2025-12-15",
-      categoryId: "category-1", // From the mock debt data
-    });
+    expect(mockUpdateDebt).toHaveBeenCalledWith(
+      {
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        name: "Credit Card & Bills (2024) - $500",
+        paymentAmount: 500,
+        interestRate: 5.5, // From the mock debt data
+        dueDate: "2025-12-15",
+        categoryId: "category-1", // From the mock debt data
+      },
+      "test-account-id",
+    );
   });
 
   it("handles zero values correctly", async () => {
@@ -263,13 +272,16 @@ describe("EditDebtModal", () => {
     const submitButton = screen.getByRole("button", { name: "Save Changes" });
     await user.click(submitButton);
 
-    expect(mockUpdateDebt).toHaveBeenCalledWith({
-      id: "123e4567-e89b-12d3-a456-426614174000",
-      name: "Test Debt",
-      paymentAmount: 0.01,
-      interestRate: 5.5, // From the mock debt data
-      dueDate: "2025-12-15",
-      categoryId: "category-1", // From the mock debt data
-    });
+    expect(mockUpdateDebt).toHaveBeenCalledWith(
+      {
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        name: "Test Debt",
+        paymentAmount: 0.01,
+        interestRate: 5.5, // From the mock debt data
+        dueDate: "2025-12-15",
+        categoryId: "category-1", // From the mock debt data
+      },
+      "test-account-id",
+    );
   });
 });

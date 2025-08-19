@@ -53,13 +53,14 @@ export default function DebtModal({
     reset,
   } = useForm<DebtFormData>({
     resolver: zodResolver(debtFormSchema),
+    mode: "onChange", // Add this to see validation errors in real-time
     defaultValues: {
       name: debt?.name || "",
       categoryId: debt?.categoryId || "",
       paymentAmount:
-        debt?.paymentAmount !== undefined ? debt.paymentAmount.toString() : "",
+        debt?.paymentAmount !== undefined ? debt?.paymentAmount.toString() : "",
       interestRate:
-        debt?.interestRate !== undefined ? debt.interestRate.toString() : "",
+        debt?.interestRate !== undefined ? debt?.interestRate.toString() : "",
       dueDate: debt?.dueDate
         ? new Date(debt.dueDate).toISOString().slice(0, 10)
         : "",
@@ -101,7 +102,7 @@ export default function DebtModal({
 
   const handleFormSubmit = (data: DebtFormData) => {
     // Convert string values to numbers, fallback to 0 if blank
-    onSubmit({
+    const processedData = {
       ...data,
       paymentAmount:
         data.paymentAmount === "" ? 0 : parseFloat(data.paymentAmount),
@@ -109,7 +110,8 @@ export default function DebtModal({
         data.interestRate === "" || !data.interestRate
           ? 0
           : parseFloat(data.interestRate),
-    });
+    };
+    onSubmit(processedData);
   };
 
   const handleClose = () => {
@@ -143,6 +145,7 @@ export default function DebtModal({
             size="sm"
             disabled={isLoading}
             isLoading={isLoading}
+            onClick={() => {}}
           >
             {debt ? "Save Changes" : "Add"}
           </Button>
@@ -153,7 +156,9 @@ export default function DebtModal({
         id="debt-form"
         className="space-y-4"
         role="form"
-        onSubmit={handleSubmit(handleFormSubmit)}
+        onSubmit={(e) => {
+          handleSubmit(handleFormSubmit)(e);
+        }}
       >
         {/* Helpful description for users */}
         <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-2">

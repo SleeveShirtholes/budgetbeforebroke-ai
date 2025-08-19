@@ -38,7 +38,7 @@ export function useDebts(budgetAccountId?: string) {
    */
   const addDebt = async (debtData: CreateDebtInput) => {
     try {
-      await createDebt(debtData);
+      await createDebt(debtData, budgetAccountId);
       // Revalidate the debts data
       await mutateDebts();
       return { success: true };
@@ -53,7 +53,7 @@ export function useDebts(budgetAccountId?: string) {
    */
   const updateDebtById = async (debtData: UpdateDebtInput) => {
     try {
-      await updateDebt(debtData);
+      await updateDebt(debtData, budgetAccountId);
       // Revalidate the debts data
       await mutateDebts();
       return { success: true };
@@ -68,7 +68,7 @@ export function useDebts(budgetAccountId?: string) {
    */
   const removeDebt = async (id: string) => {
     try {
-      await deleteDebt(id);
+      await deleteDebt(id, budgetAccountId);
       // Revalidate the debts data
       await mutateDebts();
       return { success: true };

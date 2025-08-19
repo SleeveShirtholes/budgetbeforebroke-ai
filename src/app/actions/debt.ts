@@ -231,7 +231,7 @@ export async function createDebt(
     id: debtId,
     budgetAccountId: accountId,
     createdByUserId: sessionResult.user.id,
-    categoryId: data.categoryId,
+    categoryId: data.categoryId === "" ? null : data.categoryId,
     name: data.name,
     paymentAmount: data.paymentAmount.toString(),
     interestRate: data.interestRate.toString(),
@@ -288,7 +288,7 @@ export async function updateDebt(
     .update(debts)
     .set({
       name: data.name,
-      categoryId: data.categoryId,
+      categoryId: data.categoryId === "" ? null : data.categoryId,
       paymentAmount: data.paymentAmount.toString(),
       interestRate: data.interestRate.toString(),
       dueDate: data.dueDate, // Now a date string in YYYY-MM-DD format
