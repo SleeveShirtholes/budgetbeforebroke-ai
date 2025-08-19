@@ -38,12 +38,10 @@ export const debtFormSchema = z.object({
     .refine((date) => {
       const selectedDate = new Date(date);
       if (isNaN(selectedDate.getTime())) return false; // Invalid date
-      // Compare only the date part (ignore time)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      selectedDate.setHours(0, 0, 0, 0);
-      return selectedDate >= today;
-    }, "Due date must be today or in the future"),
+      // Allow any valid date - past, present, or future
+      // This enables editing debts with past due dates
+      return true;
+    }, "Due date must be a valid date"),
   hasBalance: z.boolean(),
 });
 

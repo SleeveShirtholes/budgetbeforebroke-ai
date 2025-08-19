@@ -9,6 +9,7 @@ interface DeleteDebtModalProps {
   onClose: () => void;
   onDebtDeleted: () => void;
   debt: Debt;
+  budgetAccountId: string;
 }
 
 export default function DeleteDebtModal({
@@ -16,6 +17,7 @@ export default function DeleteDebtModal({
   onClose,
   onDebtDeleted,
   debt,
+  budgetAccountId,
 }: DeleteDebtModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export default function DeleteDebtModal({
     setError(null);
 
     try {
-      await deleteDebt(debt.id);
+      await deleteDebt(debt.id, budgetAccountId);
       onDebtDeleted();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete debt");

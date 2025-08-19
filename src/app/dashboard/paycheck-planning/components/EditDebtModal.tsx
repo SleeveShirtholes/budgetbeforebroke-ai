@@ -30,14 +30,17 @@ export default function EditDebtModal({
 
     try {
       // Update debt
-      await updateDebt({
-        id: debt.id,
-        name: data.name,
-        paymentAmount: data.paymentAmount,
-        interestRate: data.interestRate,
-        dueDate: data.dueDate,
-        categoryId: data.categoryId,
-      });
+      await updateDebt(
+        {
+          id: debt.id,
+          name: data.name,
+          paymentAmount: data.paymentAmount,
+          interestRate: data.interestRate,
+          dueDate: data.dueDate,
+          categoryId: data.categoryId,
+        },
+        budgetAccountId,
+      );
 
       onDebtUpdated();
       onClose();

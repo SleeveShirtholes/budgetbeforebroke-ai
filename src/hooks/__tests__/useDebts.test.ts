@@ -175,7 +175,7 @@ describe("useDebts", () => {
         response = await result.current.addDebt(debtData);
       });
 
-      expect(mockCreateDebt).toHaveBeenCalledWith(debtData);
+      expect(mockCreateDebt).toHaveBeenCalledWith(debtData, "account-1");
       expect(mockMutate).toHaveBeenCalled();
       expect(response).toEqual({ success: true });
     });
@@ -198,7 +198,7 @@ describe("useDebts", () => {
         response = await result.current.addDebt(debtData);
       });
 
-      expect(mockCreateDebt).toHaveBeenCalledWith(debtData);
+      expect(mockCreateDebt).toHaveBeenCalledWith(debtData, "account-1");
       expect(mockMutate).not.toHaveBeenCalled();
       expect(response).toEqual({ success: false, error: mockError });
     });
@@ -224,7 +224,7 @@ describe("useDebts", () => {
         response = await result.current.updateDebtById(debtData);
       });
 
-      expect(mockUpdateDebt).toHaveBeenCalledWith(debtData);
+      expect(mockUpdateDebt).toHaveBeenCalledWith(debtData, "account-1");
       expect(mockMutate).toHaveBeenCalled();
       expect(response).toEqual({ success: true });
     });
@@ -248,7 +248,7 @@ describe("useDebts", () => {
         response = await result.current.updateDebtById(debtData);
       });
 
-      expect(mockUpdateDebt).toHaveBeenCalledWith(debtData);
+      expect(mockUpdateDebt).toHaveBeenCalledWith(debtData, "account-1");
       expect(mockMutate).not.toHaveBeenCalled();
       expect(response).toEqual({ success: false, error: mockError });
     });
@@ -268,7 +268,7 @@ describe("useDebts", () => {
         response = await result.current.removeDebt(debtId);
       });
 
-      expect(mockDeleteDebt).toHaveBeenCalledWith(debtId);
+      expect(mockDeleteDebt).toHaveBeenCalledWith(debtId, "account-1");
       expect(mockMutate).toHaveBeenCalled();
       expect(response).toEqual({ success: true });
     });
@@ -286,7 +286,7 @@ describe("useDebts", () => {
         response = await result.current.removeDebt(debtId);
       });
 
-      expect(mockDeleteDebt).toHaveBeenCalledWith(debtId);
+      expect(mockDeleteDebt).toHaveBeenCalledWith(debtId, "account-1");
       expect(mockMutate).not.toHaveBeenCalled();
       expect(response).toEqual({ success: false, error: mockError });
     });

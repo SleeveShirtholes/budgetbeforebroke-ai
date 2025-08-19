@@ -273,6 +273,7 @@ export default function DebtManagement({
           onClose={() => setDeletingDebt(null)}
           onDebtDeleted={handleDebtDeleted}
           debt={deletingDebt}
+          budgetAccountId={budgetAccountId}
         />
       )}
     </div>
