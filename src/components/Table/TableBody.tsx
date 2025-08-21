@@ -8,6 +8,25 @@ import RowActions from "./RowActions";
 import TruncatedCell from "./TruncatedCell";
 
 /**
+ * Helper function to calculate colSpan for table cells
+ * @param columns - Number of data columns
+ * @param actions - Whether actions column is present
+ * @param detailPanel - Whether detail panel column is present
+ * @param selectable - Whether selection column is present
+ * @returns The calculated colSpan value
+ */
+function getColSpan(
+  columns: number,
+  actions?: boolean,
+  detailPanel?: boolean,
+  selectable?: boolean,
+): number {
+  return (
+    columns + (actions ? 1 : 0) + (detailPanel ? 1 : 0) + (selectable ? 1 : 0)
+  );
+}
+
+/**
  * Renders the body of the table including data rows, expandable detail panels, and row actions.
  *
  * @template T - The type of data being displayed in the table
@@ -114,12 +133,12 @@ export default function TableBody<T extends Record<string, unknown>>({
       {data.length === 0 ? (
         <tr>
           <td
-            colSpan={
-              columns.length +
-              (actions ? 1 : 0) +
-              (detailPanel ? 1 : 0) +
-              (selectable ? 1 : 0)
-            }
+            colSpan={getColSpan(
+              columns.length,
+              !!actions,
+              !!detailPanel,
+              selectable,
+            )}
             className="px-4 py-8 text-center text-gray-500"
           >
             No data available
@@ -203,12 +222,12 @@ export default function TableBody<T extends Record<string, unknown>>({
               {isExpanded && detailPanel && (
                 <tr>
                   <td
-                    colSpan={
-                      columns.length +
-                      (actions ? 1 : 0) +
-                      (typeof detailPanel !== "undefined" ? 1 : 0) +
-                      (selectable ? 1 : 0)
-                    }
+                    colSpan={getColSpan(
+                      columns.length,
+                      !!actions,
+                      !!detailPanel,
+                      selectable,
+                    )}
                   >
                     <div className="px-8 py-4 bg-secondary-50 border-t border-b border-secondary-100">
                       {detailPanel(row)}

@@ -550,36 +550,6 @@ export async function createDebtPayment(
     // Instead of modifying the base debt due date, we'll create monthly planning
     // for future months. The base debt.dueDate remains unchanged.
 
-    // Calculate the next month after this payment
-    // const nextMonth = new Date(
-    //   paymentDate.getFullYear(),
-    //   paymentDate.getMonth() + 1,
-    //   1,
-    // );
-    // const nextYear = nextMonth.getFullYear();
-    // const nextMonthNum = nextMonth.getMonth() + 1;
-
-    // Create monthly planning for the next month to track the advanced due date
-    // This preserves the base debt due date while allowing monthly due date tracking
-    // TODO: Implement getOrCreateMonthlyDebtPlanning function or remove this functionality
-    // try {
-    //   // Import the function dynamically to avoid circular dependencies
-    //   const { getOrCreateMonthlyDebtPlanning } = await import(
-    //     "./paycheck-planning"
-    //   );
-    //   await getOrCreateMonthlyDebtPlanning(
-    //     accountId,
-    //     data.debtId,
-    //     nextYear,
-    //     nextMonthNum,
-    //   );
-    // } catch (error) {
-    //   console.error(
-    //     "Failed to create monthly planning for debt payment:",
-    //     error,
-    //   );
-    // }
-
     // Update the debt with payment information but NOT the due date
     await db
       .update(debts)

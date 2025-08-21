@@ -19,7 +19,6 @@ import { formatDateSafely } from "@/utils/date";
 import type {
   PaycheckAllocation,
   PaycheckInfo,
-  DebtInfo,
 } from "@/app/actions/paycheck-planning";
 
 type MonthlyDebtRecord = {
@@ -123,7 +122,7 @@ export default function AssignmentBasedInterface({
       filterable: true,
       filterPlaceholder: "Filter by date...",
       accessor: (row) => {
-        const debt = row as unknown as DebtInfo;
+        const debt = row as unknown as MonthlyDebtRecord;
         return (
           <span className="text-sm text-gray-600">
             {formatDateSafely(debt.dueDate, "MMM dd, yyyy")}
@@ -138,7 +137,7 @@ export default function AssignmentBasedInterface({
       filterable: true,
       filterPlaceholder: "Filter by amount...",
       accessor: (row) => {
-        const debt = row as unknown as DebtInfo;
+        const debt = row as unknown as MonthlyDebtRecord;
         return (
           <span className="text-sm font-semibold text-gray-900">
             ${debt.amount.toLocaleString()}
@@ -188,7 +187,7 @@ export default function AssignmentBasedInterface({
       sortable: false,
       filterable: false,
       accessor: (row) => {
-        const debt = row as unknown as DebtInfo;
+        const debt = row as unknown as MonthlyDebtRecord;
         return (
           <CustomSelect
             value=""
@@ -210,18 +209,6 @@ export default function AssignmentBasedInterface({
 
   // Group paychecks by date and combine amounts for same-day paychecks
   const groupedPaychecks = useMemo(() => {
-    // DEBUG: Log the actual paycheck data we're receiving
-    console.log(
-      "🔍 REAL PAYCHECK DATA:",
-      paychecks.map((p) => ({
-        id: p.id,
-        name: p.name,
-        date: p.date,
-        dateString: p.date.toISOString(),
-        amount: p.amount,
-      })),
-    );
-
     const groups = new Map<
       string,
       {
@@ -603,9 +590,8 @@ export default function AssignmentBasedInterface({
                       selectedRows={selectedDebts}
                       onSelectionChange={setSelectedDebts}
                       getRowId={(row) => {
-                        const debt = row as unknown as DebtInfo;
                         // Use the debt ID for row identification
-                        return debt.id;
+                        return (row as MonthlyDebtRecord).id;
                       }}
                       showMobileView={false}
                     />

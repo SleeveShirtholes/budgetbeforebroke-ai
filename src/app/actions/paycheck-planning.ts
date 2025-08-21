@@ -215,10 +215,6 @@ export async function getPaycheckPlanningData(
       isRecurring: true, // Monthly planning records are recurring
       categoryId: debt.categoryId || undefined,
     });
-
-    console.log(
-      `Found monthly debt: ${debt.name} for ${monthlyRecord.year}-${monthlyRecord.month} (due: ${monthlyRecord.dueDate})`,
-    );
   }
 
   // Note: We intentionally removed the synthetic fallback to ensure
@@ -226,13 +222,6 @@ export async function getPaycheckPlanningData(
 
   // Use the debt entries we found/created
   const processedDebts = allDebtEntries;
-
-  console.log(`=== SIMPLE APPROACH ===`);
-  console.log(`Total debts created: ${processedDebts.length}`);
-  processedDebts.forEach((debt) => {
-    console.log(`  - ${debt.name} (${debt.id}) - due: ${debt.dueDate}`);
-  });
-  console.log(`=== END SIMPLE APPROACH ===`);
 
   // Generate simple warnings
   const warnings: PaycheckWarning[] = [];
@@ -605,10 +594,6 @@ export async function populateMonthlyDebtPlanning(
     where: eq(debts.budgetAccountId, budgetAccountId),
   });
 
-  console.log(
-    "Ensuring monthly debt planning rows exist for selected window...",
-  );
-
   // Preload existing records for the account in the window to avoid per-row queries
   const windowStartYear = year;
   const windowStartMonth = month;
@@ -679,9 +664,6 @@ export async function populateMonthlyDebtPlanning(
             isActive: true,
           });
           existingKey.add(key);
-          console.log(
-            `Created monthly planning record: ${debt.name} for ${targetYear}-${targetMonth} (due: ${dueDate})`,
-          );
         } catch (error) {
           console.error(
             `Failed to create monthly planning record for ${debt.name} ${targetYear}-${targetMonth}:`,
@@ -691,6 +673,4 @@ export async function populateMonthlyDebtPlanning(
       }
     }
   }
-
-  console.log("Monthly debt planning window upsert complete");
 }
