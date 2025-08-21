@@ -8,6 +8,7 @@ import {
   user,
   transactions,
   categories,
+  monthlyDebtPlanning,
 } from "@/db/schema";
 
 import { db } from "@/db/config";
@@ -134,7 +135,7 @@ export async function getDebts(budgetAccountId?: string) {
       createdAt: debts.createdAt,
       updatedAt: debts.updatedAt,
       allocationId: debtAllocations.id,
-      allocationDebtId: debtAllocations.debtId,
+      allocationDebtId: monthlyDebtPlanning.debtId,
       paymentAmountAllocation: debtAllocations.paymentAmount,
       paymentDate: debtAllocations.paymentDate,
       paymentNote: debtAllocations.note,
@@ -143,7 +144,11 @@ export async function getDebts(budgetAccountId?: string) {
       paymentUpdatedAt: debtAllocations.updatedAt,
     })
     .from(debts)
-    .leftJoin(debtAllocations, eq(debts.id, debtAllocations.debtId))
+    .leftJoin(monthlyDebtPlanning, eq(monthlyDebtPlanning.debtId, debts.id))
+    .leftJoin(
+      debtAllocations,
+      eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanning.id),
+    )
     .where(eq(debts.budgetAccountId, accountId))
     .orderBy(debts.dueDate, desc(debtAllocations.paymentDate));
 
@@ -426,10 +431,64 @@ export async function createDebtPayment(
 
   // Create the payment as a standalone allocation (not tied to a paycheck)
   const paymentId = randomUUID();
+
+  // First, create or find a monthly debt planning record for the current month/year
+  const paymentDate = new Date(data.date);
+  const paymentYear = paymentDate.getFullYear();
+  const paymentMonth = paymentDate.getMonth() + 1; // Convert to 1-12 format
+
+  // Check if monthly planning record exists for this debt/month
+  let monthlyPlanningRecord = await db.query.monthlyDebtPlanning.findFirst({
+    where: and(
+      eq(monthlyDebtPlanning.budgetAccountId, accountId),
+      eq(monthlyDebtPlanning.debtId, data.debtId),
+      eq(monthlyDebtPlanning.year, paymentYear),
+      eq(monthlyDebtPlanning.month, paymentMonth),
+    ),
+  });
+
+  // If no monthly planning record exists, create one
+  if (!monthlyPlanningRecord) {
+    const monthlyPlanningId = randomUUID();
+    // Calculate the due date for this month (keep the same day of month)
+    // Handle both string and Date dueDate formats
+    let debtDay: number;
+    if (typeof existingDebt.dueDate === "string") {
+      [, , debtDay] = existingDebt.dueDate.split("-").map(Number);
+    } else {
+      // If it's not a string, assume it's a Date object
+      debtDay = (existingDebt.dueDate as Date).getDate();
+    }
+    const dueDate = `${paymentYear}-${String(paymentMonth).padStart(2, "0")}-${String(debtDay).padStart(2, "0")}`;
+
+    await db.insert(monthlyDebtPlanning).values({
+      id: monthlyPlanningId,
+      budgetAccountId: accountId,
+      debtId: data.debtId,
+      year: paymentYear,
+      month: paymentMonth,
+      dueDate: dueDate,
+      isActive: true,
+    });
+
+    monthlyPlanningRecord = {
+      id: monthlyPlanningId,
+      budgetAccountId: accountId,
+      debtId: data.debtId,
+      year: paymentYear,
+      month: paymentMonth,
+      dueDate: dueDate,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  // Now create the debt allocation using the monthly planning record ID
   await db.insert(debtAllocations).values({
     id: paymentId,
     budgetAccountId: accountId,
-    debtId: data.debtId,
+    monthlyDebtPlanningId: monthlyPlanningRecord.id,
     paycheckId: "standalone-payment", // Special ID for standalone payments
     paymentAmount: paymentAmount.toString(),
     paymentDate: data.date, // Already a date string in YYYY-MM-DD format
@@ -467,14 +526,14 @@ export async function createDebtPayment(
   });
 
   // Advance due date only if payment is for the current due period
-  const paymentDate = new Date(data.date);
+  const paymentMonthDate = new Date(data.date);
   const dueDate = new Date(existingDebt.dueDate);
   const lastPaymentMonth = existingDebt.lastPaymentMonth
     ? new Date(existingDebt.lastPaymentMonth)
     : null;
-  const paymentMonth = new Date(
-    paymentDate.getFullYear(),
-    paymentDate.getMonth(),
+  const paymentMonthDateOnly = new Date(
+    paymentMonthDate.getFullYear(),
+    paymentMonthDate.getMonth(),
     1,
   );
   const dueMonth = new Date(dueDate.getFullYear(), dueDate.getMonth(), 1);
@@ -482,48 +541,50 @@ export async function createDebtPayment(
   // Check if this payment should advance the due date
   // (but we won't modify the base debt due date - we'll use monthly planning instead)
   const shouldAdvanceDueDate =
-    (paymentDate <= dueDate || paymentMonth.getTime() === dueMonth.getTime()) &&
+    (paymentMonthDateOnly <= dueDate ||
+      paymentMonthDateOnly.getTime() === dueMonth.getTime()) &&
     (!lastPaymentMonth ||
-      lastPaymentMonth.getTime() !== paymentMonth.getTime());
+      lastPaymentMonth.getTime() !== paymentMonthDateOnly.getTime());
 
   if (shouldAdvanceDueDate) {
     // Instead of modifying the base debt due date, we'll create monthly planning
     // for future months. The base debt.dueDate remains unchanged.
 
     // Calculate the next month after this payment
-    const nextMonth = new Date(
-      paymentDate.getFullYear(),
-      paymentDate.getMonth() + 1,
-      1,
-    );
-    const nextYear = nextMonth.getFullYear();
-    const nextMonthNum = nextMonth.getMonth() + 1;
+    // const nextMonth = new Date(
+    //   paymentDate.getFullYear(),
+    //   paymentDate.getMonth() + 1,
+    //   1,
+    // );
+    // const nextYear = nextMonth.getFullYear();
+    // const nextMonthNum = nextMonth.getMonth() + 1;
 
     // Create monthly planning for the next month to track the advanced due date
     // This preserves the base debt due date while allowing monthly due date tracking
-    try {
-      // Import the function dynamically to avoid circular dependencies
-      const { getOrCreateMonthlyDebtPlanning } = await import(
-        "./paycheck-planning"
-      );
-      await getOrCreateMonthlyDebtPlanning(
-        accountId,
-        data.debtId,
-        nextYear,
-        nextMonthNum,
-      );
-    } catch (error) {
-      console.error(
-        "Failed to create monthly planning for debt payment:",
-        error,
-      );
-    }
+    // TODO: Implement getOrCreateMonthlyDebtPlanning function or remove this functionality
+    // try {
+    //   // Import the function dynamically to avoid circular dependencies
+    //   const { getOrCreateMonthlyDebtPlanning } = await import(
+    //     "./paycheck-planning"
+    //   );
+    //   await getOrCreateMonthlyDebtPlanning(
+    //     accountId,
+    //     data.debtId,
+    //     nextYear,
+    //     nextMonthNum,
+    //   );
+    // } catch (error) {
+    //   console.error(
+    //     "Failed to create monthly planning for debt payment:",
+    //     error,
+    //   );
+    // }
 
     // Update the debt with payment information but NOT the due date
     await db
       .update(debts)
       .set({
-        lastPaymentMonth: paymentMonth,
+        lastPaymentMonth: paymentMonthDateOnly,
         paymentAmount: newPaymentAmount.toString(),
         updatedAt: new Date(),
       })

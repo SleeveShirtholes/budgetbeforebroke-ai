@@ -20,6 +20,7 @@ export function usePaycheckPlanning(
   budgetAccountId?: string,
   year?: number,
   month?: number,
+  planningWindowMonths: number = 0, // Default to current month only, but configurable
 ) {
   const {
     data: planningData,
@@ -28,9 +29,21 @@ export function usePaycheckPlanning(
     mutate: mutatePlanningData,
   } = useSWR(
     budgetAccountId && year && month
-      ? [PAYCHECK_PLANNING_KEY, budgetAccountId, year, month]
+      ? [
+          PAYCHECK_PLANNING_KEY,
+          budgetAccountId,
+          year,
+          month,
+          planningWindowMonths,
+        ]
       : null,
-    () => getPaycheckPlanningData(budgetAccountId!, year!, month!),
+    () =>
+      getPaycheckPlanningData(
+        budgetAccountId!,
+        year!,
+        month!,
+        planningWindowMonths,
+      ),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: true,
@@ -133,14 +146,16 @@ export function useCurrentMonthPaycheckAllocations(budgetAccountId?: string) {
  * Custom hook for managing debt allocations with drag-and-drop functionality
  */
 export function useDebtAllocationManager(
-  budgetAccountId?: string,
-  year?: number,
-  month?: number,
+  budgetAccountId: string | undefined,
+  year: number,
+  month: number,
+  planningWindowMonths: number = 0, // Default to current month only, but configurable
 ) {
   const { planningData, mutatePlanningData } = usePaycheckPlanning(
     budgetAccountId,
     year,
     month,
+    planningWindowMonths,
   );
   const { allocations, mutateAllocations } = usePaycheckAllocations(
     budgetAccountId,
@@ -149,7 +164,7 @@ export function useDebtAllocationManager(
   );
 
   const handleDebtAllocated = async (
-    debtId: string,
+    monthlyDebtPlanningId: string, // Changed from debtId to monthlyDebtPlanningId
     paycheckId: string,
     paymentAmount?: number,
     paymentDate?: string,
@@ -159,7 +174,7 @@ export function useDebtAllocationManager(
     try {
       await updateDebtAllocation(
         budgetAccountId,
-        debtId,
+        monthlyDebtPlanningId,
         paycheckId,
         "allocate",
         paymentAmount,
@@ -173,13 +188,16 @@ export function useDebtAllocationManager(
     }
   };
 
-  const handleDebtUnallocated = async (debtId: string, paycheckId: string) => {
+  const handleDebtUnallocated = async (
+    monthlyDebtPlanningId: string,
+    paycheckId: string,
+  ) => {
     if (!budgetAccountId) return;
 
     try {
       await updateDebtAllocation(
         budgetAccountId,
-        debtId,
+        monthlyDebtPlanningId,
         paycheckId,
         "unallocate",
       );

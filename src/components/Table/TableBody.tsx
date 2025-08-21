@@ -33,6 +33,10 @@ interface TableBodyProps<T extends Record<string, unknown>> {
     onClick: () => void;
   }[];
   searchQuery: string;
+  selectable?: boolean;
+  selectedRows?: Set<string>;
+  onRowSelection?: (rowId: string, checked: boolean) => void;
+  getRowId: (row: T, index: number) => string;
 }
 
 export default function TableBody<T extends Record<string, unknown>>({
@@ -43,15 +47,12 @@ export default function TableBody<T extends Record<string, unknown>>({
   detailPanel,
   actions,
   searchQuery,
+  selectable = false,
+  selectedRows = new Set(),
+  onRowSelection,
+  getRowId,
 }: TableBodyProps<T>) {
   const [hoveredRowId, setHoveredRowId] = useState<string | null>(null);
-
-  // Get a unique ID from a row
-  const getRowId = (row: T): string => {
-    if ("id" in row && row.id !== undefined) return String(row.id);
-    // If no id field, stringify the object as a fallback
-    return JSON.stringify(row);
-  };
 
   /**
    * Handles the click event on a table row.
@@ -113,15 +114,20 @@ export default function TableBody<T extends Record<string, unknown>>({
       {data.length === 0 ? (
         <tr>
           <td
-            colSpan={columns.length + (actions ? 1 : 0) + (detailPanel ? 1 : 0)}
+            colSpan={
+              columns.length +
+              (actions ? 1 : 0) +
+              (detailPanel ? 1 : 0) +
+              (selectable ? 1 : 0)
+            }
             className="px-4 py-8 text-center text-gray-500"
           >
             No data available
           </td>
         </tr>
       ) : (
-        data.map((row) => {
-          const rowId = getRowId(row);
+        data.map((row, index) => {
+          const rowId = getRowId(row, index);
           const isExpanded = expandedRows[rowId] || false;
 
           return (
@@ -141,6 +147,21 @@ export default function TableBody<T extends Record<string, unknown>>({
                       className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
                         isExpanded ? "transform rotate-90 text-primary-500" : ""
                       }`}
+                    />
+                  </td>
+                )}
+
+                {/* Selection checkbox column - only show if selectable */}
+                {selectable && (
+                  <td className="w-12 px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.has(rowId)}
+                      onChange={(e) =>
+                        onRowSelection?.(rowId, e.target.checked)
+                      }
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                      onClick={(e) => e.stopPropagation()}
                     />
                   </td>
                 )}
@@ -185,7 +206,8 @@ export default function TableBody<T extends Record<string, unknown>>({
                     colSpan={
                       columns.length +
                       (actions ? 1 : 0) +
-                      (typeof detailPanel !== "undefined" ? 1 : 0)
+                      (typeof detailPanel !== "undefined" ? 1 : 0) +
+                      (selectable ? 1 : 0)
                     }
                   >
                     <div className="px-8 py-4 bg-secondary-50 border-t border-b border-secondary-100">

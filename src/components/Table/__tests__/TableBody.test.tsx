@@ -29,6 +29,11 @@ describe("TableBody Component", () => {
     expandedRows: mockExpandedRows,
     toggleRowExpansion: mockToggleRowExpansion,
     searchQuery: "",
+    selectable: false,
+    selectedRows: new Set(),
+    onRowSelection: undefined,
+    getRowId: (row: Record<string, unknown>, index: number) =>
+      String((row as { id?: string | number }).id || index),
   };
 
   it("renders table rows with data", () => {

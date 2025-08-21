@@ -32,6 +32,10 @@ interface TableHeaderProps<T> {
   onFilterChange: (columnKey: string, filter: FilterValue | null) => void;
   actions: boolean;
   hasDetailPanel: boolean;
+  selectable?: boolean;
+  selectedRows?: Set<string>;
+  onSelectAll?: (checked: boolean) => void;
+  data: T[];
 }
 
 export default function TableHeader<T>({
@@ -42,6 +46,10 @@ export default function TableHeader<T>({
   onFilterChange,
   actions,
   hasDetailPanel,
+  selectable = false,
+  selectedRows = new Set(),
+  onSelectAll,
+  data,
 }: TableHeaderProps<T>) {
   const handleSort = (column: ColumnDef<T>) => {
     if (!column.sortable) return;
@@ -74,6 +82,18 @@ export default function TableHeader<T>({
       <tr>
         {/* Expansion column - only show if detailPanel is provided */}
         {hasDetailPanel && <th className="w-10 px-4 py-3 text-left" />}
+
+        {/* Select all checkbox column - only show if selectable */}
+        {selectable && (
+          <th className="w-12 px-4 py-3 text-left">
+            <input
+              type="checkbox"
+              checked={data.length > 0 && selectedRows.size === data.length}
+              onChange={(e) => onSelectAll?.(e.target.checked)}
+              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+            />
+          </th>
+        )}
 
         {/* Data columns */}
         {columns.map((column) => (

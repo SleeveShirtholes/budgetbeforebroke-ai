@@ -10,6 +10,7 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ChevronDownIcon,
+  CalendarDaysIcon,
 } from "@heroicons/react/24/outline";
 import AssignmentBasedInterface from "./components/AssignmentBasedInterface";
 import DebtManagement from "./components/DebtManagement";
@@ -17,12 +18,16 @@ import WarningsPanel from "./components/WarningsPanel";
 import { useToast } from "@/components/Toast";
 import { useBudgetAccount } from "@/stores/budgetAccountStore";
 import { useDebtAllocationManager } from "@/hooks/usePaycheckPlanning";
-import { markPaymentAsPaid } from "@/app/actions/paycheck-planning";
+import {
+  markPaymentAsPaid,
+  populateMonthlyDebtPlanning,
+} from "@/app/actions/paycheck-planning";
 import { formatDateSafely } from "@/utils/date";
 import Card from "@/components/Card";
 import Button from "@/components/Button";
 import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
+
 import "@/styles/sortable.css";
 
 /**
@@ -41,6 +46,9 @@ export default function PaycheckPlanningPage() {
   const [isDebtsModalOpen, setIsDebtsModalOpen] = useState(false);
   const [showMobileDetails, setShowMobileDetails] = useState(false);
   const [isWarningsExpanded, setIsWarningsExpanded] = useState(false);
+  const [planningWindowMonths, setPlanningWindowMonths] = useState(0);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null); // User configurable planning window
   const { showToast } = useToast();
   const unallocatedDebtsRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +67,40 @@ export default function PaycheckPlanningPage() {
     selectedAccount?.id,
     selectedDate.getFullYear(),
     selectedDate.getMonth() + 1, // getMonth() returns 0-11, we need 1-12
+    planningWindowMonths, // Pass the user's planning window preference
   );
+
+  // Populate monthly debt planning rows for the visible window,
+  // then revalidate to ensure newly inserted rows are reflected immediately
+  useEffect(() => {
+    let isCancelled = false;
+    const run = async () => {
+      if (!selectedAccount?.id) return;
+      try {
+        await populateMonthlyDebtPlanning(
+          selectedAccount.id,
+          selectedDate.getFullYear(),
+          selectedDate.getMonth() + 1,
+          planningWindowMonths,
+        );
+        if (!isCancelled) {
+          await Promise.all([mutatePlanningData?.(), mutateAllocations?.()]);
+        }
+      } catch (error) {
+        console.error("Failed to populate monthly debt planning:", error);
+      }
+    };
+    run();
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    selectedAccount?.id,
+    selectedDate,
+    planningWindowMonths,
+    mutatePlanningData,
+    mutateAllocations,
+  ]);
 
   // Wrap the handlers with toast notifications
   const handleDebtAllocated = async (
@@ -133,17 +174,32 @@ export default function PaycheckPlanningPage() {
     }
   };
 
-  // Calculate unallocated debts
-  const unallocatedDebts = useMemo(() => {
+  // Calculate unallocated monthly debt planning records
+  const unallocatedMonthlyDebts = useMemo(() => {
     if (!planningData?.debts || !allocations) return [];
 
-    const allocatedDebtIds = new Set(
-      allocations.flatMap((allocation) =>
-        allocation.allocatedDebts.map((debt) => debt.debtId),
-      ),
+    // Build a set of monthly_debt_planning ids that are already allocated
+    const allocatedMonthlyIds = new Set(
+      allocations.flatMap((a) => a.allocatedDebts).map((d) => d.debtId), // debtId is monthlyDebtPlanningId per server mapping
     );
 
-    return planningData.debts.filter((debt) => !allocatedDebtIds.has(debt.id));
+    // Map planning debts (each is a monthly_debt_planning record) and exclude allocated ones
+    return planningData.debts
+      .filter((debt) => !allocatedMonthlyIds.has(debt.id))
+      .map((debt) => ({
+        id: debt.id, // monthlyDebtPlanningId
+        debtId: debt.id,
+        debtName: debt.name,
+        amount: debt.amount,
+        dueDate: debt.dueDate,
+        frequency: debt.frequency,
+        description: debt.description,
+        isRecurring: debt.isRecurring,
+        categoryId: debt.categoryId,
+        year: new Date(debt.dueDate).getFullYear(),
+        month: new Date(debt.dueDate).getMonth() + 1,
+        isActive: true,
+      }));
   }, [planningData?.debts, allocations]);
 
   // Navigation handlers
@@ -187,7 +243,26 @@ export default function PaycheckPlanningPage() {
     return () => {
       sortable.destroy();
     };
-  }, [unallocatedDebts]);
+  }, [unallocatedMonthlyDebts]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    }
+
+    if (isDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [isDropdownOpen]);
 
   // Loading states
   if (isAccountsLoading) {
@@ -536,69 +611,113 @@ export default function PaycheckPlanningPage() {
         </div>
       </Card>
 
-      {/* Main Content - Column Layout */}
-      <div className="space-y-4">
-        {/* Button Group - Manage Debts and Warnings */}
-        <div className="flex justify-center lg:justify-end">
-          {/* Warnings Button - First in group */}
+      {/* Button Group - Warnings, Planning Window, and Manage Debts */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 sm:justify-center lg:sm:justify-end">
+        {/* Warnings Button - First in group */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsWarningsExpanded(!isWarningsExpanded)}
+          className="w-full sm:w-auto text-amber-700 border-amber-300 hover:bg-amber-50 hover:border-amber-400 sm:rounded-r-none sm:border-r-0 hover:z-10"
+        >
+          <ExclamationTriangleIcon className="h-4 w-4" />
+          <span>
+            {warnings.length} warning{warnings.length !== 1 ? "s" : ""}
+          </span>
+        </Button>
+
+        {/* Planning Window Dropdown - Middle in group */}
+        <div className="relative w-full sm:w-auto" ref={dropdownRef}>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsWarningsExpanded(!isWarningsExpanded)}
-            className="text-amber-700 border-amber-300 hover:bg-amber-50 hover:border-amber-400 rounded-r-none border-r-0 hover:z-10"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="w-full sm:w-auto flex items-center justify-center sm:justify-start space-x-2 sm:rounded-none sm:border-r-0 hover:z-10"
           >
-            <ExclamationTriangleIcon className="h-4 w-4" />
+            <CalendarDaysIcon className="h-4 w-4" />
             <span>
-              {warnings.length} warning{warnings.length !== 1 ? "s" : ""}
+              {planningWindowMonths === 0
+                ? "Current Month"
+                : `${planningWindowMonths} Month${planningWindowMonths !== 1 ? "s" : ""} Ahead`}
             </span>
+            <ChevronDownIcon className="h-3 w-3" />
           </Button>
 
-          {/* Manage Debts Button - Second in group (right side) */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsDebtsModalOpen(true)}
-            className="flex items-center space-x-2 rounded-l-none hover:z-10"
-          >
-            <CurrencyDollarIcon className="h-4 w-4" />
-            <span>Manage Debts</span>
-          </Button>
+          {/* Dropdown Menu */}
+          {isDropdownOpen && (
+            <div className="absolute top-full left-0 mt-1 w-full sm:w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+              <div className="py-1">
+                {[0, 1, 2, 3, 6].map((months) => (
+                  <button
+                    key={months}
+                    onClick={() => {
+                      setPlanningWindowMonths(months);
+                      setIsDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                      planningWindowMonths === months
+                        ? "bg-primary-50 text-primary-600"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {months === 0
+                      ? "Current Month Only"
+                      : `${months} Month${months !== 1 ? "s" : ""} Ahead`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Warnings Section */}
-        {warnings.length > 0 && (
-          <div className="space-y-3">
-            {isWarningsExpanded && (
-              <WarningsPanel
-                warnings={warnings}
-                budgetAccountId={selectedAccount.id}
-                onWarningDismissed={async () => {
-                  try {
-                    await Promise.all([
-                      mutatePlanningData?.(),
-                      mutateAllocations?.(),
-                    ]);
-                    showToast("Warning dismissed", { type: "success" });
-                  } catch (error) {
-                    console.error("Failed to dismiss warning", error);
-                    showToast("Failed to dismiss warning", { type: "error" });
-                  }
-                }}
-              />
-            )}
-          </div>
-        )}
-
-        {/* Assignment-Based Interface */}
-        <AssignmentBasedInterface
-          paychecks={paychecks}
-          allocations={allocations || []}
-          unallocatedDebts={unallocatedDebts}
-          onDebtAllocated={handleDebtAllocated}
-          onDebtUnallocated={handleDebtUnallocated}
-          onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
-        />
+        {/* Manage Debts Button - Last in group (right side) */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsDebtsModalOpen(true)}
+          className="w-full sm:w-auto flex items-center justify-center sm:justify-start space-x-2 sm:rounded-l-none hover:z-10"
+        >
+          <CurrencyDollarIcon className="h-4 w-4" />
+          <span>Manage Debts</span>
+        </Button>
       </div>
+
+      {/* Warnings Section */}
+      {warnings.length > 0 && (
+        <div className="space-y-3">
+          {isWarningsExpanded && (
+            <WarningsPanel
+              warnings={warnings}
+              budgetAccountId={selectedAccount.id}
+              onWarningDismissed={async () => {
+                try {
+                  await Promise.all([
+                    mutatePlanningData?.(),
+                    mutateAllocations?.(),
+                  ]);
+                  showToast("Warning dismissed", { type: "success" });
+                } catch (error) {
+                  console.error("Failed to dismiss warning", error);
+                  showToast("Failed to dismiss warning", { type: "error" });
+                }
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Assignment-Based Interface */}
+      <AssignmentBasedInterface
+        paychecks={paychecks}
+        allocations={allocations || []}
+        unallocatedDebts={unallocatedMonthlyDebts}
+        currentYear={selectedDate.getFullYear()}
+        currentMonth={selectedDate.getMonth() + 1}
+        planningWindowMonths={planningWindowMonths}
+        onDebtAllocated={handleDebtAllocated}
+        onDebtUnallocated={handleDebtUnallocated}
+        onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
+      />
 
       {/* Debts Modal */}
       <Modal
