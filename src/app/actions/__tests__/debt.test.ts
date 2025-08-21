@@ -43,6 +43,9 @@ jest.mock("@/db/config", () => ({
       categories: {
         findFirst: jest.fn(),
       },
+      monthlyDebtPlanning: {
+        findFirst: jest.fn(),
+      },
     },
   },
 }));
@@ -549,6 +552,8 @@ describe("Debt Actions", () => {
       actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
       // Mock category query to return existing category
       actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
+      // Mock monthly debt planning query to return no existing record
+      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
       actualDb.values.mockResolvedValue({});
 
       // Mock the update chain
@@ -558,11 +563,11 @@ describe("Debt Actions", () => {
       const result = await createDebtPayment(createPaymentData);
 
       expect(result).toEqual({ id: mockDebtId });
-      expect(actualDb.insert).toHaveBeenCalledTimes(2); // payment + transaction
+      expect(actualDb.insert).toHaveBeenCalledTimes(3); // monthly planning + debt allocation + transaction
       expect(actualDb.values).toHaveBeenCalledWith(
         expect.objectContaining({
           id: "mock-debt-id",
-          debtId: mockDebtId,
+          monthlyDebtPlanningId: expect.any(String),
           paymentAmount: "100",
           paymentDate: "2024-01-15",
           note: "Test payment",
@@ -579,6 +584,8 @@ describe("Debt Actions", () => {
       actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
       // Mock category query to return no category
       actualDb.query.categories.findFirst.mockResolvedValue(null);
+      // Mock monthly debt planning query to return no existing record
+      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
       actualDb.values.mockResolvedValue({});
 
       // Mock the update chain
@@ -587,7 +594,7 @@ describe("Debt Actions", () => {
 
       await createDebtPayment(createPaymentData);
 
-      expect(actualDb.insert).toHaveBeenCalledTimes(3); // category + payment + transaction
+      expect(actualDb.insert).toHaveBeenCalledTimes(4); // category + monthly planning + debt allocation + transaction
       expect(actualDb.values).toHaveBeenCalledWith(
         expect.objectContaining({
           id: "mock-debt-id",
@@ -608,6 +615,8 @@ describe("Debt Actions", () => {
       actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
       // Mock category query to return existing category
       actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
+      // Mock monthly debt planning query to return no existing record
+      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
       actualDb.values.mockResolvedValue({});
 
       // Mock the update chain
@@ -640,6 +649,8 @@ describe("Debt Actions", () => {
       ]);
       // Mock category query to return existing category
       actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
+      // Mock monthly debt planning query to return no existing record
+      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
       actualDb.values.mockResolvedValue({});
 
       // Mock the update chain
@@ -676,6 +687,8 @@ describe("Debt Actions", () => {
       ]);
       // Mock category query to return existing category
       actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
+      // Mock monthly debt planning query to return no existing record
+      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
       actualDb.values.mockResolvedValue({});
 
       // Mock the update chain
@@ -701,6 +714,8 @@ describe("Debt Actions", () => {
       actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
       // Mock category query to return existing category
       actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
+      // Mock monthly debt planning query to return no existing record
+      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
       actualDb.values.mockResolvedValue({});
 
       // Mock the update chain
@@ -727,6 +742,8 @@ describe("Debt Actions", () => {
       actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
       // Mock category query to return existing category
       actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
+      // Mock monthly debt planning query to return no existing record
+      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
       actualDb.values.mockResolvedValue({});
 
       // Mock the update chain

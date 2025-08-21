@@ -34,4 +34,5 @@ export interface ColumnDef<T> {
   filterable?: boolean;
   width?: string;
   filterPlaceholder?: string;
+  selectable?: boolean;
 }

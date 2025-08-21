@@ -459,7 +459,7 @@ export const debtsRelations = relations(debts, ({ one, many }) => ({
     references: [user.id],
   }),
   // payments: many(debtPayments), // Remove this relation
-  allocations: many(debtAllocations), // Add this relation instead
+  monthlyPlanning: many(monthlyDebtPlanning), // Add relation to monthly planning instead
 }));
 
 // Remove debt payments relations since we're integrating it
@@ -477,9 +477,9 @@ export const debtAllocations = pgTable("debt_allocations", {
   budgetAccountId: text("budget_account_id")
     .notNull()
     .references(() => budgetAccounts.id, { onDelete: "cascade" }),
-  debtId: text("debt_id")
+  monthlyDebtPlanningId: text("monthly_debt_planning_id")
     .notNull()
-    .references(() => debts.id, { onDelete: "cascade" }),
+    .references(() => monthlyDebtPlanning.id, { onDelete: "cascade" }),
   paycheckId: text("paycheck_id").notNull(),
   // Enhanced with payment information
   paymentAmount: decimal("payment_amount", { precision: 10, scale: 2 }),
@@ -503,9 +503,9 @@ export const debtAllocationsRelations = relations(
       fields: [debtAllocations.budgetAccountId],
       references: [budgetAccounts.id],
     }),
-    debt: one(debts, {
-      fields: [debtAllocations.debtId],
-      references: [debts.id],
+    monthlyDebtPlanning: one(monthlyDebtPlanning, {
+      fields: [debtAllocations.monthlyDebtPlanningId],
+      references: [monthlyDebtPlanning.id],
     }),
     user: one(user, {
       fields: [debtAllocations.userId],
@@ -540,7 +540,7 @@ export const monthlyDebtPlanning = pgTable("monthly_debt_planning", {
 // Add unique constraint to ensure one record per debt per month
 export const monthlyDebtPlanningRelations = relations(
   monthlyDebtPlanning,
-  ({ one }) => ({
+  ({ one, many }) => ({
     budgetAccount: one(budgetAccounts, {
       fields: [monthlyDebtPlanning.budgetAccountId],
       references: [budgetAccounts.id],
@@ -549,6 +549,7 @@ export const monthlyDebtPlanningRelations = relations(
       fields: [monthlyDebtPlanning.debtId],
       references: [debts.id],
     }),
+    allocations: many(debtAllocations), // Add reverse relationship to debt allocations
   }),
 );
 

@@ -1,34 +1,23 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gte, lte, or, gt, lt } from "drizzle-orm";
 import {
   budgetAccountMembers,
   incomeSources,
   debts,
   debtAllocations,
-  dismissedWarnings,
   monthlyDebtPlanning,
-  categories,
-  transactions,
+  dismissedWarnings,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { db } from "@/db/config";
 import { headers } from "next/headers";
-import {
-  addDays,
-  addWeeks,
-  addMonths,
-  format,
-  isBefore,
-  isAfter,
-} from "date-fns";
-import { formatDateSafely, toDateObject } from "@/utils/date";
 
 export interface PaycheckInfo {
   id: string;
   name: string;
   amount: number;
-  date: Date; // Use Date object for consistency
+  date: Date;
   frequency: "weekly" | "bi-weekly" | "monthly";
   userId: string;
 }
@@ -37,7 +26,7 @@ export interface DebtInfo {
   id: string;
   name: string;
   amount: number;
-  dueDate: string; // Keep as string in YYYY-MM-DD format
+  dueDate: string;
   frequency: string;
   description?: string;
   isRecurring: boolean;
@@ -66,79 +55,25 @@ export interface PaycheckAllocation {
     debtId: string;
     debtName: string;
     amount: number;
-    dueDate: string; // Now a date string in YYYY-MM-DD format
-    paymentDate?: string; // Payment date from debt_payment table
-    paymentId?: string; // ID of the debt_payment record
-    isPaid: boolean; // Whether the payment has been marked as paid
+    dueDate: string;
+    originalDueDate: string; // The original due date of the debt (used for month indicator)
+    paymentDate?: string;
+    paymentId?: string;
+    isPaid: boolean;
   }[];
   remainingAmount: number;
 }
 
 /**
- * Calculate all paycheck dates for a given month
- */
-function calculatePaycheckDates(
-  incomeSource: {
-    startDate: string; // Changed from Date to string since income.startDate is a date field in DB
-    frequency: "weekly" | "bi-weekly" | "monthly";
-  },
-  year: number,
-  month: number,
-): Date[] {
-  const dates: Date[] = [];
-  // Use UTC dates to avoid timezone issues
-  const monthStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
-  const monthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-
-  // Parse the startDate string (YYYY-MM-DD format) to a Date object
-  const [startYear, startMonth, startDay] = incomeSource.startDate
-    .split("-")
-    .map(Number);
-  const startDate = new Date(startYear, startMonth - 1, startDay, 12, 0, 0, 0); // Use noon to avoid edge cases
-  let currentDate = new Date(startDate);
-
-  // Find the first paycheck date in or after the month
-  while (isBefore(currentDate, monthStart)) {
-    switch (incomeSource.frequency) {
-      case "weekly":
-        currentDate = addWeeks(currentDate, 1);
-        break;
-      case "bi-weekly":
-        currentDate = addWeeks(currentDate, 2);
-        break;
-      case "monthly":
-        currentDate = addMonths(currentDate, 1);
-        break;
-    }
-  }
-
-  // Add all paycheck dates within the month
-  while (!isAfter(currentDate, monthEnd)) {
-    dates.push(new Date(currentDate));
-
-    switch (incomeSource.frequency) {
-      case "weekly":
-        currentDate = addWeeks(currentDate, 1);
-        break;
-      case "bi-weekly":
-        currentDate = addWeeks(currentDate, 2);
-        break;
-      case "monthly":
-        currentDate = addMonths(currentDate, 1);
-        break;
-    }
-  }
-
-  return dates;
-}
-
-/**
- * Get paycheck planning data for a specific month
+ * Get paycheck planning data for a specific month with planning window
+ * SIMPLE APPROACH: For each debt, create entries for current month + planning window months
+ * Only include months that are after or equal to the debt's startDate
  */
 export async function getPaycheckPlanningData(
   budgetAccountId: string,
   year: number,
   month: number,
+  planningWindowMonths: number = 0,
 ): Promise<PaycheckPlanningData> {
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
@@ -148,53 +83,88 @@ export async function getPaycheckPlanningData(
     throw new Error("User not authenticated");
   }
 
-  // Verify user has access to the budget account
-  const membership = await db.query.budgetAccountMembers.findFirst({
+  // Check if user has access to this budget account
+  const member = await db.query.budgetAccountMembers.findFirst({
     where: and(
       eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
       eq(budgetAccountMembers.userId, sessionResult.user.id),
     ),
   });
 
-  if (!membership) {
-    throw new Error("User does not have access to this budget account");
+  if (!member) {
+    throw new Error("Access denied to budget account");
   }
 
-  // Get all budget account members to fetch their income sources
-  const members = await db.query.budgetAccountMembers.findMany({
-    where: eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
+  // Get all income sources for the budget account
+  const incomeSourcesList = await db.query.incomeSources.findMany({
+    where: eq(incomeSources.userId, sessionResult.user.id),
   });
 
-  const memberUserIds = members.map((m) => m.userId);
-
-  // Get active income sources for all members
-  const incomes = await db.query.incomeSources.findMany({
-    where: and(
-      inArray(incomeSources.userId, memberUserIds),
-      eq(incomeSources.isActive, true),
-    ),
-  });
-
-  // Calculate paychecks for the month
+  // Calculate paycheck dates for the current month
   const paychecks: PaycheckInfo[] = [];
 
-  for (const income of incomes) {
-    // The startDate is already a string in YYYY-MM-DD format from the database
-    const payDates = calculatePaycheckDates(
-      { ...income, startDate: income.startDate },
-      year,
-      month,
-    );
+  for (const incomeSource of incomeSourcesList) {
+    const [startYear, startMonth, startDay] = incomeSource.startDate
+      .split("-")
+      .map(Number);
+    const startDate = new Date(startYear, startMonth - 1, startDay);
 
-    for (const payDate of payDates) {
+    // Calculate paychecks for this month based on frequency
+    let paycheckDate = new Date(startDate);
+
+    // Find the first paycheck date in or after the month
+    while (
+      paycheckDate.getFullYear() < year ||
+      (paycheckDate.getFullYear() === year &&
+        paycheckDate.getMonth() < month - 1)
+    ) {
+      if (incomeSource.frequency === "weekly") {
+        paycheckDate = new Date(
+          paycheckDate.getTime() + 7 * 24 * 60 * 60 * 1000,
+        );
+      } else if (incomeSource.frequency === "bi-weekly") {
+        paycheckDate = new Date(
+          paycheckDate.getTime() + 14 * 24 * 60 * 60 * 1000,
+        );
+      } else if (incomeSource.frequency === "monthly") {
+        paycheckDate = new Date(
+          paycheckDate.getFullYear(),
+          paycheckDate.getMonth() + 1,
+          paycheckDate.getDate(),
+        );
+      }
+    }
+
+    // Add paychecks for this month
+    while (
+      paycheckDate.getFullYear() === year &&
+      paycheckDate.getMonth() === month - 1
+    ) {
       paychecks.push({
-        id: `${income.id}-${format(payDate, "yyyy-MM-dd")}`,
-        name: income.name,
-        amount: Number(income.amount),
-        date: payDate, // This is already a Date object
-        frequency: income.frequency,
-        userId: income.userId,
+        id: `${incomeSource.id}-${paycheckDate.getTime()}`,
+        name: incomeSource.name,
+        amount: Number(incomeSource.amount),
+        date: new Date(paycheckDate),
+        frequency: incomeSource.frequency,
+        userId: sessionResult.user.id,
       });
+
+      // Move to next paycheck
+      if (incomeSource.frequency === "weekly") {
+        paycheckDate = new Date(
+          paycheckDate.getTime() + 7 * 24 * 60 * 60 * 1000,
+        );
+      } else if (incomeSource.frequency === "bi-weekly") {
+        paycheckDate = new Date(
+          paycheckDate.getTime() + 14 * 24 * 60 * 60 * 1000,
+        );
+      } else if (incomeSource.frequency === "monthly") {
+        paycheckDate = new Date(
+          paycheckDate.getFullYear(),
+          paycheckDate.getMonth() + 1,
+          paycheckDate.getDate(),
+        );
+      }
     }
   }
 
@@ -206,594 +176,76 @@ export async function getPaycheckPlanningData(
     where: eq(debts.budgetAccountId, budgetAccountId),
   });
 
-  // Get all debt allocations to check payment history
-  const allDebtAllocations = await db.query.debtAllocations.findMany({
-    where: eq(debtAllocations.budgetAccountId, budgetAccountId),
+  // Get monthly debt planning records for the current planning window.
+  // Simpler and less error-prone: filter by dueDate between start and end.
+  const startDate = new Date(year, month - 1, 1);
+  const endYear = year + Math.floor((month + planningWindowMonths - 1) / 12);
+  const endMonth = ((month + planningWindowMonths - 1) % 12) + 1; // 1-12
+  const endDate = new Date(endYear, endMonth, 0); // last day of end month
+
+  const toYmd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`;
+
+  const monthlyPlanningRecords = await db.query.monthlyDebtPlanning.findMany({
+    where: and(
+      eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
+      eq(monthlyDebtPlanning.isActive, true),
+      gte(monthlyDebtPlanning.dueDate, toYmd(startDate)),
+      lte(monthlyDebtPlanning.dueDate, toYmd(endDate)),
+    ),
   });
 
-  // Create a map of debtId to last payment date
-  const lastPaymentMap = new Map<string, Date>();
-  allDebtAllocations.forEach((allocation) => {
-    if (allocation.isPaid && allocation.paidAt) {
-      const existingLastPayment = lastPaymentMap.get(allocation.debtId);
-      if (!existingLastPayment || allocation.paidAt > existingLastPayment) {
-        lastPaymentMap.set(allocation.debtId, allocation.paidAt);
-      }
-    }
-  });
+  // Convert monthly planning records to DebtInfo format
+  const allDebtEntries: DebtInfo[] = [];
 
-  // Process all debts with proper due date calculation
-  const debtsWithDueDates = allDebts.map(async (debt) => {
-    // For one-time debts, we need to calculate the effective due date for this month
-    // based on the base due date and payment history, WITHOUT modifying the base debt
+  for (const monthlyRecord of monthlyPlanningRecords) {
+    // Find the corresponding debt
+    const debt = allDebts.find((d) => d.id === monthlyRecord.debtId);
+    if (!debt) continue;
 
-    // First, check if we have monthly planning for this debt and month
-    const monthlyPlanning = await db.query.monthlyDebtPlanning.findFirst({
-      where: and(
-        eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
-        eq(monthlyDebtPlanning.debtId, debt.id),
-        eq(monthlyDebtPlanning.year, year),
-        eq(monthlyDebtPlanning.month, month),
-        eq(monthlyDebtPlanning.isActive, true),
-      ),
-    });
-
-    let effectiveDueDate: string;
-
-    if (monthlyPlanning) {
-      // Use the monthly planning due date if it exists
-      effectiveDueDate = monthlyPlanning.dueDate.toString().split("T")[0];
-    } else {
-      // Calculate the effective due date based on base due date and payment history
-      // Fix timezone issue: parse the date string directly instead of creating Date objects
-      // debt.dueDate is in format "YYYY-MM-DD", so we can split it directly
-      const [, , baseDay] = debt.dueDate.split("-").map(Number);
-      const baseDueDay = baseDay;
-
-      // Start with the base due date for this planning month
-      // Create the date string directly to avoid timezone issues
-      let calculatedDueDateString = `${year}-${String(month).padStart(2, "0")}-${String(baseDueDay).padStart(2, "0")}`;
-
-      // Check if this debt has been paid in previous months
-      const lastPayment = lastPaymentMap.get(debt.id);
-
-      if (lastPayment) {
-        // If the debt was paid, we need to advance the due date by the number of months
-        // since the last payment, but only if we're planning for a month after the payment
-
-        const lastPaymentMonth = lastPayment.getMonth();
-        const lastPaymentYear = lastPayment.getFullYear();
-
-        // Calculate how many months to advance based on payment history
-        let monthsToAdvance = 0;
-
-        if (year > lastPaymentYear) {
-          monthsToAdvance =
-            (year - lastPaymentYear) * 12 + (month - lastPaymentMonth - 1);
-        } else if (year === lastPaymentYear && month > lastPaymentMonth + 1) {
-          monthsToAdvance = month - lastPaymentMonth - 1;
-        }
-
-        if (monthsToAdvance > 0) {
-          // Calculate the advanced date by adding months
-          let advancedYear = year;
-          let advancedMonth = month;
-
-          for (let i = 0; i < monthsToAdvance; i++) {
-            advancedMonth++;
-            if (advancedMonth > 12) {
-              advancedMonth = 1;
-              advancedYear++;
-            }
-          }
-
-          calculatedDueDateString = `${advancedYear}-${String(advancedMonth).padStart(2, "0")}-${String(baseDueDay).padStart(2, "0")}`;
-        }
-      }
-
-      // Ensure the calculated due date is not in the past relative to the planning month
-      // Compare as strings to avoid timezone issues
-      const planningMonthString = `${year}-${String(month).padStart(2, "0")}-01`;
-      if (calculatedDueDateString < planningMonthString) {
-        // If the calculated due date is in the past for this planning month,
-        // use the planning month with the base due day
-        calculatedDueDateString = `${year}-${String(month).padStart(2, "0")}-${String(baseDueDay).padStart(2, "0")}`;
-      }
-
-      effectiveDueDate = calculatedDueDateString;
-
-      // Create monthly planning for this month to store the calculated due date
-      // This preserves the payment history while allowing monthly due date tracking
-      await getOrCreateMonthlyDebtPlanning(
-        budgetAccountId,
-        debt.id,
-        year,
-        month,
-      ).catch((error) => {
-        console.error(
-          `Failed to create monthly planning for debt ${debt.id}:`,
-          error,
-        );
-      });
-    }
-
-    return {
-      id: debt.id,
+    allDebtEntries.push({
+      id: monthlyRecord.id, // Use the monthly planning ID
       name: debt.name,
       amount: Number(debt.paymentAmount),
-      dueDate: effectiveDueDate,
-      frequency: "one-time",
-      description: debt.name,
-      isRecurring: false,
+      dueDate: monthlyRecord.dueDate, // dueDate is already a string
+      frequency: "monthly", // Default to monthly for monthly planning records
+      description: debt.name, // Use debt name as description
+      isRecurring: true, // Monthly planning records are recurring
       categoryId: debt.categoryId || undefined,
-    };
-  });
+    });
+  }
 
-  // Wait for all async operations to complete
-  const resolvedDebts = await Promise.all(debtsWithDueDates);
+  // Note: We intentionally removed the synthetic fallback to ensure
+  // all debts shown come from monthly_debt_planning records only.
 
-  const processedDebts: DebtInfo[] = resolvedDebts;
+  // Use the debt entries we found/created
+  const processedDebts = allDebtEntries;
 
-  // Generate warnings
-  const warnings = generateWarnings(paychecks, processedDebts);
+  // Generate simple warnings
+  const warnings: PaycheckWarning[] = [];
 
-  // Get dismissed warnings and filter them out
-  const dismissedWarnings = await getDismissedWarnings(budgetAccountId);
-  const dismissedWarningKeys = new Set(
-    dismissedWarnings.map((d) => `${d.warningType}:${d.warningKey}`),
+  // Check for insufficient funds
+  const totalIncome = paychecks.reduce(
+    (sum, paycheck) => sum + paycheck.amount,
+    0,
   );
+  const totalDebts = processedDebts.reduce((sum, debt) => sum + debt.amount, 0);
 
-  const filteredWarnings = warnings.filter((warning) => {
-    const warningKey = generateWarningKey(warning);
-    return !dismissedWarningKeys.has(warningKey);
-  });
+  if (totalDebts > totalIncome) {
+    warnings.push({
+      type: "insufficient_funds",
+      message: `Total debts ($${totalDebts.toFixed(2)}) exceed total income ($${totalIncome.toFixed(2)})`,
+      severity: "high",
+    });
+  }
 
   return {
     paychecks,
     debts: processedDebts,
-    warnings: filteredWarnings,
+    warnings,
   };
-}
-
-/**
- * Generate a unique key for a warning to identify it for dismissal
- */
-function generateWarningKey(warning: PaycheckWarning): string {
-  switch (warning.type) {
-    case "late_payment":
-      return `${warning.type}:${warning.debtId}:${warning.paycheckId}`;
-    case "insufficient_funds":
-      return `${warning.type}:${warning.paycheckId}`;
-    case "debt_unpaid":
-      return `${warning.type}:${warning.debtId}`;
-    default:
-      return `${warning.type}:${warning.debtId || warning.paycheckId || "unknown"}`;
-  }
-}
-
-/**
- * Generate warnings for potential payment issues
- */
-function generateWarnings(
-  paychecks: PaycheckInfo[],
-  debts: DebtInfo[],
-): PaycheckWarning[] {
-  const warnings: PaycheckWarning[] = [];
-
-  // Sort debts by due date
-  const sortedDebts = [...debts].sort(
-    (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
-  );
-
-  // Calculate allocations to check for issues
-  const allocations = calculateOptimalAllocations(paychecks, sortedDebts);
-
-  for (const allocation of allocations) {
-    // Check for insufficient funds
-    if (allocation.remainingAmount < 0) {
-      warnings.push({
-        type: "insufficient_funds",
-        message: `Paycheck on ${format(allocation.paycheckDate, "MMM dd")} has insufficient funds. Short by $${Math.abs(allocation.remainingAmount).toFixed(2)}`,
-        paycheckId: allocation.paycheckId,
-        severity: "high",
-      });
-    }
-
-    // Check for debts that might be paid late
-    for (const debt of allocation.allocatedDebts) {
-      if (isAfter(allocation.paycheckDate, toDateObject(debt.dueDate))) {
-        warnings.push({
-          type: "late_payment",
-          message: `${debt.debtName} payment will be late. Due ${formatDateSafely(debt.dueDate, "MMM dd")}, paid ${formatDateSafely(allocation.paycheckDate, "MMM dd")}`,
-          debtId: debt.debtId,
-          paycheckId: allocation.paycheckId,
-          severity: "medium",
-        });
-      }
-    }
-  }
-
-  // Check for unpaid debts
-  const allocatedDebtIds = new Set(
-    allocations.flatMap((a) => a.allocatedDebts.map((d) => d.debtId)),
-  );
-
-  for (const debt of sortedDebts) {
-    if (!allocatedDebtIds.has(debt.id)) {
-      warnings.push({
-        type: "debt_unpaid",
-        message: `${debt.name} (due ${formatDateSafely(debt.dueDate, "MMM dd")}) cannot be paid with available paychecks`,
-        debtId: debt.id,
-        severity: "medium",
-      });
-    }
-  }
-
-  return warnings;
-}
-
-/**
- * Calculate optimal debt allocations across paychecks
- */
-function calculateOptimalAllocations(
-  paychecks: PaycheckInfo[],
-  debts: DebtInfo[],
-): PaycheckAllocation[] {
-  const allocations: PaycheckAllocation[] = [];
-  const remainingDebts = [...debts].sort(
-    (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
-  );
-
-  for (const paycheck of paychecks) {
-    const allocation: PaycheckAllocation = {
-      paycheckId: paycheck.id,
-      paycheckDate: paycheck.date,
-      paycheckAmount: paycheck.amount,
-      allocatedDebts: [],
-      remainingAmount: paycheck.amount,
-    };
-
-    // Allocate debts that are due before or on the paycheck date
-    for (let i = remainingDebts.length - 1; i >= 0; i--) {
-      const debt = remainingDebts[i];
-
-      // Only allocate if debt is due before or shortly after this paycheck
-      // and we have enough funds
-      if (
-        !isAfter(toDateObject(debt.dueDate), addDays(paycheck.date, 7)) &&
-        allocation.remainingAmount >= debt.amount
-      ) {
-        allocation.allocatedDebts.push({
-          debtId: debt.id,
-          debtName: debt.name,
-          amount: debt.amount,
-          dueDate: debt.dueDate,
-          paymentId: undefined, // No payment ID for optimal allocations
-          isPaid: false, // Optimal allocations are not paid yet
-        });
-
-        allocation.remainingAmount -= debt.amount;
-        remainingDebts.splice(i, 1);
-      }
-    }
-
-    allocations.push(allocation);
-  }
-
-  return allocations;
-}
-
-/**
- * Get paycheck allocations for a specific month
- */
-export async function getPaycheckAllocations(
-  budgetAccountId: string,
-  year: number,
-  month: number,
-): Promise<PaycheckAllocation[]> {
-  const data = await getPaycheckPlanningData(budgetAccountId, year, month);
-  const storedAllocations = await getDebtAllocations(budgetAccountId);
-
-  // Get all payments for all allocated debts (both paid and unpaid)
-  const debtIds = storedAllocations.map((allocation) => allocation.debtId);
-
-  // Get all allocations with payment information for allocated debts
-  // Now payment info is stored directly in debtAllocations
-  const allAllocationsWithPayments = await db.query.debtAllocations.findMany({
-    where: inArray(debtAllocations.debtId, debtIds),
-  });
-
-  // Create maps of debtId to payment details from the consolidated table
-  const paymentAmountMap = new Map<string, number>();
-  const paymentDateMap = new Map<string, string>();
-  const paymentIdMap = new Map<string, string>();
-  const paymentStatusMap = new Map<string, boolean>();
-
-  allAllocationsWithPayments.forEach((allocation) => {
-    if (allocation.paymentAmount && allocation.paymentDate) {
-      paymentAmountMap.set(allocation.debtId, Number(allocation.paymentAmount));
-      paymentDateMap.set(allocation.debtId, allocation.paymentDate);
-      paymentIdMap.set(allocation.debtId, allocation.id); // Use allocation ID as payment ID
-      paymentStatusMap.set(allocation.debtId, allocation.isPaid);
-    }
-  });
-
-  // Create allocations based on stored data
-  const allocations: PaycheckAllocation[] = data.paychecks.map((paycheck) => {
-    const paycheckAllocations = storedAllocations.filter(
-      (allocation) => allocation.paycheckId === paycheck.id,
-    );
-
-    const allocatedDebts = paycheckAllocations
-      .map((allocation) => {
-        const debt = data.debts.find((d) => d.id === allocation.debtId);
-        if (!debt) return null;
-
-        // Use scheduled payment amount if available, otherwise use debt amount
-        const scheduledAmount = paymentAmountMap.get(debt.id);
-        const displayAmount = scheduledAmount || debt.amount;
-        const paymentId = paymentIdMap.get(debt.id);
-        const isPaid = paymentStatusMap.get(debt.id) || false;
-
-        return {
-          debtId: debt.id,
-          debtName: debt.name,
-          amount: displayAmount,
-          dueDate: debt.dueDate,
-          paymentDate: paymentDateMap.get(debt.id),
-          paymentId,
-          isPaid,
-        };
-      })
-      .filter(
-        (
-          debt,
-        ): debt is {
-          debtId: string;
-          debtName: string;
-          amount: number;
-          dueDate: string;
-          paymentDate: string | undefined;
-          paymentId: string | undefined;
-          isPaid: boolean;
-        } => debt !== null,
-      );
-
-    const totalAllocated = allocatedDebts.reduce(
-      (sum, debt) => sum + debt.amount,
-      0,
-    );
-
-    return {
-      paycheckId: paycheck.id,
-      paycheckDate: paycheck.date,
-      paycheckAmount: paycheck.amount,
-      allocatedDebts,
-      remainingAmount: paycheck.amount - totalAllocated,
-    };
-  });
-
-  return allocations;
-}
-
-/**
- * Update debt allocation for a specific paycheck
- */
-export async function updateDebtAllocation(
-  budgetAccountId: string,
-  debtId: string,
-  paycheckId: string,
-  action: "allocate" | "unallocate" | "update",
-  paymentAmount?: number,
-  paymentDate?: string,
-) {
-  const sessionResult = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!sessionResult?.user) {
-    throw new Error("User not authenticated");
-  }
-
-  // Verify user has access to the budget account
-  const membership = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
-  });
-
-  if (!membership) {
-    throw new Error("User does not have access to this budget account");
-  }
-
-  if (action === "allocate") {
-    // Check if allocation already exists
-    const existingAllocation = await db.query.debtAllocations.findFirst({
-      where: and(
-        eq(debtAllocations.debtId, debtId),
-        eq(debtAllocations.paycheckId, paycheckId),
-        eq(debtAllocations.budgetAccountId, budgetAccountId),
-      ),
-    });
-
-    if (!existingAllocation) {
-      // Create new allocation
-      await db.insert(debtAllocations).values({
-        budgetAccountId,
-        debtId,
-        paycheckId,
-        userId: sessionResult.user.id,
-        // Store payment information directly in the allocation
-        paymentAmount: paymentAmount ? paymentAmount.toString() : null,
-        paymentDate: paymentDate || null,
-        note: paymentDate
-          ? `Scheduled payment from paycheck allocation on ${paymentDate}`
-          : null,
-        isPaid: false, // Default to unpaid when scheduled
-      });
-    }
-  } else if (action === "update") {
-    // Update existing debt allocation with payment information
-    if (paymentAmount && paymentDate) {
-      // Find the existing allocation for this debt and paycheck
-      const existingAllocation = await db.query.debtAllocations.findFirst({
-        where: and(
-          eq(debtAllocations.debtId, debtId),
-          eq(debtAllocations.paycheckId, paycheckId),
-          eq(debtAllocations.budgetAccountId, budgetAccountId),
-        ),
-      });
-
-      if (existingAllocation) {
-        // Update the existing allocation with new payment details
-        await db
-          .update(debtAllocations)
-          .set({
-            paymentAmount: paymentAmount.toString(),
-            paymentDate: paymentDate,
-            note: `Scheduled payment from paycheck allocation on ${paymentDate}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(debtAllocations.id, existingAllocation.id));
-      }
-    }
-  } else if (action === "unallocate") {
-    // First, check if this allocation was marked as paid
-    // If so, we need to delete the corresponding transaction
-    const existingAllocation = await db.query.debtAllocations.findFirst({
-      where: and(
-        eq(debtAllocations.debtId, debtId),
-        eq(debtAllocations.paycheckId, paycheckId),
-        eq(debtAllocations.budgetAccountId, budgetAccountId),
-      ),
-    });
-
-    if (existingAllocation && existingAllocation.isPaid) {
-      // Find the debt to get its name for transaction identification
-      const debt = await db.query.debts.findFirst({
-        where: eq(debts.id, debtId),
-      });
-
-      if (debt) {
-        // Delete the corresponding transaction using the foreign key
-        await db
-          .delete(transactions)
-          .where(
-            and(
-              eq(transactions.budgetAccountId, budgetAccountId),
-              eq(transactions.debtId, debt.id),
-            ),
-          );
-      }
-    }
-
-    // Now remove the allocation
-    try {
-      await db
-        .delete(debtAllocations)
-        .where(
-          and(
-            eq(debtAllocations.debtId, debtId),
-            eq(debtAllocations.paycheckId, paycheckId),
-            eq(debtAllocations.budgetAccountId, budgetAccountId),
-          ),
-        );
-    } catch (error) {
-      console.error("Error deleting debt allocation:", error);
-      throw new Error(
-        `Failed to delete debt allocation: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
-  }
-
-  return { success: true };
-}
-
-/**
- * Get debt allocations for a specific month
- */
-export async function getDebtAllocations(budgetAccountId: string) {
-  const sessionResult = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!sessionResult?.user) {
-    throw new Error("User not authenticated");
-  }
-
-  // Verify user has access to the budget account
-  const membership = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
-  });
-
-  if (!membership) {
-    throw new Error("User does not have access to this budget account");
-  }
-
-  const allocations = await db.query.debtAllocations.findMany({
-    where: eq(debtAllocations.budgetAccountId, budgetAccountId),
-  });
-
-  return allocations;
-}
-
-/**
- * Get all debts for a budget account (no month filtering)
- */
-export async function getAllDebtsForBudgetAccount(
-  budgetAccountId: string,
-): Promise<PaycheckPlanningData> {
-  // Get all debts for the budget account
-  const allDebts = await db.query.debts.findMany({
-    where: eq(debts.budgetAccountId, budgetAccountId),
-  });
-
-  // Convert to common format
-  const processedDebts: DebtInfo[] = allDebts.map((debt) => ({
-    id: debt.id,
-    name: debt.name,
-    amount: Number(debt.paymentAmount),
-    dueDate: debt.dueDate,
-    frequency: "one-time",
-    description: debt.name,
-    isRecurring: false,
-  }));
-
-  return {
-    paychecks: [], // No paychecks needed for debt management
-    debts: processedDebts,
-    warnings: [], // No warnings needed for debt management
-  };
-}
-
-/**
- * Get current month paycheck planning data
- */
-export async function getCurrentMonthPaycheckPlanning(
-  budgetAccountId: string,
-): Promise<PaycheckPlanningData> {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-
-  return getPaycheckPlanningData(budgetAccountId, year, month);
-}
-
-/**
- * Get current month paycheck allocations
- */
-export async function getCurrentMonthPaycheckAllocations(
-  budgetAccountId: string,
-): Promise<PaycheckAllocation[]> {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-
-  return getPaycheckAllocations(budgetAccountId, year, month);
 }
 
 /**
@@ -813,15 +265,15 @@ export async function dismissWarning(
   }
 
   // Verify user has access to the budget account
-  const membership = await db.query.budgetAccountMembers.findFirst({
+  const member = await db.query.budgetAccountMembers.findFirst({
     where: and(
       eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
       eq(budgetAccountMembers.userId, sessionResult.user.id),
     ),
   });
 
-  if (!membership) {
-    throw new Error("User does not have access to this budget account");
+  if (!member) {
+    throw new Error("Access denied to budget account");
   }
 
   // Check if warning is already dismissed
@@ -848,11 +300,13 @@ export async function dismissWarning(
 }
 
 /**
- * Get dismissed warnings for a user and budget account
+ * Get paycheck allocations for a specific month
  */
-export async function getDismissedWarnings(
+export async function getPaycheckAllocations(
   budgetAccountId: string,
-): Promise<{ warningType: string; warningKey: string }[]> {
+  year: number,
+  month: number,
+) {
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
   });
@@ -861,25 +315,193 @@ export async function getDismissedWarnings(
     throw new Error("User not authenticated");
   }
 
-  const dismissed = await db.query.dismissedWarnings.findMany({
-    where: and(
-      eq(dismissedWarnings.budgetAccountId, budgetAccountId),
-      eq(dismissedWarnings.userId, sessionResult.user.id),
-    ),
+  const data = await getPaycheckPlanningData(budgetAccountId, year, month);
+  const storedAllocations = await getDebtAllocations(budgetAccountId);
+
+  // Get all original debts for the budget account to find original due dates
+  const allDebts = await db.query.debts.findMany({
+    where: eq(debts.budgetAccountId, budgetAccountId),
   });
 
-  return dismissed.map((d) => ({
-    warningType: d.warningType,
-    warningKey: d.warningKey,
-  }));
+  // Get monthly debt planning records to link allocations to debts
+  const monthlyPlanningRecords = await db.query.monthlyDebtPlanning.findMany({
+    where: eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
+  });
+
+  // Create allocations based on stored data
+  const allocations = data.paychecks.map((paycheck) => {
+    const paycheckAllocations = storedAllocations.filter(
+      (allocation) => allocation.paycheckId === paycheck.id,
+    );
+
+    const allocatedDebts = paycheckAllocations
+      .map((allocation) => {
+        // Find the monthly planning record for this allocation
+        const monthlyPlanning = monthlyPlanningRecords.find(
+          (mp) => mp.id === allocation.monthlyDebtPlanningId,
+        );
+        if (!monthlyPlanning) return null;
+
+        // Get the base debt information using the real debt id
+        const baseDebt = allDebts.find((d) => d.id === monthlyPlanning.debtId);
+        if (!baseDebt) return null;
+
+        // The original due date comes from the base debt definition
+        const originalDueDate = baseDebt.dueDate;
+
+        return {
+          // Use the monthly planning id as the debt identifier throughout the UI
+          debtId: monthlyPlanning.id,
+          debtName: baseDebt.name,
+          amount: Number(baseDebt.paymentAmount),
+          // Use the specific instance due date for the month
+          dueDate: monthlyPlanning.dueDate,
+          // Include the original template due date for month indicator
+          originalDueDate: originalDueDate,
+          paymentDate: allocation.paymentDate || undefined,
+          paymentId: allocation.id,
+          isPaid: allocation.isPaid || false,
+        };
+      })
+      .filter((debt) => debt !== null);
+
+    const totalAllocated = allocatedDebts.reduce(
+      (sum, debt) => sum + debt.amount,
+      0,
+    );
+
+    return {
+      paycheckId: paycheck.id,
+      paycheckDate: paycheck.date,
+      paycheckAmount: paycheck.amount,
+      allocatedDebts,
+      remainingAmount: paycheck.amount - totalAllocated,
+    };
+  });
+
+  return allocations;
 }
 
 /**
- * Mark a debt payment as paid and schedule next payment if recurring
+ * Get debt allocations for a specific month
+ */
+export async function getDebtAllocations(budgetAccountId: string) {
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult?.user) {
+    throw new Error("User not authenticated");
+  }
+
+  // Verify user has access to the budget account
+  const member = await db.query.budgetAccountMembers.findFirst({
+    where: and(
+      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
+      eq(budgetAccountMembers.userId, sessionResult.user.id),
+    ),
+  });
+
+  if (!member) {
+    throw new Error("Access denied to budget account");
+  }
+
+  const allocations = await db.query.debtAllocations.findMany({
+    where: eq(debtAllocations.budgetAccountId, budgetAccountId),
+  });
+
+  return allocations;
+}
+
+/**
+ * Update debt allocation for a specific paycheck
+ */
+export async function updateDebtAllocation(
+  budgetAccountId: string,
+  monthlyDebtPlanningId: string, // Changed from debtId to monthlyDebtPlanningId
+  paycheckId: string,
+  action: "allocate" | "unallocate" | "update",
+  paymentAmount?: number,
+  paymentDate?: string,
+) {
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult?.user) {
+    throw new Error("User not authenticated");
+  }
+
+  // Verify user has access to the budget account
+  const member = await db.query.budgetAccountMembers.findFirst({
+    where: and(
+      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
+      eq(budgetAccountMembers.userId, sessionResult.user.id),
+    ),
+  });
+
+  if (!member) {
+    throw new Error("Access denied to budget account");
+  }
+
+  if (action === "allocate") {
+    // Check if allocation already exists
+    const existingAllocation = await db.query.debtAllocations.findFirst({
+      where: and(
+        eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
+        eq(debtAllocations.paycheckId, paycheckId),
+        eq(debtAllocations.budgetAccountId, budgetAccountId),
+      ),
+    });
+
+    if (!existingAllocation) {
+      // Create new allocation
+      await db.insert(debtAllocations).values({
+        budgetAccountId,
+        monthlyDebtPlanningId,
+        paycheckId,
+        userId: sessionResult.user.id,
+        paymentAmount: paymentAmount ? paymentAmount.toString() : null,
+        paymentDate: paymentDate || null,
+        note: paymentDate
+          ? `Scheduled payment from paycheck allocation on ${paymentDate}`
+          : null,
+        isPaid: false,
+      });
+    }
+  } else if (action === "unallocate") {
+    // Remove the allocation
+    await db
+      .delete(debtAllocations)
+      .where(
+        and(
+          eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
+          eq(debtAllocations.paycheckId, paycheckId),
+          eq(debtAllocations.budgetAccountId, budgetAccountId),
+        ),
+      );
+  }
+
+  return { success: true };
+}
+
+/**
+ * Get current month paycheck planning data
+ */
+export async function getCurrentMonthPaycheckPlanning(budgetAccountId: string) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  return getPaycheckPlanningData(budgetAccountId, year, month);
+}
+
+/**
+ * Mark a payment as paid for a specific debt allocation
  */
 export async function markPaymentAsPaid(
   budgetAccountId: string,
-  debtId: string,
+  monthlyDebtPlanningId: string, // Changed from debtId to monthlyDebtPlanningId
   paymentId: string,
   paymentAmount?: number,
   paymentDate?: string,
@@ -893,269 +515,60 @@ export async function markPaymentAsPaid(
   }
 
   // Verify user has access to the budget account
-  const membership = await db.query.budgetAccountMembers.findFirst({
+  const member = await db.query.budgetAccountMembers.findFirst({
     where: and(
       eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
       eq(budgetAccountMembers.userId, sessionResult.user.id),
     ),
   });
 
-  if (!membership) {
-    throw new Error("User does not have access to this budget account");
+  if (!member) {
+    throw new Error("Access denied to budget account");
   }
 
-  // Get the allocation details (paymentId is now the allocation ID)
-  const allocation = await db.query.debtAllocations.findFirst({
-    where: eq(debtAllocations.id, paymentId),
-  });
-
-  if (!allocation) {
-    throw new Error("Allocation not found");
-  }
-
-  // Verify the allocation belongs to the specified debt
-  if (allocation.debtId !== debtId) {
-    throw new Error("Allocation does not match the specified debt");
-  }
-
-  // Get the debt details
-  const debt = await db.query.debts.findFirst({
-    where: eq(debts.id, debtId),
-  });
-
-  if (!debt) {
-    throw new Error("Debt not found");
-  }
-
-  // Mark the allocation as paid
+  // Update the debt allocation to mark it as paid
   await db
     .update(debtAllocations)
     .set({
       isPaid: true,
-      paidAt: new Date(),
-      // Update payment amount and date if provided, otherwise use existing values
-      paymentAmount: paymentAmount
-        ? paymentAmount.toString()
-        : allocation.paymentAmount,
-      paymentDate:
-        paymentDate ||
-        allocation.paymentDate ||
-        new Date().toISOString().split("T")[0],
-      updatedAt: new Date(),
+      paymentAmount: paymentAmount ? paymentAmount.toString() : null,
+      paymentDate: paymentDate || new Date().toISOString().split("T")[0],
+      note: `Payment marked as paid on ${paymentDate || new Date().toISOString().split("T")[0]}`,
     })
-    .where(eq(debtAllocations.id, paymentId));
-
-  // Update the debt's last payment month
-  await db
-    .update(debts)
-    .set({
-      lastPaymentMonth: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(debts.id, debtId));
-
-  // Create a transaction for this debt payment
-  // First, find or create a "Debts" category for the budget account
-  let debtsCategory = await db.query.categories.findFirst({
-    where: and(
-      eq(categories.budgetAccountId, budgetAccountId),
-      eq(categories.name, "Debts"),
-    ),
-  });
-
-  // If no "Debts" category exists, create one
-  if (!debtsCategory) {
-    const [newCategory] = await db
-      .insert(categories)
-      .values({
-        id: Math.random().toString(36).substring(2) + Date.now().toString(36),
-        budgetAccountId,
-        name: "Debts",
-        description: "Debt payments and loan repayments",
-        color: "#ef4444", // Red color for debts
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning();
-    debtsCategory = newCategory;
-  }
-
-  // Determine the payment amount and date for the transaction
-  const finalPaymentAmount =
-    paymentAmount ||
-    Number(allocation.paymentAmount) ||
-    Number(debt.paymentAmount);
-  const finalPaymentDate =
-    paymentDate ||
-    allocation.paymentDate ||
-    new Date().toISOString().split("T")[0];
-
-  // Create the transaction
-  // Use the debt's category if available, otherwise fall back to a "Debts" category
-  let categoryId = debt.categoryId;
-
-  if (!categoryId) {
-    // Fall back to creating/finding a "Debts" category
-    const debtsCategory = await db.query.categories.findFirst({
-      where: and(
-        eq(categories.budgetAccountId, budgetAccountId),
-        eq(categories.name, "Debts"),
+    .where(
+      and(
+        eq(debtAllocations.id, paymentId),
+        eq(debtAllocations.budgetAccountId, budgetAccountId),
+        eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
       ),
-    });
-
-    if (debtsCategory) {
-      categoryId = debtsCategory.id;
-    }
-  }
-
-  if (categoryId) {
-    await db.insert(transactions).values({
-      id: Math.random().toString(36).substring(2) + Date.now().toString(36),
-      budgetAccountId,
-      categoryId,
-      createdByUserId: sessionResult.user.id,
-      debtId: debt.id, // Add the foreign key reference
-      amount: finalPaymentAmount.toString(),
-      description: `Debt payment: ${debt.name}`,
-      date: new Date(finalPaymentDate),
-      type: "expense",
-      status: "completed",
-      merchantName: debt.name,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-  }
-
-  // For all debts, create a new monthly planning record for the next month
-  // The current month's due date will remain unchanged in the monthlyDebtPlanning table
-  // preserving historical data
-
-  // Calculate the next month after the current payment
-  const currentDate = new Date();
-  const nextMonth = new Date(
-    currentDate.getFullYear(),
-    currentDate.getMonth() + 1,
-    1,
-  );
-  const nextYear = nextMonth.getFullYear();
-  const nextMonthNum = nextMonth.getMonth() + 1; // getMonth() returns 0-11, so add 1
-
-  // Create monthly planning for the next month to track the advanced due date
-  // The base debt.dueDate remains unchanged
-  await getOrCreateMonthlyDebtPlanning(
-    budgetAccountId,
-    debtId,
-    nextYear,
-    nextMonthNum,
-  );
+    );
 
   return { success: true };
 }
 
 /**
- * Get or create monthly debt planning for a specific debt and month
- * This function works entirely with string manipulation to avoid timezone issues
+ * Get current month paycheck allocations
  */
-export async function getOrCreateMonthlyDebtPlanning(
+export async function getCurrentMonthPaycheckAllocations(
   budgetAccountId: string,
-  debtId: string,
-  year: number,
-  month: number,
 ) {
-  // First, try to find existing planning
-  const existingPlanning = await db.query.monthlyDebtPlanning.findFirst({
-    where: and(
-      eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
-      eq(monthlyDebtPlanning.debtId, debtId),
-      eq(monthlyDebtPlanning.year, year),
-      eq(monthlyDebtPlanning.month, month),
-    ),
-  });
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
 
-  if (existingPlanning) {
-    return existingPlanning;
-  }
-
-  // Get the debt to determine the base due date
-  const debt = await db.query.debts.findFirst({
-    where: eq(debts.id, debtId),
-  });
-
-  if (!debt) {
-    throw new Error(`Debt with ID ${debtId} not found`);
-  }
-
-  // For all debts, use the due date directly from the debts table
-  const baseDueDateString = debt.dueDate;
-
-  // Parse the base due date string directly (YYYY-MM-DD format)
-  const [, , baseDay] = baseDueDateString.split("-").map(Number);
-
-  // Calculate the due date for the target month
-  // Keep the same day of month, but use the target year/month
-  const dueDateString = `${year}-${String(month).padStart(2, "0")}-${String(baseDay).padStart(2, "0")}`;
-
-  // Create the monthly planning record
-  const [newPlanning] = await db
-    .insert(monthlyDebtPlanning)
-    .values({
-      budgetAccountId,
-      debtId,
-      year,
-      month,
-      dueDate: dueDateString,
-      isActive: true,
-    })
-    .returning();
-
-  return newPlanning;
+  return getPaycheckAllocations(budgetAccountId, year, month);
 }
 
 /**
- * Get all monthly debt planning for a specific month
+ * Populate monthly debt planning table with current debts
+ * This function creates monthly planning records for existing debts
  */
-export async function getMonthlyDebtPlanningForMonth(
+export async function populateMonthlyDebtPlanning(
   budgetAccountId: string,
   year: number,
   month: number,
+  planningWindowMonths: number = 0,
 ) {
-  return await db.query.monthlyDebtPlanning.findMany({
-    where: and(
-      eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
-      eq(monthlyDebtPlanning.year, year),
-      eq(monthlyDebtPlanning.month, month),
-      eq(monthlyDebtPlanning.isActive, true),
-    ),
-  });
-}
-
-/**
- * Initialize monthly debt planning for all debts in a month
- * This ensures every debt has a planned due date for the month
- */
-export async function initializeMonthlyDebtPlanning(
-  budgetAccountId: string,
-  year: number,
-  month: number,
-) {
-  // Get all debts for this budget account
-  const allDebts = await db.query.debts.findMany({
-    where: eq(debts.budgetAccountId, budgetAccountId),
-  });
-
-  // Get or create monthly planning for each debt
-  const monthlyPlanningPromises = allDebts.map((debt) =>
-    getOrCreateMonthlyDebtPlanning(budgetAccountId, debt.id, year, month),
-  );
-
-  return await Promise.all(monthlyPlanningPromises);
-}
-
-/**
- * Clean up incorrect monthly debt planning records
- * This function removes monthly planning records that have incorrect due dates
- */
-export async function cleanupIncorrectMonthlyPlanning(budgetAccountId: string) {
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
   });
@@ -1164,51 +577,100 @@ export async function cleanupIncorrectMonthlyPlanning(budgetAccountId: string) {
     throw new Error("User not authenticated");
   }
 
-  // Verify user has access to the budget account
-  const membership = await db.query.budgetAccountMembers.findFirst({
+  // Check if user has access to this budget account
+  const member = await db.query.budgetAccountMembers.findFirst({
     where: and(
       eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
       eq(budgetAccountMembers.userId, sessionResult.user.id),
     ),
   });
 
-  if (!membership) {
-    throw new Error("User does not have access to this budget account");
+  if (!member) {
+    throw new Error("Access denied to budget account");
   }
 
-  try {
-    // Get all monthly planning records for this budget account
-    const allMonthlyPlanning = await db.query.monthlyDebtPlanning.findMany({
-      where: eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
-    });
+  // Get all debts for the budget account
+  const allDebts = await db.query.debts.findMany({
+    where: eq(debts.budgetAccountId, budgetAccountId),
+  });
 
-    let cleanedCount = 0;
+  // Preload existing records for the account in the window to avoid per-row queries
+  const windowStartYear = year;
+  const windowStartMonth = month;
+  const windowEndYear =
+    year + Math.floor((month + planningWindowMonths - 1) / 12);
+  const windowEndMonth = ((month + planningWindowMonths - 1) % 12) + 1;
 
-    for (const planning of allMonthlyPlanning) {
-      // Check if this is a one-time debt
-      const debt = await db.query.debts.findFirst({
-        where: eq(debts.id, planning.debtId),
-      });
+  const existingInWindow = await db.query.monthlyDebtPlanning.findMany({
+    where: and(
+      eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
+      // start boundary (>= start year and month)
+      or(
+        gt(monthlyDebtPlanning.year, windowStartYear),
+        and(
+          eq(monthlyDebtPlanning.year, windowStartYear),
+          gte(monthlyDebtPlanning.month, windowStartMonth),
+        ),
+      ),
+      // end boundary (<= end year and month)
+      or(
+        lt(monthlyDebtPlanning.year, windowEndYear),
+        and(
+          eq(monthlyDebtPlanning.year, windowEndYear),
+          lte(monthlyDebtPlanning.month, windowEndMonth),
+        ),
+      ),
+    ),
+  });
 
-      if (debt) {
-        // For one-time debts, the monthly planning due date should match the debt's due date
-        // If they don't match, delete the monthly planning record
-        const planningDueDate = planning.dueDate.toString().split("T")[0];
-        if (planningDueDate !== debt.dueDate) {
-          await db
-            .delete(monthlyDebtPlanning)
-            .where(eq(monthlyDebtPlanning.id, planning.id));
-          cleanedCount++;
+  // Index existing by debtId-year-month
+  const existingKey = new Set(
+    existingInWindow.map((r) => `${r.debtId}:${r.year}:${r.month}`),
+  );
+
+  // Create monthly planning records for each debt within the window if missing
+  for (const debt of allDebts) {
+    const [debtStartYear, debtStartMonth] = debt.dueDate.split("-").map(Number);
+
+    for (
+      let monthOffset = 0;
+      monthOffset <= planningWindowMonths;
+      monthOffset++
+    ) {
+      const targetYear = year + Math.floor((month + monthOffset - 1) / 12);
+      const targetMonth = ((month + monthOffset - 1) % 12) + 1;
+
+      // Only include this month if it's after or equal to the debt's start date
+      if (
+        targetYear > debtStartYear ||
+        (targetYear === debtStartYear && targetMonth >= debtStartMonth)
+      ) {
+        const key = `${debt.id}:${targetYear}:${targetMonth}`;
+        if (existingKey.has(key)) {
+          continue; // already present in this window
+        }
+
+        // Calculate the due date for this month (keep the same day of month)
+        const [, , debtDay] = debt.dueDate.split("-").map(Number);
+        const dueDate = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(debtDay).padStart(2, "0")}`;
+
+        try {
+          await db.insert(monthlyDebtPlanning).values({
+            budgetAccountId,
+            debtId: debt.id,
+            year: targetYear,
+            month: targetMonth,
+            dueDate: dueDate,
+            isActive: true,
+          });
+          existingKey.add(key);
+        } catch (error) {
+          console.error(
+            `Failed to create monthly planning record for ${debt.name} ${targetYear}-${targetMonth}:`,
+            error,
+          );
         }
       }
     }
-
-    return { success: true, cleanedCount };
-  } catch (error) {
-    console.error("Error cleaning up monthly planning:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
   }
 }

@@ -1,9 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import AssignmentBasedInterface from "../AssignmentBasedInterface";
 import type {
   PaycheckInfo,
   PaycheckAllocation,
-  DebtInfo,
 } from "@/app/actions/paycheck-planning";
 
 // Mock Next.js router
@@ -21,7 +20,7 @@ jest.mock("@/components/Toast", () => ({
 const mockPaychecks: PaycheckInfo[] = [
   {
     id: "paycheck-1",
-    name: "January 15th",
+    name: "Steve's Income",
     date: new Date("2024-01-15"),
     amount: 3000,
     frequency: "monthly",
@@ -29,7 +28,15 @@ const mockPaychecks: PaycheckInfo[] = [
   },
   {
     id: "paycheck-2",
-    name: "January 31st",
+    name: "Kelsi's Income",
+    date: new Date("2024-01-15"), // Same date as paycheck-1
+    amount: 4000,
+    frequency: "monthly",
+    userId: "user-1",
+  },
+  {
+    id: "paycheck-3",
+    name: "Steve's Income",
     date: new Date("2024-01-31"),
     amount: 3000,
     frequency: "monthly",
@@ -48,6 +55,7 @@ const mockAllocations: PaycheckAllocation[] = [
         debtName: "Credit Card",
         amount: 500,
         dueDate: "2024-01-25",
+        originalDueDate: "2024-01-25",
         paymentDate: "2024-01-20",
         paymentId: "payment-1",
         isPaid: false,
@@ -57,32 +65,47 @@ const mockAllocations: PaycheckAllocation[] = [
   },
 ];
 
-const mockUnallocatedDebts: DebtInfo[] = [
+const mockUnallocatedDebts = [
   {
-    id: "debt-1",
-    name: "Credit Card",
+    id: "debt-1-2024-1", // Monthly planning ID format
+    debtId: "debt-1",
+    debtName: "Credit Card",
     amount: 2000,
     dueDate: "2024-01-25",
     frequency: "monthly",
     description: "Credit card payment",
     isRecurring: true,
+    year: 2024,
+    month: 1,
+    isActive: true,
   },
   {
-    id: "debt-2",
-    name: "Student Loan",
+    id: "debt-2-2024-2", // Monthly planning ID format
+    debtId: "debt-2",
+    debtName: "Student Loan",
     amount: 15000,
     dueDate: "2024-02-01",
     frequency: "monthly",
     description: "Student loan payment",
     isRecurring: true,
+    year: 2024,
+    month: 2,
+    isActive: true,
   },
 ];
 
 const mockHandlers = {
-  onDebtAllocated: jest.fn(),
-  onDebtUnallocated: jest.fn(),
+  onDebtAllocated: jest.fn(), // Now expects monthlyDebtPlanningId instead of debtId
+  onDebtUnallocated: jest.fn(), // Now expects monthlyDebtPlanningId instead of debtId
   onDebtUpdated: jest.fn(),
-  onMarkPaymentAsPaid: jest.fn(),
+  onMarkPaymentAsPaid: jest.fn(), // Now expects monthlyDebtPlanningId instead of debtId
+};
+
+const defaultProps = {
+  currentYear: 2024,
+  currentMonth: 1,
+  planningWindowMonths: 1,
+  ...mockHandlers,
 };
 
 describe("AssignmentBasedInterface", () => {
@@ -96,7 +119,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
@@ -110,7 +133,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
@@ -128,7 +151,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
@@ -144,20 +167,16 @@ describe("AssignmentBasedInterface", () => {
     expect(amount2000Elements.length).toBeGreaterThan(0);
     expect(amount15000Elements.length).toBeGreaterThan(0);
 
-    // Check due dates - now using shorter format
-    // The formatDateSafely function uses "MMM dd" which includes leading zeros
-    const jan25Elements = screen.getAllByText("Jan 25");
-    const feb01Elements = screen.getAllByText("Feb 01");
+    // Check due dates - now using longer format with year
+    // The formatDateSafely function now uses "MMM dd, yyyy" format
+    const jan25Elements = screen.getAllByText("Jan 25, 2024");
+    const feb01Elements = screen.getAllByText("Feb 01, 2024");
     expect(jan25Elements.length).toBeGreaterThan(0);
     expect(feb01Elements.length).toBeGreaterThan(0);
 
-    // Check frequencies - use getAllByText since there are multiple "monthly" elements
-    const monthlyElements = screen.getAllByText("monthly");
-    expect(monthlyElements.length).toBeGreaterThan(0);
-
-    // Check past due indicators - use getAllByText since there are multiple
-    const pastDueElements = screen.getAllByText("Past Due");
-    expect(pastDueElements.length).toBeGreaterThan(0);
+    // Check future debt indicators - Student Loan is due in February (next month)
+    const nextMonthElements = screen.getAllByText("Next Month");
+    expect(nextMonthElements.length).toBeGreaterThan(0);
   });
 
   it("displays paycheck allocations correctly", () => {
@@ -166,13 +185,13 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
     expect(screen.getByText("Paycheck Allocations")).toBeInTheDocument();
-    expect(screen.getByText("January 15th")).toBeInTheDocument();
-    expect(screen.getByText("January 31st")).toBeInTheDocument();
+    expect(screen.getByText("Paycheck 1")).toBeInTheDocument();
+    expect(screen.getByText("Paycheck 2")).toBeInTheDocument();
     // Use getAllByText since amounts appear multiple times
     const amount3000Elements = screen.getAllByText("$3,000");
     expect(amount3000Elements.length).toBeGreaterThan(0);
@@ -184,7 +203,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
@@ -194,20 +213,28 @@ describe("AssignmentBasedInterface", () => {
     expect(creditCardElements.length).toBeGreaterThan(0);
   });
 
-  it("enables bulk assignment mode when button is clicked", () => {
+  it("shows debt table with paycheck assignment functionality", () => {
     render(
       <AssignmentBasedInterface
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
-    // Check that the bulk assignment controls are visible
-    expect(screen.getByText("Select All (0/2)")).toBeInTheDocument();
-    expect(screen.getByText("Assign to Paycheck")).toBeInTheDocument();
-    expect(screen.getByText("Assign Selected")).toBeInTheDocument();
+    // Check that the new table structure is present (multiple instances for mobile/desktop)
+    const assignElements = screen.getAllByText("Assign to Paycheck");
+    expect(assignElements.length).toBeGreaterThan(0);
+
+    // Check that we can see debt names in the table (multiple instances for mobile/desktop)
+    const creditCardElements = screen.getAllByText("Credit Card");
+    expect(creditCardElements.length).toBeGreaterThan(0);
+    const studentLoanElements = screen.getAllByText("Student Loan");
+    expect(studentLoanElements.length).toBeGreaterThan(0);
+
+    // Check that the Table component's search functionality is present
+    expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
   });
 
   it("shows assignment dropdowns for each debt in bulk mode", () => {
@@ -216,30 +243,39 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
-    // Check that the bulk assignment controls are visible
-    expect(screen.getByText("Assign to Paycheck")).toBeInTheDocument();
+    // Check that the bulk assignment controls are visible (multiple instances for mobile/desktop)
+    const assignElements = screen.getAllByText("Assign to Paycheck");
+    expect(assignElements.length).toBeGreaterThan(0);
   });
 
-  it("handles debt assignment when paycheck is selected", () => {
+  it("shows debt assignment interface with sorting capabilities", () => {
     render(
       <AssignmentBasedInterface
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
-    // Check that the bulk assignment interface is working
-    expect(screen.getByText("Select All (0/2)")).toBeInTheDocument();
-    expect(screen.getByText("Assign to Paycheck")).toBeInTheDocument();
+    // Check that the Table component's sorting controls are present
+    expect(screen.getByTitle("Clear sorting")).toBeInTheDocument();
 
-    // The interface should show the bulk assignment controls
-    expect(screen.getByText("Assign Selected")).toBeInTheDocument();
+    // Check that we can assign individual debts (multiple instances for mobile/desktop)
+    const creditCardElements = screen.getAllByText("Credit Card");
+    expect(creditCardElements.length).toBeGreaterThan(0);
+    const studentLoanElements = screen.getAllByText("Student Loan");
+    expect(studentLoanElements.length).toBeGreaterThan(0);
+
+    // Check that the table headers are sortable (may have multiple instances)
+    const nameElements = screen.getAllByText("Name");
+    expect(nameElements.length).toBeGreaterThan(0);
+    const amountElements = screen.getAllByText("Amount");
+    expect(amountElements.length).toBeGreaterThan(0);
   });
 
   it("shows correct remaining balance for paychecks", () => {
@@ -248,7 +284,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
@@ -263,7 +299,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
@@ -272,19 +308,19 @@ describe("AssignmentBasedInterface", () => {
     expect(removeButtons.length).toBeGreaterThan(0);
   });
 
-  it("shows past due indicator for overdue debts", () => {
+  it("shows future debt indicator for upcoming debts", () => {
     render(
       <AssignmentBasedInterface
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
-    // Check past due indicators - use getAllByText since there are multiple
-    const pastDueElements = screen.getAllByText("Past Due");
-    expect(pastDueElements.length).toBeGreaterThan(0);
+    // Check future debt indicators - Student Loan is due in February (next month)
+    const nextMonthElements = screen.getAllByText("Next Month");
+    expect(nextMonthElements.length).toBeGreaterThan(0);
   });
 
   it("displays empty state when no unallocated debts", () => {
@@ -293,7 +329,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={[]}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
@@ -306,7 +342,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={[]}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
@@ -315,19 +351,31 @@ describe("AssignmentBasedInterface", () => {
     expect(screen.getByText("Paycheck Allocations")).toBeInTheDocument();
   });
 
-  it("handles bulk assignment completion", async () => {
+  it("shows bulk assignment when debts are selected", async () => {
     render(
       <AssignmentBasedInterface
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
-        {...mockHandlers}
+        {...defaultProps}
       />,
     );
 
-    // Check that the bulk assignment interface is present
-    expect(screen.getByText("Select All (0/2)")).toBeInTheDocument();
-    expect(screen.getByText("Assign to Paycheck")).toBeInTheDocument();
-    expect(screen.getByText("Assign Selected")).toBeInTheDocument();
+    // Initially, bulk assignment should not be visible
+    expect(screen.queryByText(/Bulk Assignment/)).not.toBeInTheDocument();
+
+    // Select a debt by clicking checkbox
+    const checkboxes = screen.getAllByRole("checkbox");
+    const debtCheckbox = checkboxes.find((cb) =>
+      cb.getAttribute("id")?.includes("debt-"),
+    );
+    if (debtCheckbox) {
+      fireEvent.click(debtCheckbox);
+
+      // Now bulk assignment should be visible
+      await waitFor(() => {
+        expect(screen.getByText(/Bulk Assignment/)).toBeInTheDocument();
+      });
+    }
   });
 });

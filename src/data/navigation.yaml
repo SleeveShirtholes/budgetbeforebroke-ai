@@ -1,18 +1,14 @@
 budgets:
   label: Budget Tools
   items:
-    - label: Budgets
+    - label: Budget Planning
       href: /dashboard/budgets
       icon: BanknotesIcon
-      description: View all your budgets
+      description: Plan your budgets and allocate your income to your budgets
     - label: Paycheck Planning
       href: /dashboard/paycheck-planning
       icon: CalendarDaysIcon
       description: Plan your paycheck allocation and debt payments
-    - label: Income Sources
-      href: /dashboard/income
-      icon: CurrencyDollarIcon
-      description: Manage your income sources
 
 transactions:
   label: Transactions
@@ -45,6 +41,10 @@ account:
       href: /dashboard/debts
       icon: ArrowPathIcon
       description: Manage your debts and payments
+    - label: Manage Income Sources
+      href: /dashboard/income
+      icon: CurrencyDollarIcon
+      description: Manage your income sources
 
 support:
   label: Support

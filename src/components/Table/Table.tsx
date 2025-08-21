@@ -45,6 +45,11 @@ export interface TableProps<T extends Record<string, unknown>> {
   pageSize?: number;
   showPagination?: boolean;
   onPaginationChange?: (showPagination: boolean) => void;
+  selectable?: boolean;
+  selectedRows?: Set<string>;
+  onSelectionChange?: (selectedRows: Set<string>) => void;
+  getRowId?: (row: T, index: number) => string;
+  showMobileView?: boolean;
 }
 
 export default function Table<T extends Record<string, unknown>>({
@@ -56,6 +61,11 @@ export default function Table<T extends Record<string, unknown>>({
   pageSize = 10,
   showPagination: initialShowPagination = true,
   onPaginationChange,
+  selectable = false,
+  selectedRows: externalSelectedRows,
+  onSelectionChange,
+  getRowId,
+  showMobileView = true,
 }: TableProps<T>) {
   // State for sorting
   const [sorting, setSorting] = useState<SortingState>({
@@ -86,6 +96,20 @@ export default function Table<T extends Record<string, unknown>>({
   // State for expanded rows
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
+  // State for row selection
+  const [internalSelectedRows, setInternalSelectedRows] = useState<Set<string>>(
+    new Set(),
+  );
+
+  // Use external or internal selection state
+  const selectedRows =
+    externalSelectedRows !== undefined
+      ? externalSelectedRows
+      : internalSelectedRows;
+
+  // Get row ID function - default to using the index if no custom function provided
+  const getRowIdFn = getRowId || ((row: T, index: number) => `row-${index}`);
+
   // Handle toggling pagination
   const togglePagination = () => {
     const newValue = !showPagination;
@@ -97,6 +121,38 @@ export default function Table<T extends Record<string, unknown>>({
     // Reset to first page when enabling pagination
     if (newValue && currentPage !== 1) {
       setCurrentPage(1);
+    }
+  };
+
+  // Handle row selection
+  const handleRowSelection = (rowId: string, checked: boolean) => {
+    const newSelectedRows = new Set(selectedRows);
+    if (checked) {
+      newSelectedRows.add(rowId);
+    } else {
+      newSelectedRows.delete(rowId);
+    }
+
+    if (onSelectionChange) {
+      onSelectionChange(newSelectedRows);
+    } else {
+      setInternalSelectedRows(newSelectedRows);
+    }
+  };
+
+  // Handle select all
+  const handleSelectAll = (checked: boolean) => {
+    const newSelectedRows = new Set<string>();
+    if (checked) {
+      data.forEach((row, index) => {
+        newSelectedRows.add(getRowIdFn(row, index));
+      });
+    }
+
+    if (onSelectionChange) {
+      onSelectionChange(newSelectedRows);
+    } else {
+      setInternalSelectedRows(newSelectedRows);
     }
   };
 
@@ -325,36 +381,38 @@ export default function Table<T extends Record<string, unknown>>({
       )}
 
       {/* Mobile-friendly card layout for small screens */}
-      <div className="lg:hidden">
-        {/* Check if this is category data by looking for category-specific columns */}
-        {columns.some(
-          (col) =>
-            col.key === "name" &&
-            columns.some((c) => c.key === "transactionCount"),
-        ) ? (
-          <MobileCategoryList<T>
-            data={displayData}
-            columns={columns}
-            actions={actions}
-          />
-        ) : columns.some(
+      {showMobileView && (
+        <div className="lg:hidden">
+          {/* Check if this is category data by looking for category-specific columns */}
+          {columns.some(
             (col) =>
-              col.key === "title" && columns.some((c) => c.key === "upvotes"),
+              col.key === "name" &&
+              columns.some((c) => c.key === "transactionCount"),
           ) ? (
-          <MobileSupportList<T>
-            data={displayData}
-            columns={columns}
-            actions={actions}
-            detailPanel={detailPanel}
-          />
-        ) : (
-          <MobileTransactionList<T>
-            data={displayData}
-            columns={columns}
-            actions={actions}
-          />
-        )}
-      </div>
+            <MobileCategoryList<T>
+              data={displayData}
+              columns={columns}
+              actions={actions}
+            />
+          ) : columns.some(
+              (col) =>
+                col.key === "title" && columns.some((c) => c.key === "upvotes"),
+            ) ? (
+            <MobileSupportList<T>
+              data={displayData}
+              columns={columns}
+              actions={actions}
+              detailPanel={detailPanel}
+            />
+          ) : (
+            <MobileTransactionList<T>
+              data={displayData}
+              columns={columns}
+              actions={actions}
+            />
+          )}
+        </div>
+      )}
 
       {/* Desktop table layout */}
       <div className="hidden lg:block rounded-lg border border-gray-200 shadow-sm">
@@ -370,6 +428,10 @@ export default function Table<T extends Record<string, unknown>>({
               filters={filters}
               onFilterChange={handleFilterChange}
               hasDetailPanel={!!detailPanel}
+              selectable={selectable}
+              selectedRows={selectedRows}
+              onSelectAll={handleSelectAll}
+              data={displayData}
             />
             <TableBody<T>
               data={displayData}
@@ -379,6 +441,10 @@ export default function Table<T extends Record<string, unknown>>({
               detailPanel={detailPanel}
               actions={actions}
               searchQuery={searchQuery}
+              selectable={selectable}
+              selectedRows={selectedRows}
+              onRowSelection={handleRowSelection}
+              getRowId={getRowIdFn}
             />
           </table>
         </div>
