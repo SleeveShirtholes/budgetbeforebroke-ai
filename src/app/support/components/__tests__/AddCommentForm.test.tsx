@@ -80,8 +80,8 @@ describe("AddCommentForm", () => {
   it("shows loading state when loading prop is true", () => {
     render(<AddCommentForm onSubmit={mockOnSubmit} loading={true} />);
 
-    const submitButton = screen.getByText("Submit Comment");
+    const submitButton = screen.getByRole("button", { name: "Submit Comment" });
     // The Button component should handle the loading state internally
-    expect(submitButton).toBeInTheDocument();
+    expect(submitButton).toBeDisabled();
   });
 });

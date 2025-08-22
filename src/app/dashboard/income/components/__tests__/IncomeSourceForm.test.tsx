@@ -194,9 +194,7 @@ describe("IncomeSourceForm", () => {
     );
 
     // Check if buttons are disabled
-    expect(
-      screen.getByRole("button", { name: /add income source/i }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Loading..." })).toBeDisabled();
     expect(screen.getByRole("button", { name: /cancel/i })).toBeDisabled();
   });
 

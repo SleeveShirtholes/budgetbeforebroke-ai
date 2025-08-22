@@ -17,10 +17,15 @@ import DebtManagement from "./components/DebtManagement";
 import WarningsPanel from "./components/WarningsPanel";
 import { useToast } from "@/components/Toast";
 import { useBudgetAccount } from "@/stores/budgetAccountStore";
-import { useDebtAllocationManager } from "@/hooks/usePaycheckPlanning";
+import {
+  useDebtAllocationManager,
+  useHiddenMonthlyDebts,
+} from "@/hooks/usePaycheckPlanning";
 import {
   markPaymentAsPaid,
   populateMonthlyDebtPlanning,
+  getDebtAllocations,
+  setMonthlyDebtPlanningActive,
 } from "@/app/actions/paycheck-planning";
 import { formatDateSafely } from "@/utils/date";
 import Card from "@/components/Card";
@@ -29,6 +34,8 @@ import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
 
 import "@/styles/sortable.css";
+import { debtAllocations } from "@/db/schema";
+import type { InferSelectModel } from "drizzle-orm";
 
 /**
  * Enhanced PaycheckPlanningPage Component
@@ -48,6 +55,17 @@ export default function PaycheckPlanningPage() {
   const [isWarningsExpanded, setIsWarningsExpanded] = useState(false);
   const [planningWindowMonths, setPlanningWindowMonths] = useState(0);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [allDebtAllocations, setAllDebtAllocations] = useState<InferSelectModel<typeof debtAllocations>[]>([]);
+  const [isAllocatingDebt, setIsAllocatingDebt] = useState(false);
+  const [isUnallocatingDebt, setIsUnallocatingDebt] = useState(false);
+  const [isMarkingPaymentAsPaid, setIsMarkingPaymentAsPaid] = useState(false);
+  const [isSkippingDebt, setIsSkippingDebt] = useState(false);
+  const [isRestoringDebt, setIsRestoringDebt] = useState(false);
+  const [isChangingPlanningWindow, setIsChangingPlanningWindow] =
+    useState(false);
+  const [isChangingMonth, setIsChangingMonth] = useState(false);
+  const [isDismissingWarning, setIsDismissingWarning] = useState(false);
+  const [isUpdatingDebts, setIsUpdatingDebts] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null); // User configurable planning window
   const { showToast } = useToast();
   const unallocatedDebtsRef = useRef<HTMLDivElement>(null);
@@ -63,6 +81,7 @@ export default function PaycheckPlanningPage() {
     handleDebtUnallocated: originalHandleDebtUnallocated,
     mutatePlanningData,
     mutateAllocations,
+    isLoading: isPlanningDataLoading,
   } = useDebtAllocationManager(
     selectedAccount?.id,
     selectedDate.getFullYear(),
@@ -70,17 +89,54 @@ export default function PaycheckPlanningPage() {
     planningWindowMonths, // Pass the user's planning window preference
   );
 
+  // Use the hidden monthly debts hook
+  const {
+    hiddenDebts: hiddenDebtsData,
+    mutateHiddenDebts,
+    isLoading: isHiddenDebtsLoading,
+  } = useHiddenMonthlyDebts(
+    selectedAccount?.id,
+    selectedDate.getFullYear(),
+    selectedDate.getMonth() + 1,
+    planningWindowMonths,
+  );
+
+  // Transform hidden debts data to match MonthlyDebtRecord type
+  const hiddenDebts = useMemo(() => {
+    if (!hiddenDebtsData) return [];
+
+    return hiddenDebtsData.map((debt: typeof hiddenDebtsData[0]) => ({
+      id: debt.id,
+      debtId: debt.id,
+      debtName: debt.name,
+      amount: debt.amount,
+      dueDate: debt.dueDate,
+      frequency: debt.frequency,
+      description: debt.description,
+      isRecurring: debt.isRecurring,
+      categoryId: debt.categoryId,
+      year: new Date(debt.dueDate).getFullYear(),
+      month: new Date(debt.dueDate).getMonth() + 1,
+      isActive: false,
+    }));
+  }, [hiddenDebtsData]);
+
   // Populate monthly debt planning rows for the visible window,
   // then revalidate to ensure newly inserted rows are reflected immediately
+  // Note: This will only populate if there are existing debts in the system
   useEffect(() => {
     let isCancelled = false;
     const run = async () => {
       if (!selectedAccount?.id) return;
+
+      const currentYear = selectedDate.getFullYear();
+      const currentMonth = selectedDate.getMonth() + 1;
+
       try {
         await populateMonthlyDebtPlanning(
           selectedAccount.id,
-          selectedDate.getFullYear(),
-          selectedDate.getMonth() + 1,
+          currentYear,
+          currentMonth,
           planningWindowMonths,
         );
         if (!isCancelled) {
@@ -102,6 +158,34 @@ export default function PaycheckPlanningPage() {
     mutateAllocations,
   ]);
 
+  // Fetch all debt allocations for the budget account
+  const [isFetchingAllocations, setIsFetchingAllocations] = useState(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchAllocations = async () => {
+      if (!selectedAccount?.id) return;
+      try {
+        setIsFetchingAllocations(true);
+        const allocations = await getDebtAllocations(selectedAccount.id);
+
+        if (!isCancelled) {
+          setAllDebtAllocations(allocations);
+        }
+      } catch (error) {
+        console.error("Failed to fetch all debt allocations:", error);
+      } finally {
+        if (!isCancelled) {
+          setIsFetchingAllocations(false);
+        }
+      }
+    };
+    fetchAllocations();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedAccount?.id]);
+
   // Wrap the handlers with toast notifications
   const handleDebtAllocated = async (
     debtId: string,
@@ -110,12 +194,26 @@ export default function PaycheckPlanningPage() {
     paymentDate?: string,
   ) => {
     try {
+      setIsAllocatingDebt(true);
       await originalHandleDebtAllocated(
         debtId,
         paycheckId,
         paymentAmount,
         paymentDate,
       );
+
+      // Refresh the allDebtAllocations to update the unallocated debts list
+      if (selectedAccount?.id) {
+        try {
+          const updatedAllocations = await getDebtAllocations(
+            selectedAccount.id,
+          );
+          setAllDebtAllocations(updatedAllocations);
+        } catch (error) {
+          console.error("Failed to refresh debt allocations:", error);
+        }
+      }
+
       const message =
         paymentAmount && paymentDate
           ? `Payment of $${paymentAmount.toLocaleString()} scheduled for ${formatDateSafely(paymentDate, "MMM dd, yyyy")}`
@@ -124,19 +222,102 @@ export default function PaycheckPlanningPage() {
     } catch (error) {
       console.error("Failed to allocate debt:", error);
       showToast("Failed to allocate debt", { type: "error" });
+    } finally {
+      setIsAllocatingDebt(false);
     }
   };
 
   const handleDebtUnallocated = async (debtId: string, paycheckId: string) => {
     try {
-      console.log("Attempting to unallocate debt:", { debtId, paycheckId });
+      setIsUnallocatingDebt(true);
       await originalHandleDebtUnallocated(debtId, paycheckId);
+
+      // Refresh the allDebtAllocations to update the unallocated debts list
+      if (selectedAccount?.id) {
+        try {
+          const updatedAllocations = await getDebtAllocations(
+            selectedAccount.id,
+          );
+          setAllDebtAllocations(updatedAllocations);
+        } catch (error) {
+          console.error("Failed to refresh debt allocations:", error);
+        }
+      }
+
       showToast("Debt removed successfully", { type: "success" });
     } catch (error) {
       console.error("Failed to remove debt:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Failed to remove debt";
       showToast(errorMessage, { type: "error" });
+    } finally {
+      setIsUnallocatingDebt(false);
+    }
+  };
+
+  /**
+   * Handle skipping a monthly debt planning record
+   */
+  const handleDebtHidden = async (monthlyDebtPlanningId: string) => {
+    if (!selectedAccount?.id) {
+      showToast("No budget account selected", { type: "error" });
+      return;
+    }
+
+    try {
+      setIsSkippingDebt(true);
+      await setMonthlyDebtPlanningActive(
+        selectedAccount.id,
+        monthlyDebtPlanningId,
+        false, // Set to inactive (skipped)
+      );
+
+      // Refresh the data to show updated planning and hidden debts
+      await Promise.all([
+        mutatePlanningData?.(),
+        mutateAllocations?.(),
+        mutateHiddenDebts?.(),
+      ]);
+
+      showToast("Debt skipped for this month", { type: "success" });
+    } catch (error) {
+      console.error("Error skipping debt:", error);
+      showToast("Failed to skip debt", { type: "error" });
+    } finally {
+      setIsSkippingDebt(false);
+    }
+  };
+
+  /**
+   * Handle restoring a skipped monthly debt planning record
+   */
+  const handleDebtRestored = async (monthlyDebtPlanningId: string) => {
+    if (!selectedAccount?.id) {
+      showToast("No budget account selected", { type: "error" });
+      return;
+    }
+
+    try {
+      setIsRestoringDebt(true);
+      await setMonthlyDebtPlanningActive(
+        selectedAccount.id,
+        monthlyDebtPlanningId,
+        true, // Set to active (restored)
+      );
+
+      // Refresh the data to show updated planning and hidden debts
+      await Promise.all([
+        mutatePlanningData?.(),
+        mutateAllocations?.(),
+        mutateHiddenDebts?.(),
+      ]);
+
+      showToast("Debt restored to planning", { type: "success" });
+    } catch (error) {
+      console.error("Error restoring debt:", error);
+      showToast("Failed to restore debt", { type: "error" });
+    } finally {
+      setIsRestoringDebt(false);
     }
   };
 
@@ -156,6 +337,7 @@ export default function PaycheckPlanningPage() {
     }
 
     try {
+      setIsMarkingPaymentAsPaid(true);
       await markPaymentAsPaid(
         selectedAccount.id,
         debtId,
@@ -171,21 +353,50 @@ export default function PaycheckPlanningPage() {
     } catch (error) {
       console.error("Error marking payment as paid:", error);
       showToast("Failed to mark payment as paid", { type: "error" });
+    } finally {
+      setIsMarkingPaymentAsPaid(false);
     }
   };
 
   // Calculate unallocated monthly debt planning records
   const unallocatedMonthlyDebts = useMemo(() => {
-    if (!planningData?.debts || !allocations) return [];
+    if (!planningData?.debts) {
+      return [];
+    }
 
-    // Build a set of monthly_debt_planning ids that are already allocated
-    const allocatedMonthlyIds = new Set(
-      allocations.flatMap((a) => a.allocatedDebts).map((d) => d.debtId), // debtId is monthlyDebtPlanningId per server mapping
-    );
+    // If there are no allocations, all debts are unallocated
+    if (!allDebtAllocations.length) {
+      return planningData.debts.map((debt) => ({
+        id: debt.id, // monthlyDebtPlanningId
+        debtId: debt.id,
+        debtName: debt.name,
+        amount: debt.amount,
+        dueDate: debt.dueDate,
+        frequency: debt.frequency,
+        description: debt.description,
+        isRecurring: debt.isRecurring,
+        categoryId: debt.categoryId,
+        year: new Date(debt.dueDate).getFullYear(),
+        month: new Date(debt.dueDate).getMonth() + 1,
+        isActive: true,
+      }));
+    }
+
+    // Get ALL allocations for this budget account to properly filter out allocated debts
+    // We need to check against all allocations, not just current month's paychecks
+    const allAllocatedMonthlyIds = new Set<string>();
+
+    // Add all allocations from the budget account
+    allDebtAllocations.forEach((allocation) => {
+      allAllocatedMonthlyIds.add(allocation.monthlyDebtPlanningId);
+    });
 
     // Map planning debts (each is a monthly_debt_planning record) and exclude allocated ones
-    return planningData.debts
-      .filter((debt) => !allocatedMonthlyIds.has(debt.id))
+    const unallocated = planningData.debts
+      .filter((debt) => {
+        const isAllocated = allAllocatedMonthlyIds.has(debt.id);
+        return !isAllocated;
+      })
       .map((debt) => ({
         id: debt.id, // monthlyDebtPlanningId
         debtId: debt.id,
@@ -200,27 +411,71 @@ export default function PaycheckPlanningPage() {
         month: new Date(debt.dueDate).getMonth() + 1,
         isActive: true,
       }));
-  }, [planningData?.debts, allocations]);
+
+    return unallocated;
+  }, [planningData?.debts, allDebtAllocations]);
 
   // Navigation handlers
-  const goToPreviousMonth = () => {
+  const goToPreviousMonth = async () => {
+    setIsChangingMonth(true);
     setSelectedDate((prev) => {
       const newDate = new Date(prev);
       newDate.setMonth(newDate.getMonth() - 1);
       return newDate;
     });
+
+    // Wait for data to refresh
+    try {
+      await Promise.all([
+        mutatePlanningData?.(),
+        mutateAllocations?.(),
+        mutateHiddenDebts?.(),
+      ]);
+    } catch (error) {
+      console.error("Failed to refresh data after month change:", error);
+    } finally {
+      setIsChangingMonth(false);
+    }
   };
 
-  const goToNextMonth = () => {
+  const goToNextMonth = async () => {
+    setIsChangingMonth(true);
     setSelectedDate((prev) => {
       const newDate = new Date(prev);
       newDate.setMonth(newDate.getMonth() + 1);
       return newDate;
     });
+
+    // Wait for data to refresh
+    try {
+      await Promise.all([
+        mutatePlanningData?.(),
+        mutateAllocations?.(),
+        mutateHiddenDebts?.(),
+      ]);
+    } catch (error) {
+      console.error("Failed to refresh data after month change:", error);
+    } finally {
+      setIsChangingMonth(false);
+    }
   };
 
-  const goToCurrentMonth = () => {
+  const goToCurrentMonth = async () => {
+    setIsChangingMonth(true);
     setSelectedDate(new Date());
+
+    // Wait for data to refresh
+    try {
+      await Promise.all([
+        mutatePlanningData?.(),
+        mutateAllocations?.(),
+        mutateHiddenDebts?.(),
+      ]);
+    } catch (error) {
+      console.error("Failed to refresh data after month change:", error);
+    } finally {
+      setIsChangingMonth(false);
+    }
   };
 
   // Set up SortableJS for unallocated debts
@@ -290,6 +545,49 @@ export default function PaycheckPlanningPage() {
     );
   }
 
+  // Check if any data is still loading
+  const isDataLoading =
+    isPlanningDataLoading || isHiddenDebtsLoading || isFetchingAllocations;
+
+  // Show loading spinner if data is loading
+  if (isDataLoading) {
+    return (
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="space-y-3">
+          <div className="block md:hidden">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              Paycheck Planning
+            </h1>
+            <p className="text-gray-600 text-xs sm:text-sm">
+              {format(selectedDate, "MMMM yyyy")}
+            </p>
+          </div>
+          <div className="hidden md:flex md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Paycheck Planning
+              </h1>
+              <p className="text-gray-600 text-sm">
+                {format(selectedDate, "MMMM yyyy")}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Loading Spinner */}
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Spinner size="lg" />
+            <p className="mt-4 text-gray-600">
+              Loading paycheck planning data...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const { paychecks = [], debts = [], warnings = [] } = planningData || {};
 
   const totalIncome = paychecks.reduce(
@@ -344,6 +642,7 @@ export default function PaycheckPlanningPage() {
               variant="outline"
               size="sm"
               onClick={goToPreviousMonth}
+              disabled={isChangingMonth}
               className="p-2"
             >
               <ArrowLeftIcon className="h-4 w-4" />
@@ -354,6 +653,7 @@ export default function PaycheckPlanningPage() {
                 variant="outline"
                 size="sm"
                 onClick={goToCurrentMonth}
+                disabled={isChangingMonth}
                 className="text-xs px-3 py-2"
               >
                 Now
@@ -364,6 +664,7 @@ export default function PaycheckPlanningPage() {
               variant="outline"
               size="sm"
               onClick={goToNextMonth}
+              disabled={isChangingMonth}
               className="p-2"
             >
               <ArrowRightIcon className="h-4 w-4" />
@@ -377,6 +678,7 @@ export default function PaycheckPlanningPage() {
             variant="outline"
             size="sm"
             onClick={goToPreviousMonth}
+            disabled={isChangingMonth}
             className="p-2"
           >
             <ArrowLeftIcon className="h-4 w-4" />
@@ -387,6 +689,7 @@ export default function PaycheckPlanningPage() {
               variant="outline"
               size="sm"
               onClick={goToCurrentMonth}
+              disabled={isChangingMonth}
               className="text-xs px-3 py-2"
             >
               Now
@@ -397,12 +700,41 @@ export default function PaycheckPlanningPage() {
             variant="outline"
             size="sm"
             onClick={goToNextMonth}
+            disabled={isChangingMonth}
             className="p-2"
           >
             <ArrowRightIcon className="h-4 w-4" />
           </Button>
         </div>
       </div>
+
+      {/* Loading Overlay for Operations */}
+      {(isAllocatingDebt ||
+        isUnallocatingDebt ||
+        isMarkingPaymentAsPaid ||
+        isSkippingDebt ||
+        isRestoringDebt ||
+        isChangingPlanningWindow ||
+        isChangingMonth ||
+        isDismissingWarning ||
+        isUpdatingDebts) && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 flex flex-col items-center space-y-4">
+            <Spinner size="lg" />
+            <p className="text-gray-700 font-medium">
+              {isAllocatingDebt && "Allocating debt..."}
+              {isUnallocatingDebt && "Removing debt allocation..."}
+              {isMarkingPaymentAsPaid && "Marking payment as paid..."}
+              {isSkippingDebt && "Skipping debt..."}
+              {isRestoringDebt && "Restoring debt..."}
+              {isChangingPlanningWindow && "Updating planning window..."}
+              {isChangingMonth && "Loading month data..."}
+              {isDismissingWarning && "Dismissing warning..."}
+              {isUpdatingDebts && "Updating debts..."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Month Summary Card - Mobile Collapsible, Desktop Full */}
       <Card className="p-3 sm:p-4">
@@ -650,15 +982,33 @@ export default function PaycheckPlanningPage() {
                 {[0, 1, 2, 3, 6].map((months) => (
                   <button
                     key={months}
-                    onClick={() => {
+                    onClick={async () => {
+                      setIsChangingPlanningWindow(true);
                       setPlanningWindowMonths(months);
                       setIsDropdownOpen(false);
+
+                      // Wait for data to refresh
+                      try {
+                        await Promise.all([
+                          mutatePlanningData?.(),
+                          mutateAllocations?.(),
+                          mutateHiddenDebts?.(),
+                        ]);
+                      } catch (error) {
+                        console.error(
+                          "Failed to refresh data after planning window change:",
+                          error,
+                        );
+                      } finally {
+                        setIsChangingPlanningWindow(false);
+                      }
                     }}
+                    disabled={isChangingPlanningWindow}
                     className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                       planningWindowMonths === months
                         ? "bg-primary-50 text-primary-600"
                         : "text-gray-700 hover:bg-gray-50"
-                    }`}
+                    } ${isChangingPlanningWindow ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {months === 0
                       ? "Current Month Only"
@@ -691,6 +1041,7 @@ export default function PaycheckPlanningPage() {
               budgetAccountId={selectedAccount.id}
               onWarningDismissed={async () => {
                 try {
+                  setIsDismissingWarning(true);
                   await Promise.all([
                     mutatePlanningData?.(),
                     mutateAllocations?.(),
@@ -699,6 +1050,8 @@ export default function PaycheckPlanningPage() {
                 } catch (error) {
                   console.error("Failed to dismiss warning", error);
                   showToast("Failed to dismiss warning", { type: "error" });
+                } finally {
+                  setIsDismissingWarning(false);
                 }
               }}
             />
@@ -711,11 +1064,14 @@ export default function PaycheckPlanningPage() {
         paychecks={paychecks}
         allocations={allocations || []}
         unallocatedDebts={unallocatedMonthlyDebts}
+        hiddenDebts={hiddenDebts || []}
         currentYear={selectedDate.getFullYear()}
         currentMonth={selectedDate.getMonth() + 1}
         planningWindowMonths={planningWindowMonths}
         onDebtAllocated={handleDebtAllocated}
         onDebtUnallocated={handleDebtUnallocated}
+        onDebtHidden={handleDebtHidden}
+        onDebtRestored={handleDebtRestored}
         onMarkPaymentAsPaid={handleMarkPaymentAsPaid}
       />
 
@@ -740,6 +1096,7 @@ export default function PaycheckPlanningPage() {
             budgetAccountId={selectedAccount.id}
             onDebtUpdate={async () => {
               try {
+                setIsUpdatingDebts(true);
                 // Refresh the data without closing the modal
                 await Promise.all([
                   mutatePlanningData?.(),
@@ -748,6 +1105,8 @@ export default function PaycheckPlanningPage() {
               } catch (error) {
                 console.error("Failed to update debt:", error);
                 showToast("Failed to update debt", { type: "error" });
+              } finally {
+                setIsUpdatingDebts(false);
               }
             }}
           />

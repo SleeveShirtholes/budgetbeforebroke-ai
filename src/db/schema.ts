@@ -519,23 +519,35 @@ export const debtAllocationsRelations = relations(
  * Stores the planned due dates for each debt for each month
  * This allows us to maintain historical due dates while planning future months
  */
-export const monthlyDebtPlanning = pgTable("monthly_debt_planning", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => generateId()),
-  budgetAccountId: text("budget_account_id")
-    .notNull()
-    .references(() => budgetAccounts.id, { onDelete: "cascade" }),
-  debtId: text("debt_id")
-    .notNull()
-    .references(() => debts.id, { onDelete: "cascade" }),
-  year: integer("year").notNull(),
-  month: integer("month").notNull(), // 1-12
-  dueDate: date("due_date").notNull(), // The due date for this specific month
-  isActive: boolean("is_active").notNull().default(true), // Whether this month's planning is active
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export const monthlyDebtPlanning = pgTable(
+  "monthly_debt_planning",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => generateId()),
+    budgetAccountId: text("budget_account_id")
+      .notNull()
+      .references(() => budgetAccounts.id, { onDelete: "cascade" }),
+    debtId: text("debt_id")
+      .notNull()
+      .references(() => debts.id, { onDelete: "cascade" }),
+    year: integer("year").notNull(),
+    month: integer("month").notNull(), // 1-12
+    dueDate: date("due_date").notNull(), // The due date for this specific month
+    isActive: boolean("is_active").notNull().default(true), // Whether this month's planning is active
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    // Add unique constraint to ensure one record per debt per month per budget account
+    uniqueMonthlyDebtPlanning: unique().on(
+      table.budgetAccountId,
+      table.debtId,
+      table.year,
+      table.month,
+    ),
+  }),
+);
 
 // Add unique constraint to ensure one record per debt per month
 export const monthlyDebtPlanningRelations = relations(

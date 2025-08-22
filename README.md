@@ -20,6 +20,111 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Database Management
+
+This project uses [Drizzle ORM](https://orm.drizzle.team/) with [Neon](https://neon.tech/) as the database provider.
+
+### Local Development
+
+```bash
+# Push schema changes to local database
+yarn db:push
+
+# Generate new migration files
+yarn db:generate
+
+# Open Drizzle Studio to view/edit data
+yarn db:studio
+```
+
+### Production Database Migrations
+
+When deploying to production, you'll need to run database migrations on your Neon database. Here's a step-by-step guide:
+
+#### Prerequisites
+
+1. **Install Drizzle Kit** (already included in devDependencies)
+2. **Get your production DATABASE_URL** from Neon dashboard
+3. **Ensure you have access** to run commands on your production environment
+
+#### Method 1: Local Migration (Recommended for small teams)
+
+```bash
+# 1. Set your production database URL
+export DATABASE_URL="postgresql://username:password@hostname/database?sslmode=require"
+
+# 2. Verify the connection (optional but recommended)
+yarn db:studio
+
+# 3. Run all pending migrations
+yarn db:migrate
+
+# 4. Verify migrations were applied
+yarn db:studio
+```
+
+#### Method 2: CI/CD Pipeline Migration
+
+If you're using Vercel or another CI/CD platform:
+
+```bash
+# In your build/deploy script
+export DATABASE_URL="your-production-database-url"
+yarn db:migrate
+```
+
+#### Method 3: Direct Drizzle Kit Command
+
+```bash
+# Set environment variable
+export DATABASE_URL="your-production-database-url"
+
+# Run migrations directly
+npx drizzle-kit migrate
+```
+
+#### Migration Safety Checklist
+
+Before running production migrations:
+
+- [ ] **Backup your database** (Neon provides automatic backups)
+- [ ] **Test migrations locally** on a copy of production data
+- [ ] **Verify DATABASE_URL** is correct for production
+- [ ] **Check migration files** are in the correct order
+- [ ] **Have a rollback plan** ready if needed
+
+#### Troubleshooting
+
+**Migration fails with "relation already exists"**
+- The migration may have been partially applied
+- Check your migration history in the `drizzle_migrations` table
+- Consider manually fixing the schema or rolling back
+
+**Connection issues**
+- Verify your Neon database is running
+- Check firewall settings and IP allowlists
+- Ensure SSL mode is properly configured
+
+**Permission errors**
+- Verify your database user has the necessary privileges
+- Check if you need to connect as a superuser for certain operations
+
+#### Useful Commands
+
+```bash
+# View migration status
+npx drizzle-kit introspect
+
+# Generate new migration from schema changes
+yarn db:generate
+
+# Push schema changes (development only)
+yarn db:push
+
+# Open database studio
+yarn db:studio
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

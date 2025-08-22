@@ -51,4 +51,30 @@ describe("Button Component", () => {
     expect(button).toHaveClass("bg-red-600");
     expect(button).toHaveClass("hover:bg-red-700");
   });
+
+  it("applies loading state", () => {
+    render(<Button isLoading>Loading Button</Button>);
+    const button = screen.getByRole("button");
+    expect(button).toHaveClass("opacity-70");
+    expect(button).toHaveClass("cursor-not-allowed");
+    // When loading, only spinner should be visible, not the text
+    expect(screen.queryByText("Loading Button")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button").querySelector(".animate-spin"),
+    ).toBeInTheDocument();
+  });
+
+  it("maintains consistent width during loading state", () => {
+    const { rerender } = render(<Button>Wide Button Text</Button>);
+    const button = screen.getByRole("button");
+
+    // Get initial width
+    const initialWidth = button.offsetWidth;
+
+    // Switch to loading state
+    rerender(<Button isLoading>Wide Button Text</Button>);
+
+    // Button should still have the same width (or very close due to min-width)
+    expect(button.offsetWidth).toBeGreaterThanOrEqual(initialWidth - 5); // Allow small tolerance
+  });
 });
