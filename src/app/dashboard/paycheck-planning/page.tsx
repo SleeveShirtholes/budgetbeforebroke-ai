@@ -55,7 +55,9 @@ export default function PaycheckPlanningPage() {
   const [isWarningsExpanded, setIsWarningsExpanded] = useState(false);
   const [planningWindowMonths, setPlanningWindowMonths] = useState(0);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [allDebtAllocations, setAllDebtAllocations] = useState<InferSelectModel<typeof debtAllocations>[]>([]);
+  const [allDebtAllocations, setAllDebtAllocations] = useState<
+    InferSelectModel<typeof debtAllocations>[]
+  >([]);
   const [isAllocatingDebt, setIsAllocatingDebt] = useState(false);
   const [isUnallocatingDebt, setIsUnallocatingDebt] = useState(false);
   const [isMarkingPaymentAsPaid, setIsMarkingPaymentAsPaid] = useState(false);
@@ -105,7 +107,7 @@ export default function PaycheckPlanningPage() {
   const hiddenDebts = useMemo(() => {
     if (!hiddenDebtsData) return [];
 
-    return hiddenDebtsData.map((debt: typeof hiddenDebtsData[0]) => ({
+    return hiddenDebtsData.map((debt: (typeof hiddenDebtsData)[0]) => ({
       id: debt.id,
       debtId: debt.id,
       debtName: debt.name,

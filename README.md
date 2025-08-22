@@ -96,16 +96,19 @@ Before running production migrations:
 #### Troubleshooting
 
 **Migration fails with "relation already exists"**
+
 - The migration may have been partially applied
 - Check your migration history in the `drizzle_migrations` table
 - Consider manually fixing the schema or rolling back
 
 **Connection issues**
+
 - Verify your Neon database is running
 - Check firewall settings and IP allowlists
 - Ensure SSL mode is properly configured
 
 **Permission errors**
+
 - Verify your database user has the necessary privileges
 - Check if you need to connect as a superuser for certain operations
 
