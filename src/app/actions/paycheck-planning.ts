@@ -167,7 +167,12 @@ export async function getHiddenMonthlyDebtPlanningData(
   const hiddenDebtEntries: DebtInfo[] = [];
   for (const monthlyRecord of hiddenMonthlyRecords) {
     const debt = allDebts.find((d) => d.id === monthlyRecord.debtId);
-    if (!debt) continue;
+    if (!debt) {
+      console.warn(
+        `Monthly record with id '${monthlyRecord.id}' references non-existent debt id '${monthlyRecord.debtId}' in budgetAccountId '${budgetAccountId}'.`,
+      );
+      continue;
+    }
     hiddenDebtEntries.push({
       id: monthlyRecord.id,
       name: debt.name,
@@ -768,9 +773,22 @@ export async function populateMonthlyDebtPlanning(
           // Check if it's a unique constraint violation (record already exists)
           if (
             error instanceof Error &&
-            error.message.includes("unique_monthly_debt_planning")
+            // Use error code or error class for unique constraint violation
+            // Drizzle ORM: error.code for unique constraint violation (e.g., 'SQLITE_CONSTRAINT_UNIQUE', '23505' for Postgres)
+            error &&
+            typeof error === "object" &&
+            "code" in error &&
+            (error.code === "SQLITE_CONSTRAINT_UNIQUE" || // SQLite
+              error.code === "23505") // Postgres
           ) {
             existingKey.add(key);
+          } else {
+            // Log other errors for debugging
+            console.error(
+              "Error inserting monthly debt planning record:",
+              error,
+            );
+            throw error;
           }
         }
       }

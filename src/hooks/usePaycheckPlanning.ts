@@ -167,13 +167,18 @@ export function useHiddenMonthlyDebts(
           planningWindowMonths,
         ]
       : null,
-    () =>
-      getHiddenMonthlyDebtPlanningData(
-        budgetAccountId!,
-        year!,
-        month!,
+    () => {
+      // Add explicit type guards to ensure parameters are defined
+      if (!budgetAccountId || !year || !month) {
+        throw new Error("Missing required parameters for hidden monthly debts");
+      }
+      return getHiddenMonthlyDebtPlanningData(
+        budgetAccountId,
+        year,
+        month,
         planningWindowMonths,
-      ),
+      );
+    },
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: true,

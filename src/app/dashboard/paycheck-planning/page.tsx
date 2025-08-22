@@ -108,8 +108,8 @@ export default function PaycheckPlanningPage() {
     if (!hiddenDebtsData) return [];
 
     return hiddenDebtsData.map((debt: (typeof hiddenDebtsData)[0]) => ({
-      id: debt.id,
-      debtId: debt.id,
+      id: debt.id, // This is the monthly debt planning record ID
+      debtId: debt.id, // Required by MonthlyDebtRecord type - same as monthly planning ID
       debtName: debt.name,
       amount: debt.amount,
       dueDate: debt.dueDate,

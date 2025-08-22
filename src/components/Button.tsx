@@ -117,14 +117,24 @@ export default function Button({
 }: ButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Measure button content width and set it as a CSS custom property
+  // Measure button content width and set it as a CSS custom property using ResizeObserver
   useEffect(() => {
-    if (buttonRef.current && !isLoading) {
-      const button = buttonRef.current;
+    const button = buttonRef.current;
+    if (!button || isLoading) return;
+
+    const setContentWidth = () => {
       const contentWidth = button.scrollWidth;
       button.style.setProperty("--button-content-width", `${contentWidth}px`);
-    }
-  }, [children, isLoading]);
+    };
+
+    setContentWidth();
+    const resizeObserver = new window.ResizeObserver(setContentWidth);
+    resizeObserver.observe(button);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isLoading]);
 
   const baseStyles =
     "rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center";

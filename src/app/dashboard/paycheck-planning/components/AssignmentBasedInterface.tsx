@@ -366,6 +366,12 @@ export default function AssignmentBasedInterface({
     [filteredDebts, computeStatus],
   );
 
+  // Pre-compute status for all hidden debts to avoid repeated function calls
+  const hiddenDebtsWithStatus = useMemo(
+    () => hiddenDebts.map((debt) => ({ ...debt, status: computeStatus(debt) })),
+    [hiddenDebts, computeStatus],
+  );
+
   const handleDebtAssignment = async (
     monthlyDebtPlanningId: string, // Changed from debtId to monthlyDebtPlanningId
     paycheckId: string,
@@ -1434,8 +1440,8 @@ export default function AssignmentBasedInterface({
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {hiddenDebts.map((debt) => {
-                        const status = computeStatus(debt);
+                      {hiddenDebtsWithStatus.map((debt) => {
+                        const status = debt.status;
                         return (
                           <tr key={debt.id} className="hover:bg-gray-50">
                             <td className="px-3 py-4">
