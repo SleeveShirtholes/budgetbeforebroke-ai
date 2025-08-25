@@ -718,47 +718,20 @@ export default function PaycheckPlanningPage() {
         isRestoringDebt ||
         isChangingPlanningWindow ||
         isChangingMonth ||
-        isDismissingWarning ||
-        isUpdatingDebts) && (
-        <div className="space-y-4">
-          {/* Header */}
-          <div className="space-y-3">
-            <div className="block md:hidden">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                Paycheck Planning
-              </h1>
-              <p className="text-gray-600 text-xs sm:text-sm">
-                {format(selectedDate, "MMMM yyyy")}
-              </p>
-            </div>
-            <div className="hidden md:flex md:items-center md:justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Paycheck Planning
-                </h1>
-                <p className="text-gray-600 text-sm">
-                  {format(selectedDate, "MMMM yyyy")}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Loading Spinner */}
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <Spinner size="lg" />
-              <p className="mt-4 text-gray-600 font-medium">
-                {isAllocatingDebt && "Allocating debt..."}
-                {isUnallocatingDebt && "Removing debt allocation..."}
-                {isMarkingPaymentAsPaid && "Marking payment as paid..."}
-                {isSkippingDebt && "Skipping debt..."}
-                {isRestoringDebt && "Restoring debt..."}
-                {isChangingPlanningWindow && "Updating planning window..."}
-                {isChangingMonth && "Loading month data..."}
-                {isDismissingWarning && "Dismissing warning..."}
-                {isUpdatingDebts && "Updating debts..."}
-              </p>
-            </div>
+        isDismissingWarning) && (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Spinner size="lg" />
+            <p className="mt-4 text-gray-600 font-medium">
+              {isAllocatingDebt && "Allocating debt..."}
+              {isUnallocatingDebt && "Removing debt allocation..."}
+              {isMarkingPaymentAsPaid && "Marking payment as paid..."}
+              {isSkippingDebt && "Skipping debt..."}
+              {isRestoringDebt && "Restoring debt..."}
+              {isChangingPlanningWindow && "Updating planning window..."}
+              {isChangingMonth && "Loading month data..."}
+              {isDismissingWarning && "Dismissing warning..."}
+            </p>
           </div>
         </div>
       )}
@@ -772,8 +745,7 @@ export default function PaycheckPlanningPage() {
         isRestoringDebt ||
         isChangingPlanningWindow ||
         isChangingMonth ||
-        isDismissingWarning ||
-        isUpdatingDebts
+        isDismissingWarning
       ) && (
         <>
           {/* Month Summary Card - Mobile Collapsible, Desktop Full */}
@@ -1071,10 +1043,20 @@ export default function PaycheckPlanningPage() {
               variant="outline"
               size="sm"
               onClick={() => setIsDebtsModalOpen(true)}
+              disabled={isUpdatingDebts}
               className="w-full sm:w-auto flex items-center justify-center sm:justify-start space-x-2 sm:rounded-l-none hover:z-10"
             >
-              <CurrencyDollarIcon className="h-4 w-4" />
-              <span>Manage Debts</span>
+              {isUpdatingDebts ? (
+                <>
+                  <Spinner size="sm" />
+                  <span>Updating...</span>
+                </>
+              ) : (
+                <>
+                  <CurrencyDollarIcon className="h-4 w-4" />
+                  <span>Manage Debts</span>
+                </>
+              )}
             </Button>
           </div>
 
@@ -1131,22 +1113,59 @@ export default function PaycheckPlanningPage() {
                 <Button
                   variant="outline"
                   onClick={() => setIsDebtsModalOpen(false)}
+                  disabled={isUpdatingDebts}
                 >
-                  Close
+                  {isUpdatingDebts ? "Updating..." : "Close"}
                 </Button>
               </div>
             }
           >
-            <div className="space-y-4">
+            <div className="space-y-4 relative">
+              {/* Loading overlay that appears on top of the form */}
+              {isUpdatingDebts && (
+                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg">
+                  <div className="text-center">
+                    <Spinner size="lg" />
+                    <p className="mt-4 text-gray-600 font-medium">
+                      Updating debt information...
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Always show the debt management form */}
               <DebtManagement
                 budgetAccountId={selectedAccount.id}
                 onDebtUpdate={async () => {
                   try {
                     setIsUpdatingDebts(true);
-                    // Refresh the data without closing the modal
+
+                    // First, populate monthly debt planning for the new debt
+                    if (selectedAccount?.id) {
+                      const currentYear = selectedDate.getFullYear();
+                      const currentMonth = selectedDate.getMonth() + 1;
+
+                      await populateMonthlyDebtPlanning(
+                        selectedAccount.id,
+                        currentYear,
+                        currentMonth,
+                        planningWindowMonths,
+                      );
+                    }
+
+                    // Then refresh all the data
                     await Promise.all([
                       mutatePlanningData?.(),
                       mutateAllocations?.(),
+                      // Also refresh the debt allocations to update the available debts list
+                      (async () => {
+                        if (selectedAccount?.id) {
+                          const updatedAllocations = await getDebtAllocations(
+                            selectedAccount.id,
+                          );
+                          setAllDebtAllocations(updatedAllocations);
+                        }
+                      })(),
                     ]);
                   } catch (error) {
                     console.error("Failed to update debt:", error);
