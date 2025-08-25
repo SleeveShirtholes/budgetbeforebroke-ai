@@ -324,14 +324,16 @@ describe("Paycheck Planning Actions", () => {
           dueDate: "2025-01-15", // Due in January
         },
         {
-          id: "debt-2", 
+          id: "debt-2",
           name: "Student Loan",
           dueDate: "2025-03-20", // Due in March
         },
       ]);
 
       // Mock no existing monthly planning records
-      (actualDb.query.monthlyDebtPlanning.findMany as jest.Mock).mockResolvedValue([]);
+      (
+        actualDb.query.monthlyDebtPlanning.findMany as jest.Mock
+      ).mockResolvedValue([]);
 
       // Call with current month = February 2025, planning window = 2 months
       await populateMonthlyDebtPlanning(mockAccountId, 2025, 2, 2);
@@ -361,7 +363,9 @@ describe("Paycheck Planning Actions", () => {
       ]);
 
       // Mock existing monthly planning records for some months
-      (actualDb.query.monthlyDebtPlanning.findMany as jest.Mock).mockResolvedValue([
+      (
+        actualDb.query.monthlyDebtPlanning.findMany as jest.Mock
+      ).mockResolvedValue([
         {
           id: "planning-1",
           budgetAccountId: mockAccountId,
@@ -399,14 +403,16 @@ describe("Paycheck Planning Actions", () => {
       ]);
 
       // Mock no existing monthly planning records
-      (actualDb.query.monthlyDebtPlanning.findMany as jest.Mock).mockResolvedValue([]);
+      (
+        actualDb.query.monthlyDebtPlanning.findMany as jest.Mock
+      ).mockResolvedValue([]);
 
       // Call with current month = January 2025, planning window = 3 months
       await populateMonthlyDebtPlanning(mockAccountId, 2025, 1, 3);
 
       // Should only create records for March and April (not January or February)
       // January: month 1 < 3 (debt not due) - no record
-      // February: month 2 < 3 (debt not due) - no record  
+      // February: month 2 < 3 (debt not due) - no record
       // March: month 3 >= 3 (debt is due) - record created
       // April: month 4 > 3 (debt is due) - record created
       // Total: 2 records

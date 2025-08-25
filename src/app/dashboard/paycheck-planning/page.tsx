@@ -764,7 +764,8 @@ export default function PaycheckPlanningPage() {
       )}
 
       {/* Only show the rest of the page content when not loading */}
-      {!(isAllocatingDebt ||
+      {!(
+        isAllocatingDebt ||
         isUnallocatingDebt ||
         isMarkingPaymentAsPaid ||
         isSkippingDebt ||
@@ -772,7 +773,8 @@ export default function PaycheckPlanningPage() {
         isChangingPlanningWindow ||
         isChangingMonth ||
         isDismissingWarning ||
-        isUpdatingDebts) && (
+        isUpdatingDebts
+      ) && (
         <>
           {/* Month Summary Card - Mobile Collapsible, Desktop Full */}
           <Card className="p-3 sm:p-4">
@@ -853,7 +855,9 @@ export default function PaycheckPlanningPage() {
                           <p className="text-sm font-medium text-gray-700">
                             Total Debts
                           </p>
-                          <p className="text-sm text-gray-500">Due this month</p>
+                          <p className="text-sm text-gray-500">
+                            Due this month
+                          </p>
                         </div>
                       </div>
                       <p className="text-base font-bold text-red-700">
@@ -941,7 +945,9 @@ export default function PaycheckPlanningPage() {
                       <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                     </div>
                     <div className="text-center sm:text-left">
-                      <p className="text-sm font-medium text-gray-700">Allocated</p>
+                      <p className="text-sm font-medium text-gray-700">
+                        Allocated
+                      </p>
                       <p className="text-sm text-gray-500 hidden sm:block">
                         {allocations?.reduce(
                           (sum, a) => sum + a.allocatedDebts.length,
@@ -965,7 +971,9 @@ export default function PaycheckPlanningPage() {
                       <CurrencyDollarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
                     </div>
                     <div className="text-center sm:text-left">
-                      <p className="text-sm font-medium text-gray-700">Remaining</p>
+                      <p className="text-sm font-medium text-gray-700">
+                        Remaining
+                      </p>
                       <p className="text-sm text-gray-500 hidden sm:block">
                         After allocations
                       </p>

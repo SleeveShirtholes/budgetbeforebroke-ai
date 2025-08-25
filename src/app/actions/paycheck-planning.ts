@@ -743,7 +743,7 @@ export async function populateMonthlyDebtPlanning(
       // Calculate the target month by adding the offset to the current month
       let targetYear = year;
       let targetMonth = month + monthOffset;
-      
+
       // Handle year transitions when month goes beyond 12
       if (targetMonth > 12) {
         targetYear = year + Math.floor((targetMonth - 1) / 12);
@@ -752,11 +752,12 @@ export async function populateMonthlyDebtPlanning(
 
       // Parse the debt's due date to get the year and month when this debt should start appearing
       const [debtYear, debtMonth] = debt.dueDate.split("-").map(Number);
-      
+
       // Only create records for months that are on or after the debt's due date
       // This ensures debts don't appear in months before they're actually due
-      const shouldInclude = (targetYear > debtYear) || 
-                           (targetYear === debtYear && targetMonth >= debtMonth);
+      const shouldInclude =
+        targetYear > debtYear ||
+        (targetYear === debtYear && targetMonth >= debtMonth);
 
       if (shouldInclude) {
         const key = `${debt.id}:${targetYear}:${targetMonth}`;
