@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import Sortable from "sortablejs";
 import {
@@ -75,6 +75,11 @@ export default function PaycheckPlanningPage() {
   // Get the selected budget account
   const { selectedAccount, isLoading: isAccountsLoading } = useBudgetAccount();
 
+  // OPTIMIZATION: Memoize key values to prevent unnecessary re-renders
+  const currentYear = useMemo(() => selectedDate.getFullYear(), [selectedDate]);
+  const currentMonth = useMemo(() => selectedDate.getMonth() + 1, [selectedDate]);
+  const accountId = useMemo(() => selectedAccount?.id, [selectedAccount?.id]);
+
   // Use the new debt allocation manager hook
   const {
     planningData,
@@ -85,9 +90,9 @@ export default function PaycheckPlanningPage() {
     mutateAllocations,
     isLoading: isPlanningDataLoading,
   } = useDebtAllocationManager(
-    selectedAccount?.id,
-    selectedDate.getFullYear(),
-    selectedDate.getMonth() + 1, // getMonth() returns 0-11, we need 1-12
+    accountId,
+    currentYear,
+    currentMonth,
     planningWindowMonths, // Pass the user's planning window preference
   );
 
@@ -97,13 +102,13 @@ export default function PaycheckPlanningPage() {
     mutateHiddenDebts,
     isLoading: isHiddenDebtsLoading,
   } = useHiddenMonthlyDebts(
-    selectedAccount?.id,
-    selectedDate.getFullYear(),
-    selectedDate.getMonth() + 1,
+    accountId,
+    currentYear,
+    currentMonth,
     planningWindowMonths,
   );
 
-  // Transform hidden debts data to match MonthlyDebtRecord type
+  // OPTIMIZATION: Memoize expensive transformations
   const hiddenDebts = useMemo(() => {
     if (!hiddenDebtsData) return [];
 
@@ -123,244 +128,58 @@ export default function PaycheckPlanningPage() {
     }));
   }, [hiddenDebtsData]);
 
+  // OPTIMIZATION: Memoize debt allocations to prevent unnecessary API calls
+  const memoizedFetchAllocations = useCallback(async () => {
+    if (!accountId) return;
+    try {
+      setIsFetchingAllocations(true);
+      const allocations = await getDebtAllocations(accountId);
+      setAllDebtAllocations(allocations);
+    } catch (error) {
+      console.error("Failed to fetch all debt allocations:", error);
+    } finally {
+      setIsFetchingAllocations(false);
+    }
+  }, [accountId]);
+
+  // OPTIMIZATION: Memoize data population to prevent duplicate calls
+  const populateData = useCallback(async () => {
+    if (!accountId) return;
+
+    try {
+      await populateMonthlyDebtPlanning(
+        accountId,
+        currentYear,
+        currentMonth,
+        planningWindowMonths,
+      );
+      await Promise.all([mutatePlanningData?.(), mutateAllocations?.()]);
+    } catch (error) {
+      console.error("Failed to populate monthly debt planning:", error);
+    }
+  }, [accountId, currentYear, currentMonth, planningWindowMonths, mutatePlanningData, mutateAllocations]);
+
   // Populate monthly debt planning rows for the visible window,
   // then revalidate to ensure newly inserted rows are reflected immediately
   // Note: This will only populate if there are existing debts in the system
   useEffect(() => {
     let isCancelled = false;
     const run = async () => {
-      if (!selectedAccount?.id) return;
-
-      const currentYear = selectedDate.getFullYear();
-      const currentMonth = selectedDate.getMonth() + 1;
-
-      try {
-        await populateMonthlyDebtPlanning(
-          selectedAccount.id,
-          currentYear,
-          currentMonth,
-          planningWindowMonths,
-        );
-        if (!isCancelled) {
-          await Promise.all([mutatePlanningData?.(), mutateAllocations?.()]);
-        }
-      } catch (error) {
-        console.error("Failed to populate monthly debt planning:", error);
+      await populateData();
+      if (!isCancelled) {
+        await memoizedFetchAllocations();
       }
     };
     run();
     return () => {
       isCancelled = true;
     };
-  }, [
-    selectedAccount?.id,
-    selectedDate,
-    planningWindowMonths,
-    mutatePlanningData,
-    mutateAllocations,
-  ]);
+  }, [populateData, memoizedFetchAllocations]);
 
   // Fetch all debt allocations for the budget account
   const [isFetchingAllocations, setIsFetchingAllocations] = useState(false);
 
-  useEffect(() => {
-    let isCancelled = false;
-    const fetchAllocations = async () => {
-      if (!selectedAccount?.id) return;
-      try {
-        setIsFetchingAllocations(true);
-        const allocations = await getDebtAllocations(selectedAccount.id);
-
-        if (!isCancelled) {
-          setAllDebtAllocations(allocations);
-        }
-      } catch (error) {
-        console.error("Failed to fetch all debt allocations:", error);
-      } finally {
-        if (!isCancelled) {
-          setIsFetchingAllocations(false);
-        }
-      }
-    };
-    fetchAllocations();
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedAccount?.id]);
-
-  // Wrap the handlers with toast notifications
-  const handleDebtAllocated = async (
-    debtId: string,
-    paycheckId: string,
-    paymentAmount?: number,
-    paymentDate?: string,
-  ) => {
-    try {
-      setIsAllocatingDebt(true);
-      await originalHandleDebtAllocated(
-        debtId,
-        paycheckId,
-        paymentAmount,
-        paymentDate,
-      );
-
-      // Refresh the allDebtAllocations to update the unallocated debts list
-      if (selectedAccount?.id) {
-        try {
-          const updatedAllocations = await getDebtAllocations(
-            selectedAccount.id,
-          );
-          setAllDebtAllocations(updatedAllocations);
-        } catch (error) {
-          console.error("Failed to refresh debt allocations:", error);
-        }
-      }
-
-      const message =
-        paymentAmount && paymentDate
-          ? `Payment of $${paymentAmount.toLocaleString()} scheduled for ${formatDateSafely(paymentDate, "MMM dd, yyyy")}`
-          : "Debt allocated successfully";
-      showToast(message, { type: "success" });
-    } catch (error) {
-      console.error("Failed to allocate debt:", error);
-      showToast("Failed to allocate debt", { type: "error" });
-    } finally {
-      setIsAllocatingDebt(false);
-    }
-  };
-
-  const handleDebtUnallocated = async (debtId: string, paycheckId: string) => {
-    try {
-      setIsUnallocatingDebt(true);
-      await originalHandleDebtUnallocated(debtId, paycheckId);
-
-      // Refresh the allDebtAllocations to update the unallocated debts list
-      if (selectedAccount?.id) {
-        try {
-          const updatedAllocations = await getDebtAllocations(
-            selectedAccount.id,
-          );
-          setAllDebtAllocations(updatedAllocations);
-        } catch (error) {
-          console.error("Failed to refresh debt allocations:", error);
-        }
-      }
-
-      showToast("Debt removed successfully", { type: "success" });
-    } catch (error) {
-      console.error("Failed to remove debt:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to remove debt";
-      showToast(errorMessage, { type: "error" });
-    } finally {
-      setIsUnallocatingDebt(false);
-    }
-  };
-
-  /**
-   * Handle skipping a monthly debt planning record
-   */
-  const handleDebtHidden = async (monthlyDebtPlanningId: string) => {
-    if (!selectedAccount?.id) {
-      showToast("No budget account selected", { type: "error" });
-      return;
-    }
-
-    try {
-      setIsSkippingDebt(true);
-      await setMonthlyDebtPlanningActive(
-        selectedAccount.id,
-        monthlyDebtPlanningId,
-        false, // Set to inactive (skipped)
-      );
-
-      // Refresh the data to show updated planning and hidden debts
-      await Promise.all([
-        mutatePlanningData?.(),
-        mutateAllocations?.(),
-        mutateHiddenDebts?.(),
-      ]);
-
-      showToast("Debt skipped for this month", { type: "success" });
-    } catch (error) {
-      console.error("Error skipping debt:", error);
-      showToast("Failed to skip debt", { type: "error" });
-    } finally {
-      setIsSkippingDebt(false);
-    }
-  };
-
-  /**
-   * Handle restoring a skipped monthly debt planning record
-   */
-  const handleDebtRestored = async (monthlyDebtPlanningId: string) => {
-    if (!selectedAccount?.id) {
-      showToast("No budget account selected", { type: "error" });
-      return;
-    }
-
-    try {
-      setIsRestoringDebt(true);
-      await setMonthlyDebtPlanningActive(
-        selectedAccount.id,
-        monthlyDebtPlanningId,
-        true, // Set to active (restored)
-      );
-
-      // Refresh the data to show updated planning and hidden debts
-      await Promise.all([
-        mutatePlanningData?.(),
-        mutateAllocations?.(),
-        mutateHiddenDebts?.(),
-      ]);
-
-      showToast("Debt restored to planning", { type: "success" });
-    } catch (error) {
-      console.error("Error restoring debt:", error);
-      showToast("Failed to restore debt", { type: "error" });
-    } finally {
-      setIsRestoringDebt(false);
-    }
-  };
-
-  /**
-   * Handle marking a debt payment as paid
-   * This will mark the payment as paid and schedule the next payment for recurring debts
-   */
-  const handleMarkPaymentAsPaid = async (
-    debtId: string,
-    paymentId: string,
-    paymentAmount?: number,
-    paymentDate?: string,
-  ) => {
-    if (!selectedAccount?.id) {
-      showToast("No budget account selected", { type: "error" });
-      return;
-    }
-
-    try {
-      setIsMarkingPaymentAsPaid(true);
-      await markPaymentAsPaid(
-        selectedAccount.id,
-        debtId,
-        paymentId,
-        paymentAmount,
-        paymentDate,
-      );
-
-      // Refresh the data to show updated payment status
-      await Promise.all([mutatePlanningData?.(), mutateAllocations?.()]);
-
-      showToast("Payment marked as paid successfully", { type: "success" });
-    } catch (error) {
-      console.error("Error marking payment as paid:", error);
-      showToast("Failed to mark payment as paid", { type: "error" });
-    } finally {
-      setIsMarkingPaymentAsPaid(false);
-    }
-  };
-
-  // Calculate unallocated monthly debt planning records
+  // OPTIMIZATION: Memoize unallocated debt calculations to reduce expensive processing
   const unallocatedMonthlyDebts = useMemo(() => {
     if (!planningData?.debts) {
       return [];
@@ -384,21 +203,14 @@ export default function PaycheckPlanningPage() {
       }));
     }
 
-    // Get ALL allocations for this budget account to properly filter out allocated debts
-    // We need to check against all allocations, not just current month's paychecks
-    const allAllocatedMonthlyIds = new Set<string>();
-
-    // Add all allocations from the budget account
-    allDebtAllocations.forEach((allocation) => {
-      allAllocatedMonthlyIds.add(allocation.monthlyDebtPlanningId);
-    });
+    // OPTIMIZATION: Use Set for O(1) lookup instead of array methods
+    const allAllocatedMonthlyIds = new Set(
+      allDebtAllocations.map(allocation => allocation.monthlyDebtPlanningId)
+    );
 
     // Map planning debts (each is a monthly_debt_planning record) and exclude allocated ones
-    const unallocated = planningData.debts
-      .filter((debt) => {
-        const isAllocated = allAllocatedMonthlyIds.has(debt.id);
-        return !isAllocated;
-      })
+    return planningData.debts
+      .filter((debt) => !allAllocatedMonthlyIds.has(debt.id))
       .map((debt) => ({
         id: debt.id, // monthlyDebtPlanningId
         debtId: debt.id,
@@ -413,12 +225,105 @@ export default function PaycheckPlanningPage() {
         month: new Date(debt.dueDate).getMonth() + 1,
         isActive: true,
       }));
-
-    return unallocated;
   }, [planningData?.debts, allDebtAllocations]);
 
+  // OPTIMIZATION: Memoize summary calculations to prevent unnecessary recalculation
+  const { 
+    paychecks = [], 
+    debts = [], 
+    warnings = [],
+    totalIncome,
+    totalDebts,
+    totalAllocated,
+    totalRemaining
+  } = useMemo(() => {
+    const currentPaychecks = planningData?.paychecks || [];
+    const currentDebts = planningData?.debts || [];
+    const currentWarnings = planningData?.warnings || [];
+    
+    const income = currentPaychecks.reduce((sum, paycheck) => sum + paycheck.amount, 0);
+    const debtsTotal = currentDebts.reduce((sum, debt) => sum + debt.amount, 0);
+    const allocated = allocations?.reduce(
+      (sum, allocation) =>
+        sum +
+        allocation.allocatedDebts.reduce(
+          (debtSum, debt) => debtSum + debt.amount,
+          0,
+        ),
+      0,
+    ) || 0;
+    
+    return {
+      paychecks: currentPaychecks,
+      debts: currentDebts,
+      warnings: currentWarnings,
+      totalIncome: income,
+      totalDebts: debtsTotal,
+      totalAllocated: allocated,
+      totalRemaining: income - allocated,
+    };
+  }, [planningData, allocations]);
+
+  // OPTIMIZATION: Memoize current month check
+  const isCurrentMonth = useMemo(() => {
+    const now = new Date();
+    return selectedDate.getMonth() === now.getMonth() &&
+           selectedDate.getFullYear() === now.getFullYear();
+  }, [selectedDate]);
+
+  // OPTIMIZATION: Memoize handler functions to prevent unnecessary re-renders
+  const handleDebtAllocated = useCallback(async (
+    debtId: string,
+    paycheckId: string,
+    paymentAmount?: number,
+    paymentDate?: string,
+  ) => {
+    try {
+      setIsAllocatingDebt(true);
+      await originalHandleDebtAllocated(
+        debtId,
+        paycheckId,
+        paymentAmount,
+        paymentDate,
+      );
+
+      // Refresh the allDebtAllocations to update the unallocated debts list
+      await memoizedFetchAllocations();
+
+      const message =
+        paymentAmount && paymentDate
+          ? `Payment of $${paymentAmount.toLocaleString()} scheduled for ${formatDateSafely(paymentDate, "MMM dd, yyyy")}`
+          : "Debt allocated successfully";
+      showToast(message, { type: "success" });
+    } catch (error) {
+      console.error("Failed to allocate debt:", error);
+      showToast("Failed to allocate debt", { type: "error" });
+    } finally {
+      setIsAllocatingDebt(false);
+    }
+  }, [originalHandleDebtAllocated, memoizedFetchAllocations, showToast]);
+
+  const handleDebtUnallocated = useCallback(async (debtId: string, paycheckId: string) => {
+    try {
+      setIsUnallocatingDebt(true);
+      await originalHandleDebtUnallocated(debtId, paycheckId);
+
+      // Refresh the allDebtAllocations to update the unallocated debts list
+      await memoizedFetchAllocations();
+
+      showToast("Debt removed successfully", { type: "success" });
+    } catch (error) {
+      console.error("Failed to remove debt:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to remove debt";
+      showToast(errorMessage, { type: "error" });
+    } finally {
+      setIsUnallocatingDebt(false);
+    }
+  }, [originalHandleDebtUnallocated, memoizedFetchAllocations, showToast]);
+
   // Navigation handlers
-  const goToPreviousMonth = async () => {
+  const goToPreviousMonth = useCallback(async () => {
     setIsChangingMonth(true);
     setSelectedDate((prev) => {
       const newDate = new Date(prev);
@@ -438,9 +343,9 @@ export default function PaycheckPlanningPage() {
     } finally {
       setIsChangingMonth(false);
     }
-  };
+  }, [mutatePlanningData, mutateAllocations, mutateHiddenDebts]);
 
-  const goToNextMonth = async () => {
+  const goToNextMonth = useCallback(async () => {
     setIsChangingMonth(true);
     setSelectedDate((prev) => {
       const newDate = new Date(prev);
@@ -460,9 +365,9 @@ export default function PaycheckPlanningPage() {
     } finally {
       setIsChangingMonth(false);
     }
-  };
+  }, [mutatePlanningData, mutateAllocations, mutateHiddenDebts]);
 
-  const goToCurrentMonth = async () => {
+  const goToCurrentMonth = useCallback(async () => {
     setIsChangingMonth(true);
     setSelectedDate(new Date());
 
@@ -478,7 +383,101 @@ export default function PaycheckPlanningPage() {
     } finally {
       setIsChangingMonth(false);
     }
-  };
+  }, [mutatePlanningData, mutateAllocations, mutateHiddenDebts]);
+
+  // OPTIMIZATION: Memoize debt hiding and restoring handlers
+  const handleDebtHidden = useCallback(async (monthlyDebtPlanningId: string) => {
+    if (!accountId) {
+      showToast("No budget account selected", { type: "error" });
+      return;
+    }
+
+    try {
+      setIsSkippingDebt(true);
+      await setMonthlyDebtPlanningActive(
+        accountId,
+        monthlyDebtPlanningId,
+        false, // Set to inactive (skipped)
+      );
+
+      // Refresh the data to show updated planning and hidden debts
+      await Promise.all([
+        mutatePlanningData?.(),
+        mutateAllocations?.(),
+        mutateHiddenDebts?.(),
+      ]);
+
+      showToast("Debt skipped for this month", { type: "success" });
+    } catch (error) {
+      console.error("Error skipping debt:", error);
+      showToast("Failed to skip debt", { type: "error" });
+    } finally {
+      setIsSkippingDebt(false);
+    }
+  }, [accountId, mutatePlanningData, mutateAllocations, mutateHiddenDebts, showToast]);
+
+  const handleDebtRestored = useCallback(async (monthlyDebtPlanningId: string) => {
+    if (!accountId) {
+      showToast("No budget account selected", { type: "error" });
+      return;
+    }
+
+    try {
+      setIsRestoringDebt(true);
+      await setMonthlyDebtPlanningActive(
+        accountId,
+        monthlyDebtPlanningId,
+        true, // Set to active (restored)
+      );
+
+      // Refresh the data to show updated planning and hidden debts
+      await Promise.all([
+        mutatePlanningData?.(),
+        mutateAllocations?.(),
+        mutateHiddenDebts?.(),
+      ]);
+
+      showToast("Debt restored to planning", { type: "success" });
+    } catch (error) {
+      console.error("Error restoring debt:", error);
+      showToast("Failed to restore debt", { type: "error" });
+    } finally {
+      setIsRestoringDebt(false);
+    }
+  }, [accountId, mutatePlanningData, mutateAllocations, mutateHiddenDebts, showToast]);
+
+  const handleMarkPaymentAsPaid = useCallback(async (
+    debtId: string,
+    paymentId: string,
+    paymentAmount?: number,
+    paymentDate?: string,
+  ) => {
+    if (!accountId) {
+      showToast("No budget account selected", { type: "error" });
+      return;
+    }
+
+    try {
+      setIsMarkingPaymentAsPaid(true);
+      await markPaymentAsPaid(
+        accountId,
+        debtId,
+        paymentId,
+        paymentAmount,
+        paymentDate,
+      );
+
+      // Refresh the data to show updated payment status
+      await Promise.all([mutatePlanningData?.(), mutateAllocations?.()]);
+
+      showToast("Payment marked as paid successfully", { type: "success" });
+    } catch (error) {
+      console.error("Error marking payment as paid:", error);
+      showToast("Failed to mark payment as paid", { type: "error" });
+    } finally {
+      setIsMarkingPaymentAsPaid(false);
+    }
+  }, [accountId, mutatePlanningData, mutateAllocations, showToast]);
 
   // Set up SortableJS for unallocated debts
   useEffect(() => {
@@ -590,28 +589,28 @@ export default function PaycheckPlanningPage() {
     );
   }
 
-  const { paychecks = [], debts = [], warnings = [] } = planningData || {};
+  // const { paychecks = [], debts = [], warnings = [] } = planningData || {};
 
-  const totalIncome = paychecks.reduce(
-    (sum, paycheck) => sum + paycheck.amount,
-    0,
-  );
-  const totalDebts = debts.reduce((sum, debt) => sum + debt.amount, 0);
-  const totalAllocated =
-    allocations?.reduce(
-      (sum, allocation) =>
-        sum +
-        allocation.allocatedDebts.reduce(
-          (debtSum, debt) => debtSum + debt.amount,
-          0,
-        ),
-      0,
-    ) || 0;
-  const totalRemaining = totalIncome - totalAllocated;
+  // const totalIncome = paychecks.reduce(
+  //   (sum, paycheck) => sum + paycheck.amount,
+  //   0,
+  // );
+  // const totalDebts = debts.reduce((sum, debt) => sum + debt.amount, 0);
+  // const totalAllocated =
+  //   allocations?.reduce(
+  //     (sum, allocation) =>
+  //       sum +
+  //       allocation.allocatedDebts.reduce(
+  //         (debtSum, debt) => debtSum + debt.amount,
+  //         0,
+  //       ),
+  //       0,
+  //   ) || 0;
+  // const totalRemaining = totalIncome - totalAllocated;
 
-  const isCurrentMonth =
-    selectedDate.getMonth() === new Date().getMonth() &&
-    selectedDate.getFullYear() === new Date().getFullYear();
+  // const isCurrentMonth =
+  //   selectedDate.getMonth() === new Date().getMonth() &&
+  //   selectedDate.getFullYear() === new Date().getFullYear();
 
   return (
     <div className="space-y-4">
