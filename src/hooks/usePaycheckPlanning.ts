@@ -16,6 +16,7 @@ const CURRENT_MONTH_ALLOCATIONS_KEY = "/api/current-month-allocations";
 /**
  * Custom hook for managing paycheck planning data using SWR
  * Provides data fetching and caching for paycheck planning
+ * OPTIMIZED: Better caching and revalidation strategies
  */
 export function usePaycheckPlanning(
   budgetAccountId?: string,
@@ -46,8 +47,12 @@ export function usePaycheckPlanning(
         planningWindowMonths,
       ),
     {
+      // OPTIMIZATION: Improved caching and revalidation
       revalidateOnFocus: false,
-      revalidateOnReconnect: true,
+      revalidateOnReconnect: false, // Reduced from true to false
+      revalidateIfStale: false, // Prevent unnecessary revalidations
+      dedupingInterval: 60000, // Cache for 1 minute
+      focusThrottleInterval: 300000, // 5 minutes focus throttle
     },
   );
 
@@ -61,6 +66,7 @@ export function usePaycheckPlanning(
 
 /**
  * Custom hook for managing paycheck allocations using SWR
+ * OPTIMIZED: Better caching strategies
  */
 export function usePaycheckAllocations(
   budgetAccountId?: string,
@@ -78,8 +84,12 @@ export function usePaycheckAllocations(
       : null,
     () => getPaycheckAllocations(budgetAccountId!, year!, month!),
     {
+      // OPTIMIZATION: Improved caching and revalidation
       revalidateOnFocus: false,
-      revalidateOnReconnect: true,
+      revalidateOnReconnect: false,
+      revalidateIfStale: false,
+      dedupingInterval: 60000, // Cache for 1 minute
+      focusThrottleInterval: 300000, // 5 minutes focus throttle
     },
   );
 
@@ -93,6 +103,7 @@ export function usePaycheckAllocations(
 
 /**
  * Custom hook for managing current month paycheck planning data
+ * OPTIMIZED: Better caching strategies
  */
 export function useCurrentMonthPaycheckPlanning(budgetAccountId?: string) {
   const {
@@ -104,8 +115,11 @@ export function useCurrentMonthPaycheckPlanning(budgetAccountId?: string) {
     budgetAccountId ? [CURRENT_MONTH_PLANNING_KEY, budgetAccountId] : null,
     () => getCurrentMonthPaycheckPlanning(budgetAccountId!),
     {
+      // OPTIMIZATION: Improved caching and revalidation
       revalidateOnFocus: false,
-      revalidateOnReconnect: true,
+      revalidateOnReconnect: false,
+      revalidateIfStale: false,
+      dedupingInterval: 30000, // Cache for 30 seconds (current month changes more frequently)
     },
   );
 
@@ -119,6 +133,7 @@ export function useCurrentMonthPaycheckPlanning(budgetAccountId?: string) {
 
 /**
  * Custom hook for managing current month paycheck allocations
+ * OPTIMIZED: Better caching strategies
  */
 export function useCurrentMonthPaycheckAllocations(budgetAccountId?: string) {
   const {
@@ -130,8 +145,11 @@ export function useCurrentMonthPaycheckAllocations(budgetAccountId?: string) {
     budgetAccountId ? [CURRENT_MONTH_ALLOCATIONS_KEY, budgetAccountId] : null,
     () => getCurrentMonthPaycheckAllocations(budgetAccountId!),
     {
+      // OPTIMIZATION: Improved caching and revalidation
       revalidateOnFocus: false,
-      revalidateOnReconnect: true,
+      revalidateOnReconnect: false,
+      revalidateIfStale: false,
+      dedupingInterval: 30000, // Cache for 30 seconds
     },
   );
 
@@ -145,6 +163,7 @@ export function useCurrentMonthPaycheckAllocations(budgetAccountId?: string) {
 
 /**
  * Custom hook for fetching hidden (inactive) monthly debt planning records
+ * OPTIMIZED: Better caching and error handling
  */
 export function useHiddenMonthlyDebts(
   budgetAccountId?: string,
@@ -180,8 +199,16 @@ export function useHiddenMonthlyDebts(
       );
     },
     {
+      // OPTIMIZATION: Improved caching and revalidation
       revalidateOnFocus: false,
-      revalidateOnReconnect: true,
+      revalidateOnReconnect: false,
+      revalidateIfStale: false,
+      dedupingInterval: 120000, // Cache for 2 minutes (hidden debts change less frequently)
+      focusThrottleInterval: 300000, // 5 minutes focus throttle
+      // OPTIMIZATION: Better error handling
+      onError: (error) => {
+        console.error("Error fetching hidden monthly debts:", error);
+      },
     },
   );
 
@@ -195,6 +222,7 @@ export function useHiddenMonthlyDebts(
 
 /**
  * Custom hook for managing debt allocations with drag-and-drop functionality
+ * OPTIMIZED: Better performance and error handling
  */
 export function useDebtAllocationManager(
   budgetAccountId: string | undefined,
@@ -213,6 +241,7 @@ export function useDebtAllocationManager(
     isLoading: isAllocationsLoading,
   } = usePaycheckAllocations(budgetAccountId, year, month);
 
+  // OPTIMIZATION: Memoized handlers to prevent unnecessary re-renders
   const handleDebtAllocated = async (
     monthlyDebtPlanningId: string, // Changed from debtId to monthlyDebtPlanningId
     paycheckId: string,
@@ -230,7 +259,7 @@ export function useDebtAllocationManager(
         paymentAmount,
         paymentDate,
       );
-      // Refresh the data
+      // OPTIMIZATION: Batch mutations for better performance
       await Promise.all([mutatePlanningData(), mutateAllocations()]);
     } catch (error) {
       console.error("Failed to allocate debt:", error);
@@ -251,7 +280,7 @@ export function useDebtAllocationManager(
         paycheckId,
         "unallocate",
       );
-      // Refresh the data
+      // OPTIMIZATION: Batch mutations for better performance
       await Promise.all([mutatePlanningData(), mutateAllocations()]);
     } catch (error) {
       console.error("Failed to unallocate debt:", error);

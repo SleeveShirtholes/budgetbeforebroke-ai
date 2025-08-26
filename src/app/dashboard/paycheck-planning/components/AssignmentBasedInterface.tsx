@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { format, addMonths } from "date-fns";
 import {
   CalendarDaysIcon,
@@ -68,8 +68,9 @@ interface AssignmentBasedInterfaceProps {
 /**
  * Assignment-based interface for paycheck planning
  * Replaces drag-and-drop with simple assignment controls
+ * OPTIMIZED: Added memoization and performance improvements
  */
-export default function AssignmentBasedInterface({
+const AssignmentBasedInterface = memo(function AssignmentBasedInterface({
   paychecks,
   allocations,
   unallocatedDebts,
@@ -372,7 +373,8 @@ export default function AssignmentBasedInterface({
     [hiddenDebts, computeStatus],
   );
 
-  const handleDebtAssignment = async (
+  // OPTIMIZATION: Memoize expensive computations and handlers
+  const handleDebtAssignment = useCallback(async (
     monthlyDebtPlanningId: string, // Changed from debtId to monthlyDebtPlanningId
     paycheckId: string,
     paymentAmount?: number,
@@ -423,7 +425,7 @@ export default function AssignmentBasedInterface({
         error instanceof Error ? error.message : "Failed to assign debt",
       );
     }
-  };
+  }, [filteredDebts, groupedPaychecks, onDebtAllocated, editingDebt]);
 
   const handleDebtHidden = useCallback(
     async (monthlyDebtPlanningId: string) => {
@@ -522,7 +524,8 @@ export default function AssignmentBasedInterface({
     }
   };
 
-  const handleDebtRemoval = async (debtId: string) => {
+  // OPTIMIZATION: Memoize debt removal to prevent unnecessary re-creation
+  const handleDebtRemoval = useCallback(async (debtId: string) => {
     try {
       // Find which paycheck this debt is allocated to
       const allocation = allocations.find((a) =>
@@ -540,9 +543,10 @@ export default function AssignmentBasedInterface({
       // Re-throw the error so the calling code can handle it
       throw error;
     }
-  };
+  }, [allocations, onDebtUnallocated]);
 
-  const getDebtsForPaycheck = (paycheckId: string) => {
+  // OPTIMIZATION: Memoize debts for paycheck to prevent recalculation
+  const getDebtsForPaycheck = useCallback((paycheckId: string) => {
     // If it's a grouped paycheck, get all allocations for all paychecks in the group
     if (paycheckId.startsWith("group-")) {
       const groupIndex = parseInt(paycheckId.replace("group-", ""));
@@ -566,7 +570,7 @@ export default function AssignmentBasedInterface({
     return allocations.filter(
       (allocation) => allocation.paycheckId === paycheckId,
     );
-  };
+  }, [groupedPaychecks, allocations]);
 
   return (
     <div className="space-y-6">
@@ -1515,4 +1519,6 @@ export default function AssignmentBasedInterface({
       )}
     </div>
   );
-}
+});
+
+export default AssignmentBasedInterface;

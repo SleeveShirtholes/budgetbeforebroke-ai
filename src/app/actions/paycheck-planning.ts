@@ -190,8 +190,7 @@ export async function getHiddenMonthlyDebtPlanningData(
 
 /**
  * Get paycheck planning data for a specific month with planning window
- * SIMPLE APPROACH: For each debt, create entries for current month + planning window months
- * Only include months that are after or equal to the debt's startDate
+ * OPTIMIZED: Reduce database queries and improve performance
  */
 export async function getPaycheckPlanningData(
   budgetAccountId: string,
@@ -219,12 +218,39 @@ export async function getPaycheckPlanningData(
     throw new Error("Access denied to budget account");
   }
 
-  // Get all income sources for the budget account
-  const incomeSourcesList = await db.query.incomeSources.findMany({
-    where: eq(incomeSources.userId, sessionResult.user.id),
-  });
+  // OPTIMIZATION: Run all database queries in parallel
+  const startDate = new Date(year, month - 1, 1);
+  const endYear = year + Math.floor((month + planningWindowMonths - 1) / 12);
+  const endMonth = ((month + planningWindowMonths - 1) % 12) + 1; // 1-12
+  const endDate = new Date(endYear, endMonth, 0); // last day of end month
 
-  // Calculate paycheck dates for the current month
+  const toYmd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`;
+
+  // OPTIMIZATION: Execute all queries in parallel instead of sequentially
+  const [incomeSourcesList, allDebts, monthlyPlanningRecords] = await Promise.all([
+    db.query.incomeSources.findMany({
+      where: eq(incomeSources.userId, sessionResult.user.id),
+    }),
+    db.query.debts.findMany({
+      where: eq(debts.budgetAccountId, budgetAccountId),
+    }),
+    db.query.monthlyDebtPlanning.findMany({
+      where: and(
+        eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
+        eq(monthlyDebtPlanning.isActive, true),
+        gte(monthlyDebtPlanning.dueDate, toYmd(startDate)),
+        lte(monthlyDebtPlanning.dueDate, toYmd(endDate)),
+      ),
+    }),
+  ]);
+
+  // OPTIMIZATION: Pre-create debt lookup map for O(1) access
+  const debtLookup = new Map(allDebts.map(debt => [debt.id, debt]));
+
+  // Calculate paycheck dates for the current month (optimized calculation)
   const paychecks: PaycheckInfo[] = [];
 
   for (const incomeSource of incomeSourcesList) {
@@ -236,20 +262,32 @@ export async function getPaycheckPlanningData(
     // Calculate paychecks for this month based on frequency
     let paycheckDate = new Date(startDate);
 
-    // Find the first paycheck date in or after the month
-    while (
-      paycheckDate.getFullYear() < year ||
-      (paycheckDate.getFullYear() === year &&
-        paycheckDate.getMonth() < month - 1)
-    ) {
+    // OPTIMIZATION: Use more efficient date calculation
+    const targetMonthStart = new Date(year, month - 1, 1);
+    const targetMonthEnd = new Date(year, month, 0);
+    
+    // Fast-forward to the target month more efficiently
+    if (paycheckDate < targetMonthStart) {
+      const daysBetween = Math.floor((targetMonthStart.getTime() - paycheckDate.getTime()) / (24 * 60 * 60 * 1000));
+      
       if (incomeSource.frequency === "weekly") {
-        paycheckDate = new Date(
-          paycheckDate.getTime() + 7 * 24 * 60 * 60 * 1000,
-        );
+        const weeksBetween = Math.floor(daysBetween / 7);
+        paycheckDate = new Date(paycheckDate.getTime() + weeksBetween * 7 * 24 * 60 * 60 * 1000);
       } else if (incomeSource.frequency === "bi-weekly") {
-        paycheckDate = new Date(
-          paycheckDate.getTime() + 14 * 24 * 60 * 60 * 1000,
-        );
+        const biWeeksBetween = Math.floor(daysBetween / 14);
+        paycheckDate = new Date(paycheckDate.getTime() + biWeeksBetween * 14 * 24 * 60 * 60 * 1000);
+      } else if (incomeSource.frequency === "monthly") {
+        const monthsBetween = (year - startYear) * 12 + (month - 1 - (startMonth - 1));
+        paycheckDate = new Date(startYear, startMonth - 1 + monthsBetween, startDay);
+      }
+    }
+
+    // Find the first paycheck date in or after the month
+    while (paycheckDate < targetMonthStart) {
+      if (incomeSource.frequency === "weekly") {
+        paycheckDate = new Date(paycheckDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      } else if (incomeSource.frequency === "bi-weekly") {
+        paycheckDate = new Date(paycheckDate.getTime() + 14 * 24 * 60 * 60 * 1000);
       } else if (incomeSource.frequency === "monthly") {
         paycheckDate = new Date(
           paycheckDate.getFullYear(),
@@ -260,10 +298,7 @@ export async function getPaycheckPlanningData(
     }
 
     // Add paychecks for this month
-    while (
-      paycheckDate.getFullYear() === year &&
-      paycheckDate.getMonth() === month - 1
-    ) {
+    while (paycheckDate <= targetMonthEnd) {
       paychecks.push({
         id: `${incomeSource.id}-${paycheckDate.getTime()}`,
         name: incomeSource.name,
@@ -275,13 +310,9 @@ export async function getPaycheckPlanningData(
 
       // Move to next paycheck
       if (incomeSource.frequency === "weekly") {
-        paycheckDate = new Date(
-          paycheckDate.getTime() + 7 * 24 * 60 * 60 * 1000,
-        );
+        paycheckDate = new Date(paycheckDate.getTime() + 7 * 24 * 60 * 60 * 1000);
       } else if (incomeSource.frequency === "bi-weekly") {
-        paycheckDate = new Date(
-          paycheckDate.getTime() + 14 * 24 * 60 * 60 * 1000,
-        );
+        paycheckDate = new Date(paycheckDate.getTime() + 14 * 24 * 60 * 60 * 1000);
       } else if (incomeSource.frequency === "monthly") {
         paycheckDate = new Date(
           paycheckDate.getFullYear(),
@@ -295,68 +326,33 @@ export async function getPaycheckPlanningData(
   // Sort paychecks by date
   paychecks.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // Get all debts for the budget account
-  const allDebts = await db.query.debts.findMany({
-    where: eq(debts.budgetAccountId, budgetAccountId),
-  });
+  // OPTIMIZATION: Process monthly planning records more efficiently
+  const allDebtEntries: DebtInfo[] = monthlyPlanningRecords
+    .map((monthlyRecord) => {
+      const debt = debtLookup.get(monthlyRecord.debtId);
+      if (!debt) return null;
 
-  // Get monthly debt planning records for the current planning window.
-  // Simpler and less error-prone: filter by dueDate between start and end.
-  const startDate = new Date(year, month - 1, 1);
-  const endYear = year + Math.floor((month + planningWindowMonths - 1) / 12);
-  const endMonth = ((month + planningWindowMonths - 1) % 12) + 1; // 1-12
-  const endDate = new Date(endYear, endMonth, 0); // last day of end month
-
-  const toYmd = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate(),
-    ).padStart(2, "0")}`;
-
-  const monthlyPlanningRecords = await db.query.monthlyDebtPlanning.findMany({
-    where: and(
-      eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
-      eq(monthlyDebtPlanning.isActive, true),
-      gte(monthlyDebtPlanning.dueDate, toYmd(startDate)),
-      lte(monthlyDebtPlanning.dueDate, toYmd(endDate)),
-    ),
-  });
-
-  // Convert monthly planning records to DebtInfo format
-  const allDebtEntries: DebtInfo[] = [];
-
-  for (const monthlyRecord of monthlyPlanningRecords) {
-    // Find the corresponding debt
-    const debt = allDebts.find((d) => d.id === monthlyRecord.debtId);
-    if (!debt) {
-      continue;
-    }
-
-    allDebtEntries.push({
-      id: monthlyRecord.id, // Use the monthly planning ID
-      name: debt.name,
-      amount: Number(debt.paymentAmount),
-      dueDate: monthlyRecord.dueDate, // dueDate is already a string
-      frequency: "monthly", // Default to monthly for monthly planning records
-      description: debt.name, // Use debt name as description
-      isRecurring: true, // Monthly planning records are recurring
-      categoryId: debt.categoryId || undefined,
-    });
-  }
-
-  // Note: We intentionally removed the synthetic fallback to ensure
-  // all debts shown come from monthly_debt_planning records only.
+      return {
+        id: monthlyRecord.id, // Use the monthly planning ID
+        name: debt.name,
+        amount: Number(debt.paymentAmount),
+        dueDate: monthlyRecord.dueDate, // dueDate is already a string
+        frequency: "monthly", // Default to monthly for monthly planning records
+        description: debt.name, // Use debt name as description
+        isRecurring: true, // Monthly planning records are recurring
+        categoryId: debt.categoryId || undefined,
+      };
+    })
+    .filter((entry): entry is DebtInfo => entry !== null);
 
   // Use the debt entries we found/created
   const processedDebts = allDebtEntries;
 
-  // Generate simple warnings
+  // OPTIMIZATION: Simplify warning generation for now (can be enhanced later)
   const warnings: PaycheckWarning[] = [];
 
-  // Check for insufficient funds
-  const totalIncome = paychecks.reduce(
-    (sum, paycheck) => sum + paycheck.amount,
-    0,
-  );
+  // Quick check for insufficient funds
+  const totalIncome = paychecks.reduce((sum, paycheck) => sum + paycheck.amount, 0);
   const totalDebts = processedDebts.reduce((sum, debt) => sum + debt.amount, 0);
 
   if (totalDebts > totalIncome) {
@@ -427,6 +423,7 @@ export async function dismissWarning(
 
 /**
  * Get paycheck allocations for a specific month
+ * OPTIMIZED: Reduce database queries and improve data processing efficiency
  */
 export async function getPaycheckAllocations(
   budgetAccountId: string,
@@ -441,35 +438,44 @@ export async function getPaycheckAllocations(
     throw new Error("User not authenticated");
   }
 
+  // OPTIMIZATION: Get planning data first (which is already optimized)
   const data = await getPaycheckPlanningData(budgetAccountId, year, month);
-  const storedAllocations = await getDebtAllocations(budgetAccountId);
+  
+  // OPTIMIZATION: Fetch all required data in parallel
+  const [storedAllocations, allDebts, monthlyPlanningRecords] = await Promise.all([
+    getDebtAllocations(budgetAccountId),
+    db.query.debts.findMany({
+      where: eq(debts.budgetAccountId, budgetAccountId),
+    }),
+    db.query.monthlyDebtPlanning.findMany({
+      where: eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
+    })
+  ]);
 
-  // Get all original debts for the budget account to find original due dates
-  const allDebts = await db.query.debts.findMany({
-    where: eq(debts.budgetAccountId, budgetAccountId),
-  });
+  // OPTIMIZATION: Create lookup maps for O(1) access instead of O(n) array.find operations
+  const debtLookup = new Map(allDebts.map(debt => [debt.id, debt]));
+  const monthlyPlanningLookup = new Map(monthlyPlanningRecords.map(mp => [mp.id, mp]));
 
-  // Get monthly debt planning records to link allocations to debts
-  const monthlyPlanningRecords = await db.query.monthlyDebtPlanning.findMany({
-    where: eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
+  // OPTIMIZATION: Group allocations by paycheck ID for efficient processing
+  const allocationsByPaycheck = new Map<string, typeof storedAllocations>();
+  storedAllocations.forEach(allocation => {
+    if (!allocationsByPaycheck.has(allocation.paycheckId)) {
+      allocationsByPaycheck.set(allocation.paycheckId, []);
+    }
+    allocationsByPaycheck.get(allocation.paycheckId)!.push(allocation);
   });
 
   // Create allocations based on stored data
   const allocations = data.paychecks.map((paycheck) => {
-    const paycheckAllocations = storedAllocations.filter(
-      (allocation) => allocation.paycheckId === paycheck.id,
-    );
+    const paycheckAllocations = allocationsByPaycheck.get(paycheck.id) || [];
 
     const allocatedDebts = paycheckAllocations
       .map((allocation) => {
-        // Find the monthly planning record for this allocation
-        const monthlyPlanning = monthlyPlanningRecords.find(
-          (mp) => mp.id === allocation.monthlyDebtPlanningId,
-        );
+        // OPTIMIZATION: Use lookup maps instead of array.find
+        const monthlyPlanning = monthlyPlanningLookup.get(allocation.monthlyDebtPlanningId);
         if (!monthlyPlanning) return null;
 
-        // Get the base debt information using the real debt id
-        const baseDebt = allDebts.find((d) => d.id === monthlyPlanning.debtId);
+        const baseDebt = debtLookup.get(monthlyPlanning.debtId);
         if (!baseDebt) return null;
 
         // The original due date comes from the base debt definition
