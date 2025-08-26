@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, gte, lte, or, gt, lt } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import {
   budgetAccountMembers,
   incomeSources,
@@ -62,6 +62,130 @@ export interface PaycheckAllocation {
     isPaid: boolean;
   }[];
   remainingAmount: number;
+}
+
+/**
+ * Toggle the active state of a monthly debt planning record (soft delete / restore).
+ * When inactive, the monthly debt instance is hidden from planning views but preserved in the database.
+ */
+export async function setMonthlyDebtPlanningActive(
+  budgetAccountId: string,
+  monthlyDebtPlanningId: string,
+  isActive: boolean,
+) {
+  // Ensure the user is authenticated
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult?.user) {
+    throw new Error("User not authenticated");
+  }
+
+  // Verify user has access to the budget account
+  const member = await db.query.budgetAccountMembers.findFirst({
+    where: and(
+      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
+      eq(budgetAccountMembers.userId, sessionResult.user.id),
+    ),
+  });
+
+  if (!member) {
+    throw new Error("Access denied to budget account");
+  }
+
+  // Update the record to set the active state
+  await db
+    .update(monthlyDebtPlanning)
+    .set({ isActive })
+    .where(
+      and(
+        eq(monthlyDebtPlanning.id, monthlyDebtPlanningId),
+        eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
+      ),
+    );
+
+  return { success: true };
+}
+
+/**
+ * Get hidden (inactive) monthly debt planning records for a time window.
+ * This mirrors the date filtering used for active debts but returns only isActive=false rows.
+ */
+export async function getHiddenMonthlyDebtPlanningData(
+  budgetAccountId: string,
+  year: number,
+  month: number,
+  planningWindowMonths: number = 0,
+) {
+  const sessionResult = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!sessionResult?.user) {
+    throw new Error("User not authenticated");
+  }
+
+  // Access check
+  const member = await db.query.budgetAccountMembers.findFirst({
+    where: and(
+      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
+      eq(budgetAccountMembers.userId, sessionResult.user.id),
+    ),
+  });
+
+  if (!member) {
+    throw new Error("Access denied to budget account");
+  }
+
+  // Compute window
+  const startDate = new Date(year, month - 1, 1);
+  const endYear = year + Math.floor((month + planningWindowMonths - 1) / 12);
+  const endMonth = ((month + planningWindowMonths - 1) % 12) + 1; // 1-12
+  const endDate = new Date(endYear, endMonth, 0); // last day of end month
+
+  const toYmd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate(),
+    ).padStart(2, "0")}`;
+
+  // Fetch debts and inactive monthly planning records
+  const allDebts = await db.query.debts.findMany({
+    where: eq(debts.budgetAccountId, budgetAccountId),
+  });
+
+  const hiddenMonthlyRecords = await db.query.monthlyDebtPlanning.findMany({
+    where: and(
+      eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
+      eq(monthlyDebtPlanning.isActive, false),
+      gte(monthlyDebtPlanning.dueDate, toYmd(startDate)),
+      lte(monthlyDebtPlanning.dueDate, toYmd(endDate)),
+    ),
+  });
+
+  // Map to DebtInfo shape, consistent with getPaycheckPlanningData
+  const hiddenDebtEntries: DebtInfo[] = [];
+  for (const monthlyRecord of hiddenMonthlyRecords) {
+    const debt = allDebts.find((d) => d.id === monthlyRecord.debtId);
+    if (!debt) {
+      console.warn(
+        `Monthly record with id '${monthlyRecord.id}' references non-existent debt id '${monthlyRecord.debtId}' in budgetAccountId '${budgetAccountId}'.`,
+      );
+      continue;
+    }
+    hiddenDebtEntries.push({
+      id: monthlyRecord.id,
+      name: debt.name,
+      amount: Number(debt.paymentAmount),
+      dueDate: monthlyRecord.dueDate,
+      frequency: "monthly",
+      description: debt.name,
+      isRecurring: true,
+      categoryId: debt.categoryId || undefined,
+    });
+  }
+
+  return hiddenDebtEntries;
 }
 
 /**
@@ -203,7 +327,9 @@ export async function getPaycheckPlanningData(
   for (const monthlyRecord of monthlyPlanningRecords) {
     // Find the corresponding debt
     const debt = allDebts.find((d) => d.id === monthlyRecord.debtId);
-    if (!debt) continue;
+    if (!debt) {
+      continue;
+    }
 
     allDebtEntries.push({
       id: monthlyRecord.id, // Use the monthly planning ID
@@ -562,6 +688,7 @@ export async function getCurrentMonthPaycheckAllocations(
 /**
  * Populate monthly debt planning table with current debts
  * This function creates monthly planning records for existing debts
+ * It also checks if debts have already been allocated to different months to prevent duplication
  */
 export async function populateMonthlyDebtPlanning(
   budgetAccountId: string,
@@ -594,60 +721,50 @@ export async function populateMonthlyDebtPlanning(
     where: eq(debts.budgetAccountId, budgetAccountId),
   });
 
-  // Preload existing records for the account in the window to avoid per-row queries
-  const windowStartYear = year;
-  const windowStartMonth = month;
-  const windowEndYear =
-    year + Math.floor((month + planningWindowMonths - 1) / 12);
-  const windowEndMonth = ((month + planningWindowMonths - 1) % 12) + 1;
-
-  const existingInWindow = await db.query.monthlyDebtPlanning.findMany({
-    where: and(
-      eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
-      // start boundary (>= start year and month)
-      or(
-        gt(monthlyDebtPlanning.year, windowStartYear),
-        and(
-          eq(monthlyDebtPlanning.year, windowStartYear),
-          gte(monthlyDebtPlanning.month, windowStartMonth),
-        ),
-      ),
-      // end boundary (<= end year and month)
-      or(
-        lt(monthlyDebtPlanning.year, windowEndYear),
-        and(
-          eq(monthlyDebtPlanning.year, windowEndYear),
-          lte(monthlyDebtPlanning.month, windowEndMonth),
-        ),
-      ),
-    ),
+  // Get ALL existing monthly debt planning records for this budget account
+  // This ensures we don't create duplicates even if they exist outside the current window
+  const allExistingRecords = await db.query.monthlyDebtPlanning.findMany({
+    where: eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
   });
 
   // Index existing by debtId-year-month
   const existingKey = new Set(
-    existingInWindow.map((r) => `${r.debtId}:${r.year}:${r.month}`),
+    allExistingRecords.map((r) => `${r.debtId}:${r.year}:${r.month}`),
   );
 
   // Create monthly planning records for each debt within the window if missing
-  for (const debt of allDebts) {
-    const [debtStartYear, debtStartMonth] = debt.dueDate.split("-").map(Number);
 
+  for (const debt of allDebts) {
     for (
       let monthOffset = 0;
       monthOffset <= planningWindowMonths;
       monthOffset++
     ) {
-      const targetYear = year + Math.floor((month + monthOffset - 1) / 12);
-      const targetMonth = ((month + monthOffset - 1) % 12) + 1;
+      // Calculate the target month by adding the offset to the current month
+      let targetYear = year;
+      let targetMonth = month + monthOffset;
 
-      // Only include this month if it's after or equal to the debt's start date
-      if (
-        targetYear > debtStartYear ||
-        (targetYear === debtStartYear && targetMonth >= debtStartMonth)
-      ) {
+      // Handle year transitions when month goes beyond 12
+      if (targetMonth > 12) {
+        targetYear = year + Math.floor((targetMonth - 1) / 12);
+        targetMonth = ((targetMonth - 1) % 12) + 1;
+      }
+
+      // Parse the debt's due date to get the year and month when this debt should start appearing
+      const [debtYear, debtMonth] = debt.dueDate.split("-").map(Number);
+
+      // Only create records for months that are on or after the debt's due date
+      // This ensures debts don't appear in months before they're actually due
+      const shouldInclude =
+        targetYear > debtYear ||
+        (targetYear === debtYear && targetMonth >= debtMonth);
+
+      if (shouldInclude) {
         const key = `${debt.id}:${targetYear}:${targetMonth}`;
+
+        // Skip if already present in this window
         if (existingKey.has(key)) {
-          continue; // already present in this window
+          continue;
         }
 
         // Calculate the due date for this month (keep the same day of month)
@@ -665,10 +782,26 @@ export async function populateMonthlyDebtPlanning(
           });
           existingKey.add(key);
         } catch (error) {
-          console.error(
-            `Failed to create monthly planning record for ${debt.name} ${targetYear}-${targetMonth}:`,
-            error,
-          );
+          // Check if it's a unique constraint violation (record already exists)
+          if (
+            error instanceof Error &&
+            // Use error code or error class for unique constraint violation
+            // Drizzle ORM: error.code for unique constraint violation (e.g., 'SQLITE_CONSTRAINT_UNIQUE', '23505' for Postgres)
+            error &&
+            typeof error === "object" &&
+            "code" in error &&
+            (error.code === "SQLITE_CONSTRAINT_UNIQUE" || // SQLite
+              error.code === "23505") // Postgres
+          ) {
+            existingKey.add(key);
+          } else {
+            // Log other errors for debugging
+            console.error(
+              "Error inserting monthly debt planning record:",
+              error,
+            );
+            throw error;
+          }
         }
       }
     }

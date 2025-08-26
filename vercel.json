@@ -1,5 +1,5 @@
 {
-  "buildCommand": "chmod +x scripts/build-prod.sh && ./scripts/build-prod.sh",
+  "buildCommand": "yarn build:prod",
   "outputDirectory": ".next",
   "framework": "nextjs"
 }

@@ -40,6 +40,7 @@ interface AssignmentBasedInterfaceProps {
   paychecks: PaycheckInfo[];
   allocations: PaycheckAllocation[];
   unallocatedDebts: MonthlyDebtRecord[];
+  hiddenDebts: MonthlyDebtRecord[];
   currentYear: number;
   currentMonth: number;
   planningWindowMonths: number;
@@ -53,6 +54,8 @@ interface AssignmentBasedInterfaceProps {
     monthlyDebtPlanningId: string,
     paycheckId: string,
   ) => Promise<void>;
+  onDebtHidden: (monthlyDebtPlanningId: string) => Promise<void>;
+  onDebtRestored: (monthlyDebtPlanningId: string) => Promise<void>;
 
   onMarkPaymentAsPaid?: (
     monthlyDebtPlanningId: string, // Changed from debtId to monthlyDebtPlanningId
@@ -70,11 +73,14 @@ export default function AssignmentBasedInterface({
   paychecks,
   allocations,
   unallocatedDebts,
+  hiddenDebts,
   currentYear,
   currentMonth,
   planningWindowMonths,
   onDebtAllocated,
   onDebtUnallocated,
+  onDebtHidden,
+  onDebtRestored,
   onMarkPaymentAsPaid,
 }: AssignmentBasedInterfaceProps) {
   const [editingDebt, setEditingDebt] = useState<{
@@ -93,6 +99,9 @@ export default function AssignmentBasedInterface({
   const [paidAmount, setPaidAmount] = useState("");
   const [paidDate, setPaidDate] = useState("");
   const [isMarkingAsPaid, setIsMarkingAsPaid] = useState(false);
+  const [isSkippedDebtsModalOpen, setIsSkippedDebtsModalOpen] = useState(false);
+  const [skippingDebts, setSkippingDebts] = useState<Set<string>>(new Set());
+  const [restoringDebts, setRestoringDebts] = useState<Set<string>>(new Set());
 
   // Define table columns for the custom Table component
   // Note: column keys must match raw data field names for sorting/search to work
@@ -186,6 +195,7 @@ export default function AssignmentBasedInterface({
       header: "Assign to Paycheck",
       sortable: false,
       filterable: false,
+      width: "w-48",
       accessor: (row) => {
         const debt = row as unknown as MonthlyDebtRecord;
         return (
@@ -202,6 +212,28 @@ export default function AssignmentBasedInterface({
             ]}
             fullWidth={false}
           />
+        );
+      },
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      sortable: false,
+      filterable: false,
+      width: "w-24",
+      accessor: (row) => {
+        const debt = row as unknown as MonthlyDebtRecord;
+        return (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDebtHidden(debt.id)}
+            disabled={skippingDebts.has(debt.id)}
+            isLoading={skippingDebts.has(debt.id)}
+            className="text-gray-600 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+          >
+            Skip
+          </Button>
         );
       },
     },
@@ -228,18 +260,12 @@ export default function AssignmentBasedInterface({
       )
         .toISOString()
         .split("T")[0];
-      console.log(
-        `📅 Processing paycheck: ${paycheck.name} - Date: ${paycheck.date} - DateKey: ${dateKey}`,
-      );
 
       if (groups.has(dateKey)) {
         const group = groups.get(dateKey)!;
         group.paychecks.push(paycheck);
         group.totalAmount += paycheck.amount;
         group.names.push(paycheck.name);
-        console.log(
-          `✅ Added to existing group ${dateKey}, total amount now: ${group.totalAmount}`,
-        );
       } else {
         groups.set(dateKey, {
           paychecks: [paycheck],
@@ -247,22 +273,11 @@ export default function AssignmentBasedInterface({
           date: paycheck.date,
           names: [paycheck.name],
         });
-        console.log(`🆕 Created new group ${dateKey} for ${paycheck.name}`);
       }
     });
 
     const result = Array.from(groups.values()).sort(
       (a, b) => a.date.getTime() - b.date.getTime(),
-    );
-    console.log(
-      "🎯 FINAL GROUPED RESULT:",
-      result.map((g) => ({
-        date: g.date,
-        dateString: g.date.toISOString(),
-        names: g.names,
-        totalAmount: g.totalAmount,
-        paycheckCount: g.paychecks.length,
-      })),
     );
 
     return result;
@@ -275,17 +290,6 @@ export default function AssignmentBasedInterface({
       // Store the grouped paycheck info for display in cards
       group,
     }));
-
-    console.log(
-      "🎨 PAYCHECK OPTIONS FOR RENDERING:",
-      options.map((o) => ({
-        value: o.value,
-        label: o.label,
-        groupDate: o.group.date,
-        groupNames: o.group.names,
-        groupAmount: o.group.totalAmount,
-      })),
-    );
 
     return options;
   }, [groupedPaychecks]);
@@ -362,6 +366,12 @@ export default function AssignmentBasedInterface({
     [filteredDebts, computeStatus],
   );
 
+  // Pre-compute status for all hidden debts to avoid repeated function calls
+  const hiddenDebtsWithStatus = useMemo(
+    () => hiddenDebts.map((debt) => ({ ...debt, status: computeStatus(debt) })),
+    [hiddenDebts, computeStatus],
+  );
+
   const handleDebtAssignment = async (
     monthlyDebtPlanningId: string, // Changed from debtId to monthlyDebtPlanningId
     paycheckId: string,
@@ -414,6 +424,46 @@ export default function AssignmentBasedInterface({
       );
     }
   };
+
+  const handleDebtHidden = useCallback(
+    async (monthlyDebtPlanningId: string) => {
+      try {
+        setSkippingDebts((prev) => new Set(prev).add(monthlyDebtPlanningId));
+        await onDebtHidden(monthlyDebtPlanningId);
+      } catch (error) {
+        console.error("Error hiding debt:", error);
+        setErrorMessage("Failed to skip debt. Please try again.");
+      } finally {
+        setSkippingDebts((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(monthlyDebtPlanningId);
+          return newSet;
+        });
+      }
+    },
+    [onDebtHidden],
+  );
+
+  const handleDebtRestored = useCallback(
+    async (monthlyDebtPlanningId: string) => {
+      try {
+        setRestoringDebts((prev) => new Set(prev).add(monthlyDebtPlanningId));
+        await onDebtRestored(monthlyDebtPlanningId);
+        // Close the modal after successful restoration
+        setIsSkippedDebtsModalOpen(false);
+      } catch (error) {
+        console.error("Error restoring debt:", error);
+        setErrorMessage("Failed to restore debt. Please try again.");
+      } finally {
+        setRestoringDebts((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(monthlyDebtPlanningId);
+          return newSet;
+        });
+      }
+    },
+    [onDebtRestored],
+  );
 
   const handleBulkAssignment = async () => {
     // Clear any previous error messages
@@ -493,33 +543,26 @@ export default function AssignmentBasedInterface({
   };
 
   const getDebtsForPaycheck = (paycheckId: string) => {
-    console.log(`🔍 getDebtsForPaycheck called with: ${paycheckId}`);
-
     // If it's a grouped paycheck, get all allocations for all paychecks in the group
     if (paycheckId.startsWith("group-")) {
       const groupIndex = parseInt(paycheckId.replace("group-", ""));
       const group = groupedPaychecks[groupIndex];
-      console.log(`📊 Group index: ${groupIndex}, group:`, group);
 
       if (!group) {
-        console.log("❌ No group found, returning empty array");
         return [];
       }
 
       // Get all paycheck IDs in this group
       const groupPaycheckIds = group.paychecks.map((p) => p.id);
-      console.log(`🆔 Group paycheck IDs:`, groupPaycheckIds);
 
       // Return all allocations for any paycheck in this group
       const result = allocations.filter((allocation) =>
         groupPaycheckIds.includes(allocation.paycheckId),
       );
-      console.log(`📋 Found ${result.length} allocations for group`);
       return result;
     }
 
     // For individual paychecks (fallback)
-    console.log(`🔍 Using fallback for individual paycheck: ${paycheckId}`);
     return allocations.filter(
       (allocation) => allocation.paycheckId === paycheckId,
     );
@@ -543,7 +586,7 @@ export default function AssignmentBasedInterface({
             </p>
           </div>
 
-          {/* Time Range Indicator - Far Right */}
+          {/* Time Range Indicator */}
           <div className="flex-shrink-0">
             <span className="px-3 py-2 bg-blue-100 text-blue-800 text-sm font-medium rounded-lg border border-blue-200">
               {timeRange}
@@ -631,7 +674,7 @@ export default function AssignmentBasedInterface({
                     {filteredDebts.map((debt) => {
                       const isSelected = selectedDebts.has(debt.id);
 
-                      // CLIENT-SIDE APPROACH: Always check if debt is due in a future month relative to the month being viewed
+                      // Check if debt is due in a future month relative to the current month being viewed
                       const [debtYearStr, debtMonthStr] =
                         debt.dueDate.split("-");
                       const debtYear = parseInt(debtYearStr, 10);
@@ -724,18 +767,30 @@ export default function AssignmentBasedInterface({
 
                           {/* Mobile Paycheck Assignment - Always visible for better UX */}
                           <div className="mt-3 pt-3 border-t border-gray-200">
-                            <CustomSelect
-                              value=""
-                              onChange={(paycheckId) => {
-                                if (paycheckId) {
-                                  handleDebtAssignment(debt.id, paycheckId);
-                                }
-                              }}
-                              options={[
-                                { value: "", label: "Select paycheck..." },
-                                ...paycheckOptions,
-                              ]}
-                            />
+                            <div className="flex items-center gap-2">
+                              <CustomSelect
+                                value=""
+                                onChange={(paycheckId) => {
+                                  if (paycheckId) {
+                                    handleDebtAssignment(debt.id, paycheckId);
+                                  }
+                                }}
+                                options={[
+                                  { value: "", label: "Select paycheck..." },
+                                  ...paycheckOptions,
+                                ]}
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDebtHidden(debt.id)}
+                                disabled={skippingDebts.has(debt.id)}
+                                isLoading={skippingDebts.has(debt.id)}
+                                className="text-gray-600 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                              >
+                                Skip
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -743,6 +798,24 @@ export default function AssignmentBasedInterface({
                   </div>
                 </>
               )}
+
+              {/* Action Buttons Row */}
+              <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-200">
+                {/* View Skipped Debts Button */}
+                {hiddenDebts && hiddenDebts.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsSkippedDebtsModalOpen(true)}
+                    className="text-gray-600 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                  >
+                    View Skipped ({hiddenDebts.length})
+                  </Button>
+                )}
+
+                {/* Spacer to push button to the left */}
+                <div className="flex-1"></div>
+              </div>
 
               {/* Bulk Assignment Controls - Optional for multiple selections */}
               {selectedDebts.size > 0 && (
@@ -824,16 +897,6 @@ export default function AssignmentBasedInterface({
               0,
             );
             const remaining = group.totalAmount - totalAllocated;
-
-            console.log(`🎨 RENDERING PAYCHECK CARD:`, {
-              optionValue: option.value,
-              groupDate: group.date,
-              groupNames: group.names,
-              groupAmount: group.totalAmount,
-              allocations: paycheckAllocations.length,
-              totalAllocated,
-              remaining,
-            });
 
             return (
               <Card
@@ -1251,6 +1314,202 @@ export default function AssignmentBasedInterface({
                 cannot be undone.
               </p>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Skipped Debts Modal */}
+      {isSkippedDebtsModalOpen && (
+        <Modal
+          isOpen={isSkippedDebtsModalOpen}
+          onClose={() => setIsSkippedDebtsModalOpen(false)}
+          title="Skipped Debts"
+        >
+          <div className="space-y-4">
+            {hiddenDebts && hiddenDebts.length > 0 ? (
+              <>
+                <div className="text-sm text-gray-600 mb-4">
+                  {hiddenDebts.length} debt{hiddenDebts.length !== 1 ? "s" : ""}{" "}
+                  skipped for this planning period. You can restore any of these
+                  debts back to your planning.
+                </div>
+
+                {/* Mobile: List View */}
+                <div className="lg:hidden space-y-3">
+                  {hiddenDebts.map((debt) => {
+                    const [debtYearStr, debtMonthStr] = debt.dueDate.split("-");
+                    const debtYear = parseInt(debtYearStr, 10);
+                    const debtMonth = parseInt(debtMonthStr, 10);
+
+                    const isFutureDebt =
+                      debtYear > currentYear ||
+                      (debtYear === currentYear && debtMonth > currentMonth);
+                    const isPastDue =
+                      debtYear < currentYear ||
+                      (debtYear === currentYear && debtMonth < currentMonth);
+
+                    let monthsAhead = 0;
+                    if (isFutureDebt) {
+                      monthsAhead =
+                        (debtYear - currentYear) * 12 +
+                        (debtMonth - currentMonth);
+                    }
+
+                    return (
+                      <div
+                        key={debt.id}
+                        className="bg-gray-50 border border-gray-200 rounded-lg p-4"
+                      >
+                        <div className="flex items-center gap-4">
+                          {/* Debt Info */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <h3 className="text-sm font-medium text-gray-900 truncate">
+                                {debt.debtName}
+                              </h3>
+                              {/* Status Badge */}
+                              {isPastDue && (
+                                <span className="inline-flex items-center whitespace-nowrap max-w-max flex-shrink-0 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1 shadow-sm ml-2">
+                                  Past Due
+                                </span>
+                              )}
+                              {isFutureDebt && monthsAhead === 1 && (
+                                <span className="inline-flex items-center whitespace-nowrap max-w-max flex-shrink-0 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2 py-1 shadow-sm ml-2">
+                                  Next Month
+                                </span>
+                              )}
+                              {isFutureDebt && monthsAhead > 1 && (
+                                <span className="inline-flex items-center whitespace-nowrap max-w-max flex-shrink-0 text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md px-2 py-1 shadow-sm ml-2">
+                                  {monthsAhead} Months Ahead
+                                </span>
+                              )}
+                              {!isPastDue && !isFutureDebt && (
+                                <span className="inline-flex items-center whitespace-nowrap max-w-max flex-shrink-0 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-md px-2 py-1 shadow-sm ml-2">
+                                  Current Month
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <CalendarDaysIcon className="h-3 w-3" />
+                                {formatDateSafely(debt.dueDate, "MMM dd, yyyy")}
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900">
+                                ${debt.amount.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Restore Button */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDebtRestored(debt.id)}
+                            disabled={restoringDebts.has(debt.id)}
+                            isLoading={restoringDebts.has(debt.id)}
+                            className="text-green-600 border-green-300 hover:bg-green-50 hover:border-green-400"
+                          >
+                            Restore
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop: Table View */}
+                <div className="hidden lg:block">
+                  <table className="w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
+                          Name
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          Due Date
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                          Amount
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
+                          Status
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {hiddenDebtsWithStatus.map((debt) => {
+                        const status = debt.status;
+                        return (
+                          <tr key={debt.id} className="hover:bg-gray-50">
+                            <td className="px-3 py-4">
+                              <span className="text-sm font-medium text-gray-900 truncate block">
+                                {debt.debtName}
+                              </span>
+                            </td>
+                            <td className="px-3 py-4">
+                              <span className="text-sm text-gray-600">
+                                {formatDateSafely(debt.dueDate, "MMM dd, yyyy")}
+                              </span>
+                            </td>
+                            <td className="px-3 py-4">
+                              <span className="text-sm font-semibold text-gray-900">
+                                ${debt.amount.toLocaleString()}
+                              </span>
+                            </td>
+                            <td className="px-3 py-4">
+                              {status === "Past Due" && (
+                                <span className="inline-flex items-center px-2 py-1 bg-red-50 border border-red-200 rounded-md text-xs font-medium text-red-700 shadow-sm">
+                                  {status}
+                                </span>
+                              )}
+                              {status === "Next Month" && (
+                                <span className="inline-flex items-center px-2 py-1 bg-blue-50 border border-blue-200 rounded-md text-xs font-medium text-blue-700 shadow-sm">
+                                  {status}
+                                </span>
+                              )}
+                              {status.endsWith("Months Ahead") && (
+                                <span className="inline-flex items-center px-2 py-1 bg-purple-50 border border-purple-200 rounded-md text-xs font-medium text-purple-700 shadow-sm">
+                                  {status}
+                                </span>
+                              )}
+                              {(status === "Current Month" ||
+                                (!status.includes("Past Due") &&
+                                  !status.includes("Next Month") &&
+                                  !status.endsWith("Months Ahead"))) && (
+                                <span className="inline-flex items-center px-2 py-1 bg-green-50 border border-green-200 rounded-md text-xs font-medium text-green-700 shadow-sm">
+                                  {status || "Current Month"}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDebtRestored(debt.id)}
+                                disabled={restoringDebts.has(debt.id)}
+                                isLoading={restoringDebts.has(debt.id)}
+                                className="text-green-600 border-green-300 hover:bg-green-50 hover:border-green-400"
+                              >
+                                Restore
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">
+                  No skipped debts for this planning period.
+                </p>
+              </div>
+            )}
           </div>
         </Modal>
       )}

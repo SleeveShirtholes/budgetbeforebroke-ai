@@ -4,6 +4,7 @@ import {
   getPaycheckAllocations,
   getCurrentMonthPaycheckPlanning,
   getCurrentMonthPaycheckAllocations,
+  getHiddenMonthlyDebtPlanningData,
   updateDebtAllocation,
 } from "@/app/actions/paycheck-planning";
 
@@ -143,6 +144,56 @@ export function useCurrentMonthPaycheckAllocations(budgetAccountId?: string) {
 }
 
 /**
+ * Custom hook for fetching hidden (inactive) monthly debt planning records
+ */
+export function useHiddenMonthlyDebts(
+  budgetAccountId?: string,
+  year?: number,
+  month?: number,
+  planningWindowMonths: number = 0,
+) {
+  const {
+    data: hiddenDebts,
+    error,
+    isLoading,
+    mutate: mutateHiddenDebts,
+  } = useSWR(
+    budgetAccountId && year && month
+      ? [
+          "hidden-monthly-debts",
+          budgetAccountId,
+          year,
+          month,
+          planningWindowMonths,
+        ]
+      : null,
+    () => {
+      // Add explicit type guards to ensure parameters are defined
+      if (!budgetAccountId || !year || !month) {
+        throw new Error("Missing required parameters for hidden monthly debts");
+      }
+      return getHiddenMonthlyDebtPlanningData(
+        budgetAccountId,
+        year,
+        month,
+        planningWindowMonths,
+      );
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+    },
+  );
+
+  return {
+    hiddenDebts,
+    error,
+    isLoading,
+    mutateHiddenDebts,
+  };
+}
+
+/**
  * Custom hook for managing debt allocations with drag-and-drop functionality
  */
 export function useDebtAllocationManager(
@@ -151,17 +202,16 @@ export function useDebtAllocationManager(
   month: number,
   planningWindowMonths: number = 0, // Default to current month only, but configurable
 ) {
-  const { planningData, mutatePlanningData } = usePaycheckPlanning(
-    budgetAccountId,
-    year,
-    month,
-    planningWindowMonths,
-  );
-  const { allocations, mutateAllocations } = usePaycheckAllocations(
-    budgetAccountId,
-    year,
-    month,
-  );
+  const {
+    planningData,
+    mutatePlanningData,
+    isLoading: isPlanningDataLoading,
+  } = usePaycheckPlanning(budgetAccountId, year, month, planningWindowMonths);
+  const {
+    allocations,
+    mutateAllocations,
+    isLoading: isAllocationsLoading,
+  } = usePaycheckAllocations(budgetAccountId, year, month);
 
   const handleDebtAllocated = async (
     monthlyDebtPlanningId: string, // Changed from debtId to monthlyDebtPlanningId
@@ -216,5 +266,6 @@ export function useDebtAllocationManager(
     handleDebtUnallocated,
     mutatePlanningData,
     mutateAllocations,
+    isLoading: isPlanningDataLoading || isAllocationsLoading,
   };
 }

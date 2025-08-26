@@ -1,4 +1,6 @@
-import { ButtonHTMLAttributes, ReactNode } from "react";
+"use client";
+
+import { ButtonHTMLAttributes, ReactNode, useRef, useEffect } from "react";
 
 import Link from "next/link";
 
@@ -113,10 +115,35 @@ export default function Button({
   disabled,
   ...props
 }: ButtonProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Measure button content width and set it as a CSS custom property using ResizeObserver
+  useEffect(() => {
+    const button = buttonRef.current;
+    if (!button || isLoading) return;
+
+    const setContentWidth = () => {
+      const contentWidth = button.scrollWidth;
+      button.style.setProperty("--button-content-width", `${contentWidth}px`);
+    };
+
+    setContentWidth();
+    const resizeObserver = new window.ResizeObserver(setContentWidth);
+    resizeObserver.observe(button);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [isLoading]);
+
   const baseStyles =
     "rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center";
   const widthStyle = fullWidth ? "w-full" : "";
   const loadingStyles = isLoading ? "opacity-70 cursor-not-allowed" : "";
+  // Ensure consistent width by using min-width that accommodates both text and spinner
+  const consistentWidthStyle = isLoading
+    ? "min-w-[var(--button-content-width)]"
+    : "";
 
   const buttonStyles = `
         ${baseStyles}
@@ -124,6 +151,7 @@ export default function Button({
         ${sizeStyles[size]}
         ${widthStyle}
         ${loadingStyles}
+        ${consistentWidthStyle}
         ${className}
     `;
 
@@ -137,15 +165,20 @@ export default function Button({
 
   return (
     <button
+      ref={buttonRef}
       className={buttonStyles}
       disabled={disabled || isLoading}
+      aria-label={
+        isLoading
+          ? typeof children === "string"
+            ? children
+            : "Loading..."
+          : undefined
+      }
       {...props}
     >
       {isLoading ? (
-        <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          <span>{children}</span>
-        </div>
+        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
       ) : (
         children
       )}

@@ -87,6 +87,13 @@ if (typeof global.crypto === "undefined") {
   global.crypto.randomUUID = () => "00000000-0000-0000-0000-000000000000";
 }
 
+// Mock ResizeObserver for tests
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}));
+
 // Mock canvas for Chart.js
 const mockCanvasContext = {
   fillRect: jest.fn(),

@@ -97,6 +97,8 @@ const mockUnallocatedDebts = [
 const mockHandlers = {
   onDebtAllocated: jest.fn(), // Now expects monthlyDebtPlanningId instead of debtId
   onDebtUnallocated: jest.fn(), // Now expects monthlyDebtPlanningId instead of debtId
+  onDebtHidden: jest.fn(),
+  onDebtRestored: jest.fn(),
   onDebtUpdated: jest.fn(),
   onMarkPaymentAsPaid: jest.fn(), // Now expects monthlyDebtPlanningId instead of debtId
 };
@@ -105,6 +107,7 @@ const defaultProps = {
   currentYear: 2024,
   currentMonth: 1,
   planningWindowMonths: 1,
+  hiddenDebts: [],
   ...mockHandlers,
 };
 
@@ -119,6 +122,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -133,6 +137,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -151,6 +156,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -185,6 +191,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -203,6 +210,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -219,6 +227,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -243,6 +252,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -258,6 +268,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -284,6 +295,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -299,6 +311,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -314,6 +327,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -329,6 +343,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={[]}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -342,6 +357,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={[]}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
@@ -357,6 +373,7 @@ describe("AssignmentBasedInterface", () => {
         paychecks={mockPaychecks}
         allocations={mockAllocations}
         unallocatedDebts={mockUnallocatedDebts}
+        hiddenDebts={[]}
         {...defaultProps}
       />,
     );
