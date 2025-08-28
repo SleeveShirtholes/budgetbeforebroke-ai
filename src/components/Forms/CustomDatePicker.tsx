@@ -9,7 +9,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/20/solid";
 import { format, parse } from "date-fns";
-import { forwardRef, useState } from "react";
+import { forwardRef, useState, useEffect } from "react";
 
 import ReactDatePicker from "react-datepicker";
 
@@ -65,6 +65,13 @@ export default function CustomDatePicker({
     selectedDate ? format(selectedDate, "MMM d, yyyy") : "",
   );
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setSelectedDate(value ? parseLocalDate(value) : null);
+    setInputValue(
+      value ? format(parseLocalDate(value) || new Date(), "MMM d, yyyy") : "",
+    );
+  }, [value]);
 
   const handleChange = (date: Date | null) => {
     setSelectedDate(date);
