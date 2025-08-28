@@ -72,8 +72,18 @@ export async function createIncomeSource(
     name,
     amount,
     frequency,
-    startDate: new Date(startDate),
-    endDate: endDate ? new Date(endDate) : undefined,
+    startDate: (() => {
+      // Parse date string as local date to avoid timezone conversion issues
+      const [year, month, day] = startDate.split("-").map(Number);
+      return new Date(year, month - 1, day); // month is 0-indexed
+    })(),
+    endDate: endDate
+      ? (() => {
+          // Parse date string as local date to avoid timezone conversion issues
+          const [year, month, day] = endDate.split("-").map(Number);
+          return new Date(year, month - 1, day); // month is 0-indexed
+        })()
+      : undefined,
     isActive: true,
     notes,
   };
@@ -212,8 +222,18 @@ export async function getIncomeSources() {
   return sources.map((source) => ({
     ...source,
     amount: Number(source.amount),
-    startDate: new Date(source.startDate),
-    endDate: source.endDate ? new Date(source.endDate) : undefined,
+    startDate: (() => {
+      // Parse date string as local date to avoid timezone conversion issues
+      const [year, month, day] = source.startDate.split("-").map(Number);
+      return new Date(year, month - 1, day); // month is 0-indexed
+    })(),
+    endDate: source.endDate
+      ? (() => {
+          // Parse date string as local date to avoid timezone conversion issues
+          const [year, month, day] = source.endDate.split("-").map(Number);
+          return new Date(year, month - 1, day); // month is 0-indexed
+        })()
+      : undefined,
   }));
 }
 
@@ -267,8 +287,11 @@ export async function calculateMonthlyIncome(
           monthlyAmount = (amount * 52) / 12;
           break;
         case "bi-weekly": {
-          // Get the start date of the income source
-          const incomeStartDate = new Date(source.startDate);
+          // Get the start date of the income source - parse as local date to avoid timezone issues
+          const [startYear, startMonth, startDay] = source.startDate
+            .split("-")
+            .map(Number);
+          const incomeStartDate = new Date(startYear, startMonth - 1, startDay);
           // Find the first pay date on or after the income start date
           const firstPayDate = new Date(incomeStartDate);
           while (firstPayDate < startOfMonth) {
@@ -280,7 +303,16 @@ export async function calculateMonthlyIncome(
           while (currentPayDate <= endOfMonth) {
             if (
               currentPayDate >= startOfMonth &&
-              (!source.endDate || currentPayDate <= new Date(source.endDate))
+              (!source.endDate ||
+                (() => {
+                  // Parse end date as local date to avoid timezone issues
+                  const [endYear, endMonth, endDay] = source.endDate
+                    .split("-")
+                    .map(Number);
+                  return (
+                    currentPayDate <= new Date(endYear, endMonth - 1, endDay)
+                  );
+                })())
             ) {
               payPeriods++;
             }

@@ -1,6 +1,7 @@
 "use server";
 
 import { and, eq, gte, lte } from "drizzle-orm";
+import { startOfDay, addWeeks, addMonths, parseISO } from "date-fns";
 import {
   budgetAccountMembers,
   incomeSources,
@@ -228,10 +229,8 @@ export async function getPaycheckPlanningData(
   const paychecks: PaycheckInfo[] = [];
 
   for (const incomeSource of incomeSourcesList) {
-    const [startYear, startMonth, startDay] = incomeSource.startDate
-      .split("-")
-      .map(Number);
-    const startDate = new Date(startYear, startMonth - 1, startDay);
+    // Parse the date string and ensure it's at the start of the day to avoid timezone issues
+    const startDate = startOfDay(parseISO(incomeSource.startDate));
 
     // Calculate paychecks for this month based on frequency
     let paycheckDate = new Date(startDate);
@@ -243,19 +242,11 @@ export async function getPaycheckPlanningData(
         paycheckDate.getMonth() < month - 1)
     ) {
       if (incomeSource.frequency === "weekly") {
-        paycheckDate = new Date(
-          paycheckDate.getTime() + 7 * 24 * 60 * 60 * 1000,
-        );
+        paycheckDate = addWeeks(paycheckDate, 1);
       } else if (incomeSource.frequency === "bi-weekly") {
-        paycheckDate = new Date(
-          paycheckDate.getTime() + 14 * 24 * 60 * 60 * 1000,
-        );
+        paycheckDate = addWeeks(paycheckDate, 2);
       } else if (incomeSource.frequency === "monthly") {
-        paycheckDate = new Date(
-          paycheckDate.getFullYear(),
-          paycheckDate.getMonth() + 1,
-          paycheckDate.getDate(),
-        );
+        paycheckDate = addMonths(paycheckDate, 1);
       }
     }
 
@@ -268,26 +259,18 @@ export async function getPaycheckPlanningData(
         id: `${incomeSource.id}-${paycheckDate.getTime()}`,
         name: incomeSource.name,
         amount: Number(incomeSource.amount),
-        date: new Date(paycheckDate),
+        date: startOfDay(paycheckDate),
         frequency: incomeSource.frequency,
         userId: sessionResult.user.id,
       });
 
       // Move to next paycheck
       if (incomeSource.frequency === "weekly") {
-        paycheckDate = new Date(
-          paycheckDate.getTime() + 7 * 24 * 60 * 60 * 1000,
-        );
+        paycheckDate = addWeeks(paycheckDate, 1);
       } else if (incomeSource.frequency === "bi-weekly") {
-        paycheckDate = new Date(
-          paycheckDate.getTime() + 14 * 24 * 60 * 60 * 1000,
-        );
+        paycheckDate = addWeeks(paycheckDate, 2);
       } else if (incomeSource.frequency === "monthly") {
-        paycheckDate = new Date(
-          paycheckDate.getFullYear(),
-          paycheckDate.getMonth() + 1,
-          paycheckDate.getDate(),
-        );
+        paycheckDate = addMonths(paycheckDate, 1);
       }
     }
   }
@@ -302,10 +285,10 @@ export async function getPaycheckPlanningData(
 
   // Get monthly debt planning records for the current planning window.
   // Simpler and less error-prone: filter by dueDate between start and end.
-  const startDate = new Date(year, month - 1, 1);
+  const startDate = startOfDay(new Date(year, month - 1, 1));
   const endYear = year + Math.floor((month + planningWindowMonths - 1) / 12);
   const endMonth = ((month + planningWindowMonths - 1) % 12) + 1; // 1-12
-  const endDate = new Date(endYear, endMonth, 0); // last day of end month
+  const endDate = startOfDay(new Date(endYear, endMonth, 0)); // last day of end month
 
   const toYmd = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(

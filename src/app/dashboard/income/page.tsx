@@ -143,7 +143,7 @@ export default function IncomePage() {
       />
 
       <IncomeSourceForm
-        isOpen={isAddingSource}
+        isOpen={isAddingSource && (!isEditingSource || !!editingSource)}
         onClose={handleCloseModal}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
