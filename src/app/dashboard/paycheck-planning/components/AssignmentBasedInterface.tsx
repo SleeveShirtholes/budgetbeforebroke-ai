@@ -246,20 +246,14 @@ export default function AssignmentBasedInterface({
       {
         paychecks: typeof paychecks;
         totalAmount: number;
-        date: Date;
+        // store as YYYY-MM-DD
+        date: string;
         names: string[];
       }
     >();
 
     paychecks.forEach((paycheck) => {
-      // Use a more robust date comparison that ignores time
-      const dateKey = new Date(
-        paycheck.date.getFullYear(),
-        paycheck.date.getMonth(),
-        paycheck.date.getDate(),
-      )
-        .toISOString()
-        .split("T")[0];
+      const dateKey = paycheck.date; // already YYYY-MM-DD
 
       if (groups.has(dateKey)) {
         const group = groups.get(dateKey)!;
@@ -270,14 +264,14 @@ export default function AssignmentBasedInterface({
         groups.set(dateKey, {
           paychecks: [paycheck],
           totalAmount: paycheck.amount,
-          date: paycheck.date,
+          date: dateKey,
           names: [paycheck.name],
         });
       }
     });
 
-    const result = Array.from(groups.values()).sort(
-      (a, b) => a.date.getTime() - b.date.getTime(),
+    const result = Array.from(groups.values()).sort((a, b) =>
+      a.date.localeCompare(b.date),
     );
 
     return result;
@@ -924,7 +918,7 @@ export default function AssignmentBasedInterface({
                       <CalendarDaysIcon className="h-3 w-3" />
                       <span>
                         {group.names.join(", ")} -{" "}
-                        {format(group.date, "MMM dd")}
+                        {formatDateSafely(group.date, "MMM dd")}
                       </span>
                     </div>
                   </div>

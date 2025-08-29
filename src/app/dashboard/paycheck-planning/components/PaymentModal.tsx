@@ -196,7 +196,7 @@ export default function PaymentModal({
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Pay Date:</span>
               <span className="text-sm font-medium text-gray-900">
-                {format(paycheck.date, "MMM dd, yyyy")}
+                {formatDateSafely(paycheck.date, "MMM dd, yyyy")}
               </span>
             </div>
             <div className="flex justify-between">

@@ -21,7 +21,7 @@ const mockPaychecks: PaycheckInfo[] = [
   {
     id: "paycheck-1",
     name: "Steve's Income",
-    date: new Date("2024-01-15"),
+    date: "2024-01-15",
     amount: 3000,
     frequency: "monthly",
     userId: "user-1",
@@ -29,7 +29,7 @@ const mockPaychecks: PaycheckInfo[] = [
   {
     id: "paycheck-2",
     name: "Kelsi's Income",
-    date: new Date("2024-01-15"), // Same date as paycheck-1
+    date: "2024-01-15", // Same date as paycheck-1
     amount: 4000,
     frequency: "monthly",
     userId: "user-1",
@@ -37,7 +37,7 @@ const mockPaychecks: PaycheckInfo[] = [
   {
     id: "paycheck-3",
     name: "Steve's Income",
-    date: new Date("2024-01-31"),
+    date: "2024-01-31",
     amount: 3000,
     frequency: "monthly",
     userId: "user-1",
@@ -47,7 +47,7 @@ const mockPaychecks: PaycheckInfo[] = [
 const mockAllocations: PaycheckAllocation[] = [
   {
     paycheckId: "paycheck-1",
-    paycheckDate: new Date("2024-01-15"),
+    paycheckDate: "2024-01-15",
     paycheckAmount: 3000,
     allocatedDebts: [
       {
