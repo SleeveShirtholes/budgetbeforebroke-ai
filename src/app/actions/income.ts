@@ -169,9 +169,10 @@ export async function updateIncomeSource(
     ...data,
     amount: data.amount || Number(incomeSource.amount),
     startDate: data.startDate || incomeSource.startDate,
-    endDate: data.endDate !== undefined 
-      ? (data.endDate || undefined)
-      : (incomeSource.endDate || undefined),
+    endDate:
+      data.endDate !== undefined
+        ? data.endDate || undefined
+        : incomeSource.endDate || undefined,
   };
 }
 

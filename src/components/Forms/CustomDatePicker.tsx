@@ -12,6 +12,7 @@ import { format, parse } from "date-fns";
 import { forwardRef, useState, useEffect } from "react";
 
 import ReactDatePicker from "react-datepicker";
+import { formatDateSafely } from "@/utils/date";
 
 interface DatePickerHeaderProps {
   date: Date;
@@ -62,20 +63,18 @@ export default function CustomDatePicker({
     value ? parseLocalDate(value) : null,
   );
   const [inputValue, setInputValue] = useState(
-    selectedDate ? format(selectedDate, "MMM d, yyyy") : "",
+    value ? formatDateSafely(value, "MMM d, yyyy") : "",
   );
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     setSelectedDate(value ? parseLocalDate(value) : null);
-    setInputValue(
-      value ? format(parseLocalDate(value) || new Date(), "MMM d, yyyy") : "",
-    );
+    setInputValue(value ? formatDateSafely(value, "MMM d, yyyy") : "");
   }, [value]);
 
   const handleChange = (date: Date | null) => {
     setSelectedDate(date);
-    setInputValue(date ? format(date, "MMM d, yyyy") : "");
+    setInputValue(date ? formatDateSafely(date, "MMM d, yyyy") : "");
     if (date) {
       // Format date as YYYY-MM-DD to preserve local date without timezone conversion
       const year = date.getFullYear();
