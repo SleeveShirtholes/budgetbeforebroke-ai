@@ -1,7 +1,7 @@
 "use server";
 
 import { and, eq, gte, lte } from "drizzle-orm";
-import { startOfDay, addWeeks, addMonths, parseISO } from "date-fns";
+import { startOfDay, addWeeks, addMonths } from "date-fns";
 import {
   budgetAccountMembers,
   incomeSources,
@@ -18,7 +18,8 @@ export interface PaycheckInfo {
   id: string;
   name: string;
   amount: number;
-  date: Date;
+  // Date-only string to prevent timezone shifts (YYYY-MM-DD)
+  date: string;
   frequency: "weekly" | "bi-weekly" | "monthly";
   userId: string;
 }
@@ -50,7 +51,8 @@ export interface PaycheckWarning {
 
 export interface PaycheckAllocation {
   paycheckId: string;
-  paycheckDate: Date;
+  // Date-only string (YYYY-MM-DD)
+  paycheckDate: string;
   paycheckAmount: number;
   allocatedDebts: {
     debtId: string;
@@ -229,8 +231,11 @@ export async function getPaycheckPlanningData(
   const paychecks: PaycheckInfo[] = [];
 
   for (const incomeSource of incomeSourcesList) {
-    // Parse the date string and ensure it's at the start of the day to avoid timezone issues
-    const startDate = startOfDay(parseISO(incomeSource.startDate));
+    const [startYear, startMonth, startDay] = incomeSource.startDate
+      .split("-")
+      .map(Number);
+    // Create date at local time to avoid implicit UTC conversions
+    const startDate = new Date(startYear, startMonth - 1, startDay);
 
     // Calculate paychecks for this month based on frequency
     let paycheckDate = new Date(startDate);
@@ -255,11 +260,16 @@ export async function getPaycheckPlanningData(
       paycheckDate.getFullYear() === year &&
       paycheckDate.getMonth() === month - 1
     ) {
+      const y = paycheckDate.getFullYear();
+      const m = String(paycheckDate.getMonth() + 1).padStart(2, "0");
+      const d = String(paycheckDate.getDate()).padStart(2, "0");
+      const ymd = `${y}-${m}-${d}`;
+
       paychecks.push({
-        id: `${incomeSource.id}-${paycheckDate.getTime()}`,
+        id: `${incomeSource.id}-${ymd}`,
         name: incomeSource.name,
         amount: Number(incomeSource.amount),
-        date: startOfDay(paycheckDate),
+        date: ymd,
         frequency: incomeSource.frequency,
         userId: sessionResult.user.id,
       });
@@ -275,8 +285,8 @@ export async function getPaycheckPlanningData(
     }
   }
 
-  // Sort paychecks by date
-  paychecks.sort((a, b) => a.date.getTime() - b.date.getTime());
+  // Sort paychecks by date string (YYYY-MM-DD)
+  paychecks.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
   // Get all debts for the budget account
   const allDebts = await db.query.debts.findMany({
