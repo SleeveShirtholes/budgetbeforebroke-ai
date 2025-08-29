@@ -14,8 +14,8 @@ export type IncomeSource = {
   name: string;
   amount: number;
   frequency: "weekly" | "bi-weekly" | "monthly";
-  startDate: Date;
-  endDate?: Date;
+  startDate: string; // Date-only string to prevent timezone shifts (YYYY-MM-DD)
+  endDate?: string; // Date-only string to prevent timezone shifts (YYYY-MM-DD)
   isActive: boolean;
   notes?: string;
 };
@@ -72,18 +72,8 @@ export async function createIncomeSource(
     name,
     amount,
     frequency,
-    startDate: (() => {
-      // Parse date string as local date to avoid timezone conversion issues
-      const [year, month, day] = startDate.split("-").map(Number);
-      return new Date(year, month - 1, day); // month is 0-indexed
-    })(),
-    endDate: endDate
-      ? (() => {
-          // Parse date string as local date to avoid timezone conversion issues
-          const [year, month, day] = endDate.split("-").map(Number);
-          return new Date(year, month - 1, day); // month is 0-indexed
-        })()
-      : undefined,
+    startDate, // Return the date string directly
+    endDate: endDate || undefined, // Return the date string directly
     isActive: true,
     notes,
   };
@@ -94,7 +84,15 @@ export async function createIncomeSource(
  */
 export async function updateIncomeSource(
   id: string,
-  data: Partial<Omit<IncomeSource, "id" | "userId">>,
+  data: Partial<{
+    name: string;
+    amount: number;
+    frequency: "weekly" | "bi-weekly" | "monthly";
+    startDate: string;
+    endDate?: string;
+    notes?: string;
+    isActive?: boolean;
+  }>,
 ) {
   const sessionResult = await auth.api.getSession({
     headers: await headers(),
@@ -135,15 +133,13 @@ export async function updateIncomeSource(
     updateData.amount = data.amount.toString();
   }
 
-  // Handle date conversions
+  // Handle date conversions - store as YYYY-MM-DD strings
   if (data.startDate !== undefined) {
-    updateData.startDate = data.startDate.toISOString().slice(0, 10);
+    updateData.startDate = data.startDate;
   }
 
   if (data.endDate !== undefined) {
-    updateData.endDate = data.endDate
-      ? data.endDate.toISOString().slice(0, 10)
-      : null;
+    updateData.endDate = data.endDate || null;
   }
 
   // Handle other fields
@@ -172,6 +168,11 @@ export async function updateIncomeSource(
     ...incomeSource,
     ...data,
     amount: data.amount || Number(incomeSource.amount),
+    startDate: data.startDate || incomeSource.startDate,
+    endDate:
+      data.endDate !== undefined
+        ? data.endDate || undefined
+        : incomeSource.endDate || undefined,
   };
 }
 
@@ -222,18 +223,8 @@ export async function getIncomeSources() {
   return sources.map((source) => ({
     ...source,
     amount: Number(source.amount),
-    startDate: (() => {
-      // Parse date string as local date to avoid timezone conversion issues
-      const [year, month, day] = source.startDate.split("-").map(Number);
-      return new Date(year, month - 1, day); // month is 0-indexed
-    })(),
-    endDate: source.endDate
-      ? (() => {
-          // Parse date string as local date to avoid timezone conversion issues
-          const [year, month, day] = source.endDate.split("-").map(Number);
-          return new Date(year, month - 1, day); // month is 0-indexed
-        })()
-      : undefined,
+    startDate: source.startDate, // Return the date string directly
+    endDate: source.endDate || undefined, // Return the date string directly
   }));
 }
 

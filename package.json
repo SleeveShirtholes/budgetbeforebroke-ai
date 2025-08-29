@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "yarn db:push && next dev --turbopack",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "build:prod": "next build",
     "start": "next start",
