@@ -102,12 +102,8 @@ export function IncomeSourceForm({
       name: editingSource?.name ?? "",
       amount: editingSource?.amount.toString() ?? "",
       frequency: editingSource?.frequency ?? "monthly",
-      startDate: editingSource?.startDate
-        ? format(editingSource.startDate, "yyyy-MM-dd")
-        : format(new Date(), "yyyy-MM-dd"),
-      endDate: editingSource?.endDate
-        ? format(editingSource.endDate, "yyyy-MM-dd")
-        : undefined,
+      startDate: editingSource?.startDate ?? format(new Date(), "yyyy-MM-dd"),
+      endDate: editingSource?.endDate ?? undefined,
       notes: editingSource?.notes,
     },
     resolver: zodResolver(incomeSourceSchema),
@@ -120,12 +116,8 @@ export function IncomeSourceForm({
         name: editingSource.name,
         amount: editingSource.amount.toString(),
         frequency: editingSource.frequency,
-        startDate: editingSource.startDate
-          ? format(editingSource.startDate, "yyyy-MM-dd")
-          : format(new Date(), "yyyy-MM-dd"),
-        endDate: editingSource.endDate
-          ? format(editingSource.endDate, "yyyy-MM-dd")
-          : undefined,
+        startDate: editingSource.startDate,
+        endDate: editingSource.endDate,
         notes: editingSource.notes,
       });
     } else {

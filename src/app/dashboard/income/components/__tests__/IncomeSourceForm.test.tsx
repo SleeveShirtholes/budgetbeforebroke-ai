@@ -52,7 +52,7 @@ const mockIncomeSource: IncomeSource = {
   name: "Salary",
   amount: 5000,
   frequency: "monthly",
-  startDate: new Date("2024-01-01"),
+  startDate: "2024-01-01",
   notes: "Monthly salary",
   isActive: true,
 };
@@ -234,7 +234,7 @@ describe("IncomeSourceForm", () => {
       name: "Freelance",
       amount: 3000,
       frequency: "weekly",
-      startDate: new Date("2024-02-01"),
+      startDate: "2024-02-01",
       notes: "Freelance work",
       isActive: true,
     };

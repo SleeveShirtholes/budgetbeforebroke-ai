@@ -10,7 +10,7 @@ const mockIncomeSources: IncomeSource[] = [
     name: "Salary",
     amount: 5000,
     frequency: "monthly",
-    startDate: new Date(),
+    startDate: "2024-01-01",
     notes: "Monthly salary",
     isActive: true,
   },
@@ -20,7 +20,7 @@ const mockIncomeSources: IncomeSource[] = [
     name: "Freelance",
     amount: 1000,
     frequency: "bi-weekly",
-    startDate: new Date(),
+    startDate: "2024-01-01",
     isActive: true,
   },
 ];
