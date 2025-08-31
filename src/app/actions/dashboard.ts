@@ -12,6 +12,7 @@ import {
 import { db } from "@/db/config";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { toDateString } from "@/utils/date";
 
 /**
  * Dashboard data structure
@@ -156,8 +157,8 @@ export async function getMonthlyIncome(budgetAccountId?: string) {
       and(
         eq(transactions.budgetAccountId, accountId),
         eq(transactions.type, "income"),
-        gte(transactions.date, startOfMonth),
-        lte(transactions.date, endOfMonth),
+        gte(transactions.date, toDateString(startOfMonth)),
+        lte(transactions.date, toDateString(endOfMonth)),
       ),
     );
 
@@ -217,8 +218,8 @@ export async function getMonthlyExpenses(budgetAccountId?: string) {
       and(
         eq(transactions.budgetAccountId, accountId),
         eq(transactions.type, "expense"),
-        gte(transactions.date, startOfMonth),
-        lte(transactions.date, endOfMonth),
+        gte(transactions.date, toDateString(startOfMonth)),
+        lte(transactions.date, toDateString(endOfMonth)),
       ),
     );
 
@@ -344,8 +345,8 @@ export async function getBudgetCategoriesWithSpending(
         eq(transactions.categoryId, categories.id),
         eq(transactions.budgetAccountId, accountId),
         eq(transactions.type, "expense"),
-        gte(transactions.date, budgetStartOfMonth),
-        lte(transactions.date, budgetEndOfMonth),
+        gte(transactions.date, toDateString(budgetStartOfMonth)),
+        lte(transactions.date, toDateString(budgetEndOfMonth)),
       ),
     )
     .where(eq(budgetCategories.budgetId, currentBudget.id))
@@ -416,8 +417,8 @@ export async function getBudgetCategoriesWithSpendingForDateRange(
         and(
           eq(transactions.budgetAccountId, accountId),
           eq(transactions.type, "expense"),
-          gte(transactions.date, startDate),
-          lte(transactions.date, endDate),
+          gte(transactions.date, toDateString(startDate)),
+          lte(transactions.date, toDateString(endDate)),
           sql`${transactions.categoryId} IS NOT NULL`,
         ),
       )
@@ -471,8 +472,8 @@ export async function getBudgetCategoriesWithSpendingForDateRange(
       and(
         eq(transactions.budgetAccountId, accountId),
         eq(transactions.type, "expense"),
-        gte(transactions.date, startDate),
-        lte(transactions.date, endDate),
+        gte(transactions.date, toDateString(startDate)),
+        lte(transactions.date, toDateString(endDate)),
         sql`${transactions.categoryId} IS NOT NULL`,
       ),
     )

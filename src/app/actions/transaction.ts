@@ -43,7 +43,7 @@ export type Transaction = {
   createdByUserId: string;
   amount: number;
   description: string | null;
-  date: Date;
+  date: string;
   type: "income" | "expense";
   status: string;
   merchantName: string | null;
@@ -93,16 +93,20 @@ async function getDefaultBudgetAccountId(): Promise<string> {
 }
 
 /**
- * Parses a transaction date string into a Date object
+ * Parses a transaction date string into a date string
  * Handles both YYYY-MM-DD format and ISO strings
- * Creates date in UTC at midnight to avoid timezone issues
+ * Returns date string in YYYY-MM-DD format to avoid timezone issues
  *
  * @param dateString - The date string to parse (optional)
- * @returns Date object, or current date if no string provided
+ * @returns Date string in YYYY-MM-DD format, or current date if no string provided
  */
-function parseTransactionDate(dateString?: string): Date {
+function parseTransactionDate(dateString?: string): string {
   if (!dateString) {
-    return new Date();
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   // Handle both YYYY-MM-DD format and ISO strings
@@ -115,9 +119,14 @@ function parseTransactionDate(dateString?: string): Date {
     normalizedDateString = dateString;
   }
 
-  const [year, month, day] = normalizedDateString.split("-").map(Number);
-  // Create date in UTC at midnight to avoid timezone issues
-  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  // Validate the date string format
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDateString)) {
+    throw new Error(
+      `Invalid date format: ${dateString}. Expected YYYY-MM-DD format.`,
+    );
+  }
+
+  return normalizedDateString;
 }
 
 /**
@@ -335,7 +344,7 @@ export async function updateTransaction(data: UpdateTransactionInput) {
   const updateData: Partial<{
     amount: string;
     description: string | null;
-    date: Date;
+    date: string;
     type: "income" | "expense";
     categoryId: string | null;
     merchantName: string | null;

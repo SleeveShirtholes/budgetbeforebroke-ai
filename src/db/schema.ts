@@ -291,7 +291,7 @@ export const transactions = pgTable("transaction", {
   // Common fields
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
-  date: timestamp("date").notNull(),
+  date: date("date").notNull(),
   type: text("type").notNull(), // 'income' or 'expense'
   status: text("status").notNull(), // 'pending', 'completed', 'failed'
   // Additional Plaid fields
@@ -364,7 +364,7 @@ export const budgetTransactionView = sql<{
   createdByUserId: string;
   amount: number;
   description: string | null;
-  date: Date;
+  date: string;
   type: string;
   status: string;
   budgetId: string;
@@ -381,8 +381,8 @@ export const budgetTransactionView = sql<{
     b.month as budget_month
   FROM transaction t
   JOIN budget b ON 
-    EXTRACT(YEAR FROM t.date) = b.year AND 
-    EXTRACT(MONTH FROM t.date) = b.month
+    EXTRACT(YEAR FROM CAST(t.date AS DATE)) = b.year AND 
+    EXTRACT(MONTH FROM CAST(t.date AS DATE)) = b.month
   WHERE t.budget_account_id = b.budget_account_id
 `;
 

@@ -60,7 +60,7 @@ export async function createIncomeSource(
     name,
     amount: amount.toString(),
     frequency,
-    startDate,
+    startDate: startDate,
     endDate: endDate || null,
     notes,
     isActive: true,
@@ -133,7 +133,7 @@ export async function updateIncomeSource(
     updateData.amount = data.amount.toString();
   }
 
-  // Handle date conversions - store as YYYY-MM-DD strings
+  // Handle date conversions - store strings directly
   if (data.startDate !== undefined) {
     updateData.startDate = data.startDate;
   }
@@ -278,11 +278,8 @@ export async function calculateMonthlyIncome(
           monthlyAmount = (amount * 52) / 12;
           break;
         case "bi-weekly": {
-          // Get the start date of the income source - parse as local date to avoid timezone issues
-          const [startYear, startMonth, startDay] = source.startDate
-            .split("-")
-            .map(Number);
-          const incomeStartDate = new Date(startYear, startMonth - 1, startDay);
+          // Get the start date of the income source - use Date object directly
+          const incomeStartDate = source.startDate;
           // Find the first pay date on or after the income start date
           const firstPayDate = new Date(incomeStartDate);
           while (firstPayDate < startOfMonth) {
@@ -296,13 +293,8 @@ export async function calculateMonthlyIncome(
               currentPayDate >= startOfMonth &&
               (!source.endDate ||
                 (() => {
-                  // Parse end date as local date to avoid timezone issues
-                  const [endYear, endMonth, endDay] = source.endDate
-                    .split("-")
-                    .map(Number);
-                  return (
-                    currentPayDate <= new Date(endYear, endMonth - 1, endDay)
-                  );
+                  // Convert string date to Date object for comparison
+                  return currentPayDate <= new Date(source.endDate);
                 })())
             ) {
               payPeriods++;

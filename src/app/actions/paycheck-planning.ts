@@ -2,6 +2,7 @@
 
 import { and, eq, gte, lte } from "drizzle-orm";
 import { startOfDay, addWeeks, addMonths } from "date-fns";
+import { toDateString } from "@/utils/date";
 import {
   budgetAccountMembers,
   incomeSources,
@@ -180,7 +181,7 @@ export async function getHiddenMonthlyDebtPlanningData(
       id: monthlyRecord.id,
       name: debt.name,
       amount: Number(debt.paymentAmount),
-      dueDate: monthlyRecord.dueDate,
+      dueDate: monthlyRecord.dueDate as string,
       frequency: "monthly",
       description: debt.name,
       isRecurring: true,
@@ -231,10 +232,10 @@ export async function getPaycheckPlanningData(
   const paychecks: PaycheckInfo[] = [];
 
   for (const incomeSource of incomeSourcesList) {
+    // startDate is now a string (YYYY-MM-DD), parse it safely
     const [startYear, startMonth, startDay] = incomeSource.startDate
       .split("-")
       .map(Number);
-    // Create date at local time to avoid implicit UTC conversions
     const startDate = new Date(startYear, startMonth - 1, startDay);
 
     // Calculate paychecks for this month based on frequency
@@ -328,7 +329,7 @@ export async function getPaycheckPlanningData(
       id: monthlyRecord.id, // Use the monthly planning ID
       name: debt.name,
       amount: Number(debt.paymentAmount),
-      dueDate: monthlyRecord.dueDate, // dueDate is already a string
+      dueDate: monthlyRecord.dueDate as string, // dueDate is already a string
       frequency: "monthly", // Default to monthly for monthly planning records
       description: debt.name, // Use debt name as description
       isRecurring: true, // Monthly planning records are recurring
@@ -651,8 +652,8 @@ export async function markPaymentAsPaid(
     .set({
       isPaid: true,
       paymentAmount: paymentAmount ? paymentAmount.toString() : null,
-      paymentDate: paymentDate || new Date().toISOString().split("T")[0],
-      note: `Payment marked as paid on ${paymentDate || new Date().toISOString().split("T")[0]}`,
+      paymentDate: paymentDate || toDateString(new Date()),
+      note: `Payment marked as paid on ${paymentDate || toDateString(new Date())}`,
     })
     .where(
       and(
@@ -744,7 +745,9 @@ export async function populateMonthlyDebtPlanning(
       }
 
       // Parse the debt's due date to get the year and month when this debt should start appearing
-      const [debtYear, debtMonth] = debt.dueDate.split("-").map(Number);
+      const [debtYear, debtMonth] = (debt.dueDate as string)
+        .split("-")
+        .map(Number);
 
       // Only create records for months that are on or after the debt's due date
       // This ensures debts don't appear in months before they're actually due
@@ -761,7 +764,7 @@ export async function populateMonthlyDebtPlanning(
         }
 
         // Calculate the due date for this month (keep the same day of month)
-        const [, , debtDay] = debt.dueDate.split("-").map(Number);
+        const [, , debtDay] = (debt.dueDate as string).split("-").map(Number);
         const dueDate = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(debtDay).padStart(2, "0")}`;
 
         try {

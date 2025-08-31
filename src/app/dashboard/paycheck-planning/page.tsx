@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { format } from "date-fns";
+
 import Sortable from "sortablejs";
 import {
   ArrowLeftIcon,
@@ -562,7 +562,7 @@ export default function PaycheckPlanningPage() {
               Paycheck Planning
             </h1>
             <p className="text-gray-600 text-xs sm:text-sm">
-              {format(selectedDate, "MMMM yyyy")}
+              {formatDateSafely(selectedDate, "MMMM yyyy")}
             </p>
           </div>
           <div className="hidden md:flex md:items-center md:justify-between">
@@ -571,7 +571,7 @@ export default function PaycheckPlanningPage() {
                 Paycheck Planning
               </h1>
               <p className="text-gray-600 text-sm">
-                {format(selectedDate, "MMMM yyyy")}
+                {formatDateSafely(selectedDate, "MMMM yyyy")}
               </p>
             </div>
           </div>
@@ -623,7 +623,7 @@ export default function PaycheckPlanningPage() {
             Paycheck Planning
           </h1>
           <p className="text-gray-600 text-xs sm:text-sm">
-            {format(selectedDate, "MMMM yyyy")}
+            {formatDateSafely(selectedDate, "MMMM yyyy")}
           </p>
         </div>
 
@@ -634,7 +634,7 @@ export default function PaycheckPlanningPage() {
               Paycheck Planning
             </h1>
             <p className="text-gray-600 text-sm">
-              {format(selectedDate, "MMMM yyyy")}
+              {formatDateSafely(selectedDate, "MMMM yyyy")}
             </p>
           </div>
 
@@ -754,7 +754,7 @@ export default function PaycheckPlanningPage() {
               {/* Header */}
               <div className="text-center sm:text-left">
                 <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-1">
-                  {format(selectedDate, "MMMM yyyy")} Summary
+                  {formatDateSafely(selectedDate, "MMMM yyyy")} Summary
                 </h2>
                 <div className="flex items-center justify-center sm:justify-start space-x-3 text-xs text-gray-600">
                   <span className="flex items-center space-x-1">

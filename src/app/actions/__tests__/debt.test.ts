@@ -645,7 +645,7 @@ describe("Debt Actions", () => {
       ]);
       // Mock debt query to return debt with past due date
       actualDb.limit.mockResolvedValueOnce([
-        { ...mockExistingDebt, dueDate: new Date("2024-01-01") },
+        { ...mockExistingDebt, dueDate: "2024-01-01" },
       ]);
       // Mock category query to return existing category
       actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);

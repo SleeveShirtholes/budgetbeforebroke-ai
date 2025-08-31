@@ -61,7 +61,7 @@ export type Debt = {
   name: string;
   paymentAmount: number;
   interestRate: number;
-  dueDate: string; // Now a date string in YYYY-MM-DD format
+  dueDate: string; // Now a string from the database (date() field)
   hasBalance: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -75,7 +75,7 @@ export type DebtPayment = {
   id: string;
   debtId: string;
   amount: number;
-  date: string; // Now a date string in YYYY-MM-DD format
+  date: string; // Now a string from the database (date() field)
   note: string | null;
   isPaid: boolean;
   createdAt: Date;
@@ -240,7 +240,7 @@ export async function createDebt(
     name: data.name,
     paymentAmount: data.paymentAmount.toString(),
     interestRate: data.interestRate.toString(),
-    dueDate: data.dueDate, // Now a date string in YYYY-MM-DD format
+    dueDate: data.dueDate, // Store date string directly
     hasBalance: data.hasBalance || false,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -296,7 +296,7 @@ export async function updateDebt(
       categoryId: data.categoryId === "" ? null : data.categoryId,
       paymentAmount: data.paymentAmount.toString(),
       interestRate: data.interestRate.toString(),
-      dueDate: data.dueDate, // Now a date string in YYYY-MM-DD format
+      dueDate: data.dueDate, // Store date string directly
       updatedAt: new Date(),
     })
     .where(eq(debts.id, data.id));
@@ -451,14 +451,7 @@ export async function createDebtPayment(
   if (!monthlyPlanningRecord) {
     const monthlyPlanningId = randomUUID();
     // Calculate the due date for this month (keep the same day of month)
-    // Handle both string and Date dueDate formats
-    let debtDay: number;
-    if (typeof existingDebt.dueDate === "string") {
-      [, , debtDay] = existingDebt.dueDate.split("-").map(Number);
-    } else {
-      // If it's not a string, assume it's a Date object
-      debtDay = (existingDebt.dueDate as Date).getDate();
-    }
+    const [, , debtDay] = existingDebt.dueDate.split("-").map(Number);
     const dueDate = `${paymentYear}-${String(paymentMonth).padStart(2, "0")}-${String(debtDay).padStart(2, "0")}`;
 
     await db.insert(monthlyDebtPlanning).values({
@@ -491,7 +484,7 @@ export async function createDebtPayment(
     monthlyDebtPlanningId: monthlyPlanningRecord.id,
     paycheckId: "standalone-payment", // Special ID for standalone payments
     paymentAmount: paymentAmount.toString(),
-    paymentDate: data.date, // Already a date string in YYYY-MM-DD format
+    paymentDate: data.date, // Store date string directly
     note: data.note || null,
     isPaid: false, // Default to unpaid when created
     userId: sessionResult.user.id,
@@ -517,7 +510,7 @@ export async function createDebtPayment(
     debtId: existingDebt.id, // Add the foreign key reference
     amount: paymentAmount.toString(), // always positive, use type field to distinguish expense/income
     description: `Debt payment: ${existingDebt.name}`,
-    date: new Date(data.date),
+    date: data.date, // Store date string directly
     type: "expense", // explicitly set as expense
     status: "completed",
     merchantName: existingDebt.name,

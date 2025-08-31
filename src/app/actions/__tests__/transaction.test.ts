@@ -66,7 +66,7 @@ describe("Transaction Actions", () => {
     createdByUserId: mockUserId,
     amount: 100.5,
     description: "Test transaction",
-    date: new Date("2024-01-01"),
+    date: "2024-01-01",
     type: "expense",
     status: "completed",
     merchantName: "Test Merchant",
@@ -264,7 +264,7 @@ describe("Transaction Actions", () => {
         createdByUserId: mockUserId,
         amount: "100.5",
         description: "Test transaction",
-        date: new Date("2024-01-01"),
+        date: "2024-01-01",
         type: "expense",
         status: "completed",
         merchantName: "Test Merchant",
@@ -297,7 +297,7 @@ describe("Transaction Actions", () => {
         createdByUserId: mockUserId,
         amount: "100.5",
         description: null,
-        date: new Date("2024-01-01"),
+        date: "2024-01-01",
         type: "income",
         status: "completed",
         merchantName: null,
@@ -422,7 +422,7 @@ describe("Transaction Actions", () => {
       await updateTransaction(dateUpdate);
 
       expect(actualDb.set).toHaveBeenCalledWith({
-        date: new Date("2024-02-01"),
+        date: "2024-02-01",
         updatedAt: expect.any(Date),
       });
     });
@@ -449,7 +449,7 @@ describe("Transaction Actions", () => {
 
       // Verify that the date is correctly parsed as July 31st, not July 1st
       expect(actualDb.set).toHaveBeenCalledWith({
-        date: new Date("2024-07-31"),
+        date: "2024-07-31",
         updatedAt: expect.any(Date),
       });
     });
