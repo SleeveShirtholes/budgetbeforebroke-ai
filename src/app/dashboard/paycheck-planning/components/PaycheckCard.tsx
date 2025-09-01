@@ -4,6 +4,7 @@ import {
   CalendarDaysIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import Card from "@/components/Card";
 import Button from "@/components/Button";
@@ -80,90 +81,115 @@ export default function PaycheckCard({
               {allocation.allocatedDebts.map((debt) => (
                 <div
                   key={debt.debtId}
-                  className={`flex items-center justify-between p-3 rounded-lg relative bg-gray-50`}
+                  className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow"
                 >
-                  <div className="flex items-center space-x-2">
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        debt.isPaid ? "bg-green-500" : "bg-blue-500"
-                      }`}
-                    ></div>
-                    <div className="flex flex-col">
+                  {/* Simple Header */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          debt.isPaid ? "bg-green-500" : "bg-secondary-500"
+                        }`}
+                      ></div>
                       <span className="text-sm font-medium text-gray-900">
                         {debt.debtName}
                       </span>
-                      <div className="flex flex-col space-y-1 text-xs text-gray-500">
-                        <span
-                          className={`${
-                            !debt.isPaid &&
-                            debt.dueDate <
-                              new Date().toISOString().split("T")[0]
-                              ? "text-red-600 font-medium"
-                              : ""
-                          }`}
-                        >
-                          Due {formatDateSafely(debt.dueDate, "MMM dd")}
-                          {!debt.isPaid &&
-                            debt.dueDate <
-                              new Date().toISOString().split("T")[0] && (
-                              <span className="text-red-600 ml-1">
-                                ⚠️ Past Due
-                              </span>
-                            )}
-                        </span>
-                        {debt.isPaid && debt.paymentDate && (
-                          <span className="text-green-600 font-medium">
-                            Paid {formatDateSafely(debt.paymentDate, "MMM dd")}
-                            {debt.paymentDate > debt.dueDate && (
-                              <span className="text-red-600 ml-1">(Late)</span>
-                            )}
-                          </span>
-                        )}
-                        {!debt.isPaid && debt.paymentDate && (
-                          <span
-                            className={`text-xs ${
-                              debt.paymentDate > debt.dueDate
-                                ? "text-red-600 font-medium"
-                                : "text-blue-600"
-                            }`}
-                          >
-                            Pay {formatDateSafely(debt.paymentDate, "MMM dd")}
-                            {debt.paymentDate > debt.dueDate && " (Late)"}
-                          </span>
-                        )}
-                      </div>
                     </div>
                   </div>
 
-                  {/* Mark as Paid Button - positioned between dates and amount */}
-                  {!debt.isPaid && debt.paymentId && onMarkPaymentAsPaid && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        handleMarkAsPaid(debt.debtId, debt.paymentId!)
-                      }
-                      disabled={markingAsPaidId === debt.paymentId}
-                      className="text-xs px-2 py-1 h-7 text-green-700 border-green-300 hover:bg-green-50"
-                    >
-                      {markingAsPaidId === debt.paymentId ? (
-                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        "Mark Paid"
+                  {/* Simple Details */}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-500">
+                      Due {formatDateSafely(debt.dueDate, "MMM dd")}
+                    </span>
+
+                    {debt.isPaid ? (
+                      <span className="text-xs text-green-600 font-medium">
+                        Paid{" "}
+                        {formatDateSafely(debt.paymentDate || "", "MMM dd")}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-secondary-600">
+                        Scheduled
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Amount Information */}
+                  <div className="flex items-center justify-between mb-3 text-xs">
+                    <span className="text-gray-500">
+                      Due:{" "}
+                      <span className="font-medium text-gray-900">
+                        $
+                        {(debt.amount && !isNaN(debt.amount)
+                          ? debt.amount
+                          : 0
+                        ).toLocaleString()}
+                      </span>
+                    </span>
+
+                    {debt.paymentAmount &&
+                      !isNaN(debt.paymentAmount) &&
+                      debt.amount &&
+                      !isNaN(debt.amount) &&
+                      debt.paymentAmount !== debt.amount && (
+                        <span className="text-secondary-600">
+                          Paying:{" "}
+                          <span className="font-medium text-secondary-900">
+                            ${debt.paymentAmount.toLocaleString()}
+                          </span>
+                        </span>
                       )}
-                    </Button>
-                  )}
+                  </div>
 
-                  {/* Paid Indicator - show when debt is paid */}
-                  {debt.isPaid && (
-                    <div className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 border-2 border-dashed border-green-300 rounded-md">
-                      Paid
-                    </div>
-                  )}
+                  {/* Simple Actions */}
+                  <div className="flex items-center justify-end space-x-2">
+                    {!debt.isPaid && debt.paymentId && onMarkPaymentAsPaid && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleMarkAsPaid(debt.debtId, debt.paymentId!)
+                          }
+                          disabled={markingAsPaidId === debt.paymentId}
+                          className="text-xs px-2 py-1 h-7"
+                        >
+                          {markingAsPaidId === debt.paymentId ? (
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            "Mark Paid"
+                          )}
+                        </Button>
 
-                  <span className="text-sm font-semibold text-gray-900">
-                    ${debt.amount.toLocaleString()}
-                  </span>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={async () => {
+                            // Handle removal logic here
+                          }}
+                          className="text-xs px-2 py-1 h-7"
+                          title="Remove allocation"
+                        >
+                          <XMarkIcon className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
+
+                    {debt.isPaid && (
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={async () => {
+                          // Handle removal logic here
+                        }}
+                        className="text-xs px-2 py-1 h-7"
+                        title="Remove allocation"
+                      >
+                        <XMarkIcon className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -177,7 +203,7 @@ export default function PaycheckCard({
               ? "bg-red-50 border border-red-200"
               : hasRemainingBalance
                 ? "bg-green-50 border border-green-200"
-                : "bg-blue-50 border border-blue-200"
+                : "bg-secondary-50 border border-secondary-200"
           }`}
         >
           <div className="flex items-center space-x-2">
@@ -192,7 +218,7 @@ export default function PaycheckCard({
                   ? "text-red-900"
                   : hasRemainingBalance
                     ? "text-green-900"
-                    : "text-blue-900"
+                    : "text-secondary-900"
               }`}
             >
               {hasInsufficientFunds
@@ -226,7 +252,14 @@ export default function PaycheckCard({
             <span>
               $
               {allocation.allocatedDebts
-                .reduce((sum, debt) => sum + debt.amount, 0)
+                .reduce(
+                  (sum, debt) =>
+                    sum +
+                    (debt.paymentAmount && !isNaN(debt.paymentAmount)
+                      ? debt.paymentAmount
+                      : debt.amount),
+                  0,
+                )
                 .toLocaleString()}{" "}
               total
             </span>

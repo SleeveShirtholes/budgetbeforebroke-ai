@@ -38,6 +38,7 @@ export interface DebtInfo {
 
 export interface PaycheckPlanningData {
   paychecks: PaycheckInfo[];
+  futurePaychecks: PaycheckInfo[];
   debts: DebtInfo[];
   warnings: PaycheckWarning[];
 }
@@ -62,6 +63,7 @@ export interface PaycheckAllocation {
     dueDate: string;
     originalDueDate: string; // The original due date of the debt (used for month indicator)
     paymentDate?: string;
+    paymentAmount?: number; // The amount to be paid (may differ from debt amount)
     paymentId?: string;
     isPaid: boolean;
   }[];
@@ -230,6 +232,7 @@ export async function getPaycheckPlanningData(
 
   // Calculate paycheck dates for the current month
   const paychecks: PaycheckInfo[] = [];
+  const futurePaychecks: PaycheckInfo[] = [];
 
   for (const incomeSource of incomeSourcesList) {
     // startDate is now a string (YYYY-MM-DD), parse it safely
@@ -256,24 +259,35 @@ export async function getPaycheckPlanningData(
       }
     }
 
-    // Add paychecks for this month
-    while (
-      paycheckDate.getFullYear() === year &&
-      paycheckDate.getMonth() === month - 1
-    ) {
+    // Calculate all paychecks for the current month and future months in one loop
+    // This ensures we don't miss any paychecks due to date boundary issues
+    const endDate = addMonths(new Date(year, month - 1, 1), 4); // 4 months from start of current month
+
+    while (paycheckDate < endDate) {
       const y = paycheckDate.getFullYear();
       const m = String(paycheckDate.getMonth() + 1).padStart(2, "0");
       const d = String(paycheckDate.getDate()).padStart(2, "0");
       const ymd = `${y}-${m}-${d}`;
 
-      paychecks.push({
+      const paycheckInfo = {
         id: `${incomeSource.id}-${ymd}`,
         name: incomeSource.name,
         amount: Number(incomeSource.amount),
         date: ymd,
         frequency: incomeSource.frequency,
         userId: sessionResult.user.id,
-      });
+      };
+
+      // Add to current month paychecks if it's in the current month
+      if (
+        paycheckDate.getFullYear() === year &&
+        paycheckDate.getMonth() === month - 1
+      ) {
+        paychecks.push(paycheckInfo);
+      } else {
+        // Add to future paychecks if it's in a future month
+        futurePaychecks.push(paycheckInfo);
+      }
 
       // Move to next paycheck
       if (incomeSource.frequency === "weekly") {
@@ -288,6 +302,9 @@ export async function getPaycheckPlanningData(
 
   // Sort paychecks by date string (YYYY-MM-DD)
   paychecks.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  futurePaychecks.sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+  );
 
   // Get all debts for the budget account
   const allDebts = await db.query.debts.findMany({
@@ -363,6 +380,7 @@ export async function getPaycheckPlanningData(
 
   return {
     paychecks,
+    futurePaychecks,
     debts: processedDebts,
     warnings,
   };
@@ -473,22 +491,25 @@ export async function getPaycheckAllocations(
           // Use the monthly planning id as the debt identifier throughout the UI
           debtId: monthlyPlanning.id,
           debtName: baseDebt.name,
-          amount: Number(baseDebt.paymentAmount),
+          amount: Number(baseDebt.paymentAmount) || 0, // Original debt amount (from paymentAmount field)
           // Use the specific instance due date for the month
           dueDate: monthlyPlanning.dueDate,
           // Include the original template due date for month indicator
           originalDueDate: originalDueDate,
           paymentDate: allocation.paymentDate || undefined,
+          paymentAmount: allocation.paymentAmount
+            ? Number(allocation.paymentAmount) || 0
+            : undefined, // Payment amount from allocation
           paymentId: allocation.id,
           isPaid: allocation.isPaid || false,
         };
       })
       .filter((debt) => debt !== null);
 
-    const totalAllocated = allocatedDebts.reduce(
-      (sum, debt) => sum + debt.amount,
-      0,
-    );
+    const totalAllocated = allocatedDebts.reduce((sum, debt) => {
+      const amount = debt.paymentAmount || debt.amount;
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
 
     return {
       paycheckId: paycheck.id,
@@ -588,6 +609,25 @@ export async function updateDebtAllocation(
           : null,
         isPaid: false,
       });
+    } else {
+      // Update existing allocation
+      await db
+        .update(debtAllocations)
+        .set({
+          paymentAmount: paymentAmount ? paymentAmount.toString() : null,
+          paymentDate: paymentDate || null,
+          note: paymentDate
+            ? `Updated payment from paycheck allocation on ${paymentDate}`
+            : null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
+            eq(debtAllocations.paycheckId, paycheckId),
+            eq(debtAllocations.budgetAccountId, budgetAccountId),
+          ),
+        );
     }
   } else if (action === "unallocate") {
     // Remove the allocation
@@ -600,6 +640,35 @@ export async function updateDebtAllocation(
           eq(debtAllocations.budgetAccountId, budgetAccountId),
         ),
       );
+  } else if (action === "update") {
+    // Update existing allocation
+    const existingAllocation = await db.query.debtAllocations.findFirst({
+      where: and(
+        eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
+        eq(debtAllocations.paycheckId, paycheckId),
+        eq(debtAllocations.budgetAccountId, budgetAccountId),
+      ),
+    });
+
+    if (existingAllocation) {
+      await db
+        .update(debtAllocations)
+        .set({
+          paymentAmount: paymentAmount ? paymentAmount.toString() : null,
+          paymentDate: paymentDate || null,
+          note: paymentDate
+            ? `Updated payment from paycheck allocation on ${paymentDate}`
+            : null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
+            eq(debtAllocations.paycheckId, paycheckId),
+            eq(debtAllocations.budgetAccountId, budgetAccountId),
+          ),
+        );
+    }
   }
 
   return { success: true };
