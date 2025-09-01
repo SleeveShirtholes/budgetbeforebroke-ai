@@ -27,7 +27,13 @@ import {
   getDebtAllocations,
   setMonthlyDebtPlanningActive,
 } from "@/app/actions/paycheck-planning";
-import { formatDateSafely } from "@/utils/date";
+import {
+  formatDateSafely,
+  addMonthsToString,
+  toDateString,
+  parseDateString,
+  getCurrentDateString,
+} from "@/utils/date";
 import Card from "@/components/Card";
 import Button from "@/components/Button";
 import Modal from "@/components/Modal";
@@ -421,9 +427,12 @@ export default function PaycheckPlanningPage() {
   const goToPreviousMonth = async () => {
     setIsChangingMonth(true);
     setSelectedDate((prev) => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() - 1);
-      return newDate;
+      // Convert current date to string format to avoid timezone issues
+      const currentDateString = toDateString(prev);
+      // Add -1 month using the safe date utility
+      const previousMonthString = addMonthsToString(currentDateString, -1);
+      // Convert back to Date object
+      return parseDateString(previousMonthString);
     });
 
     // Wait for data to refresh
@@ -443,9 +452,12 @@ export default function PaycheckPlanningPage() {
   const goToNextMonth = async () => {
     setIsChangingMonth(true);
     setSelectedDate((prev) => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() + 1);
-      return newDate;
+      // Convert current date to string format to avoid timezone issues
+      const currentDateString = toDateString(prev);
+      // Add 1 month using the safe date utility
+      const nextMonthString = addMonthsToString(currentDateString, 1);
+      // Convert back to Date object
+      return parseDateString(nextMonthString);
     });
 
     // Wait for data to refresh
@@ -464,7 +476,9 @@ export default function PaycheckPlanningPage() {
 
   const goToCurrentMonth = async () => {
     setIsChangingMonth(true);
-    setSelectedDate(new Date());
+    // Use the safe date utility to get current date without timezone issues
+    const currentDateString = getCurrentDateString();
+    setSelectedDate(parseDateString(currentDateString));
 
     // Wait for data to refresh
     try {
