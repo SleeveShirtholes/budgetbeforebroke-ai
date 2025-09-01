@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { format, addMonths } from "date-fns";
 import {
   CalendarDaysIcon,
@@ -16,6 +16,8 @@ import CustomDatePicker from "@/components/Forms/CustomDatePicker";
 import NumberInput from "@/components/Forms/NumberInput";
 import Table, { ColumnDef } from "@/components/Table";
 import { formatDateSafely } from "@/utils/date";
+import PaymentModal from "./PaymentModal";
+import PaycheckCalendar from "./PaycheckCalendar";
 import type {
   PaycheckAllocation,
   PaycheckInfo,
@@ -38,6 +40,7 @@ type MonthlyDebtRecord = {
 
 interface AssignmentBasedInterfaceProps {
   paychecks: PaycheckInfo[];
+  futurePaychecks: PaycheckInfo[];
   allocations: PaycheckAllocation[];
   unallocatedDebts: MonthlyDebtRecord[];
   hiddenDebts: MonthlyDebtRecord[];
@@ -71,6 +74,7 @@ interface AssignmentBasedInterfaceProps {
  */
 export default function AssignmentBasedInterface({
   paychecks,
+  futurePaychecks,
   allocations,
   unallocatedDebts,
   hiddenDebts,
@@ -97,11 +101,21 @@ export default function AssignmentBasedInterface({
   const [deletingDebts, setDeletingDebts] = useState<Set<string>>(new Set());
   const [markingAsPaid, setMarkingAsPaid] = useState<string | null>(null);
   const [paidAmount, setPaidAmount] = useState("");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const calendarButtonRef = useRef<HTMLButtonElement | null>(null);
   const [paidDate, setPaidDate] = useState("");
   const [isMarkingAsPaid, setIsMarkingAsPaid] = useState(false);
   const [isSkippedDebtsModalOpen, setIsSkippedDebtsModalOpen] = useState(false);
   const [skippingDebts, setSkippingDebts] = useState<Set<string>>(new Set());
   const [restoringDebts, setRestoringDebts] = useState<Set<string>>(new Set());
+
+  // PaymentModal state
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [pendingDebtAssignment, setPendingDebtAssignment] = useState<{
+    monthlyDebtPlanningId: string;
+    paycheckId: string;
+    debt: MonthlyDebtRecord;
+  } | null>(null);
 
   // Define table columns for the custom Table component
   // Note: column keys must match raw data field names for sorting/search to work
@@ -149,7 +163,11 @@ export default function AssignmentBasedInterface({
         const debt = row as unknown as MonthlyDebtRecord;
         return (
           <span className="text-sm font-semibold text-gray-900">
-            ${debt.amount.toLocaleString()}
+            $
+            {(debt.amount && !isNaN(debt.amount)
+              ? debt.amount
+              : 0
+            ).toLocaleString()}
           </span>
         );
       },
@@ -379,43 +397,51 @@ export default function AssignmentBasedInterface({
       return;
     }
 
-    try {
-      // If it's a grouped paycheck, assign to the first paycheck in the group
-      let actualPaycheckId = paycheckId;
-      if (paycheckId.startsWith("group-")) {
-        const groupIndex = parseInt(paycheckId.replace("group-", ""));
-        const group = groupedPaychecks[groupIndex];
-        if (group && group.paychecks.length > 0) {
-          actualPaycheckId = group.paychecks[0].id;
+    // If paymentAmount and paymentDate are provided, proceed with allocation
+    if (paymentAmount && paymentDate) {
+      try {
+        // If it's a grouped paycheck, assign to the first paycheck in the group
+        let actualPaycheckId = paycheckId;
+        if (paycheckId.startsWith("group-")) {
+          const groupIndex = parseInt(paycheckId.replace("group-", ""));
+          const group = groupedPaychecks[groupIndex];
+          if (group && group.paychecks.length > 0) {
+            actualPaycheckId = group.paychecks[0].id;
+          }
         }
+
+        await onDebtAllocated(
+          debt.id, // This is now the monthlyDebtPlanningId
+          actualPaycheckId,
+          paymentAmount,
+          paymentDate,
+        );
+
+        // Remove from selected debts if it was selected
+        setSelectedDebts((prev) => {
+          const newSelected = new Set(prev);
+          newSelected.delete(debt.id);
+          return newSelected;
+        });
+
+        // Close the modal if it was open
+        if (editingDebt) {
+          setEditingDebt(null);
+        }
+      } catch (error) {
+        console.error("Error assigning debt:", error);
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to assign debt",
+        );
       }
-
-      const finalPaymentAmount = paymentAmount ?? debt.amount;
-      const finalPaymentDate = paymentDate ?? format(new Date(), "yyyy-MM-dd");
-
-      await onDebtAllocated(
-        debt.id, // This is now the monthlyDebtPlanningId
-        actualPaycheckId,
-        finalPaymentAmount,
-        finalPaymentDate,
-      );
-
-      // Remove from selected debts if it was selected
-      setSelectedDebts((prev) => {
-        const newSelected = new Set(prev);
-        newSelected.delete(debt.id);
-        return newSelected;
+    } else {
+      // Show PaymentModal to collect payment details
+      setPendingDebtAssignment({
+        monthlyDebtPlanningId,
+        paycheckId,
+        debt,
       });
-
-      // Close the modal if it was open
-      if (editingDebt) {
-        setEditingDebt(null);
-      }
-    } catch (error) {
-      console.error("Error assigning debt:", error);
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to assign debt",
-      );
+      setIsPaymentModalOpen(true);
     }
   };
 
@@ -459,6 +485,40 @@ export default function AssignmentBasedInterface({
     [onDebtRestored],
   );
 
+  /**
+   * Handle PaymentModal confirmation
+   */
+  const handlePaymentModalConfirm = async (
+    paymentAmount: number,
+    paymentDate: string,
+  ) => {
+    if (!pendingDebtAssignment) return;
+
+    try {
+      await handleDebtAssignment(
+        pendingDebtAssignment.monthlyDebtPlanningId,
+        pendingDebtAssignment.paycheckId,
+        paymentAmount,
+        paymentDate,
+      );
+
+      // Close the modal
+      setIsPaymentModalOpen(false);
+      setPendingDebtAssignment(null);
+    } catch (error) {
+      console.error("Error in payment modal confirmation:", error);
+      // Error is already handled in handleDebtAssignment
+    }
+  };
+
+  /**
+   * Handle PaymentModal close
+   */
+  const handlePaymentModalClose = () => {
+    setIsPaymentModalOpen(false);
+    setPendingDebtAssignment(null);
+  };
+
   const handleBulkAssignment = async () => {
     // Clear any previous error messages
     setErrorMessage("");
@@ -474,6 +534,8 @@ export default function AssignmentBasedInterface({
       return;
     }
 
+    // For bulk assignment, we'll use a simplified approach with default values
+    // since showing individual modals for each debt would be cumbersome
     setIsAssigning(true);
     try {
       // If it's a grouped paycheck, assign to the first paycheck in the group
@@ -753,7 +815,11 @@ export default function AssignmentBasedInterface({
                                   )}
                                 </span>
                                 <span className="text-sm font-semibold text-gray-900">
-                                  ${debt.amount.toLocaleString()}
+                                  $
+                                  {(debt.amount && !isNaN(debt.amount)
+                                    ? debt.amount
+                                    : 0
+                                  ).toLocaleString()}
                                 </span>
                               </div>
                             </div>
@@ -872,9 +938,31 @@ export default function AssignmentBasedInterface({
 
       {/* Paycheck Allocations Section */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900">
-          Paycheck Allocations
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Paycheck Allocations
+          </h2>
+          <div className="relative">
+            <button
+              ref={calendarButtonRef}
+              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+              className="flex items-center space-x-2 px-3 py-1.5 text-sm border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:border-primary-700 hover:shadow-md hover:-translate-y-0.5 rounded-md transition-all duration-200 whitespace-nowrap"
+            >
+              <CalendarDaysIcon className="h-4 w-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">Paycheck Calendar</span>
+            </button>
+
+            {/* Paycheck Calendar Popup */}
+            {isCalendarOpen && (
+              <PaycheckCalendar
+                paychecks={[...paychecks, ...futurePaychecks]}
+                isOpen={isCalendarOpen}
+                onClose={() => setIsCalendarOpen(false)}
+                triggerRef={calendarButtonRef}
+              />
+            )}
+          </div>
+        </div>
 
         {/* Paycheck Cards - Responsive grid for multiple cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -885,7 +973,11 @@ export default function AssignmentBasedInterface({
               (sum, allocation) =>
                 sum +
                 allocation.allocatedDebts.reduce(
-                  (debtSum, debt) => debtSum + debt.amount,
+                  (debtSum, debt) =>
+                    debtSum +
+                    (debt.paymentAmount && !isNaN(debt.paymentAmount)
+                      ? debt.paymentAmount
+                      : debt.amount),
                   0,
                 ),
               0,
@@ -902,8 +994,8 @@ export default function AssignmentBasedInterface({
                   <div className="pb-3 border-b border-gray-200">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div className="p-2 rounded-lg bg-blue-50 border border-blue-200 flex-shrink-0">
-                          <CurrencyDollarIcon className="h-4 w-4 text-blue-600" />
+                        <div className="p-2 rounded-lg bg-secondary-50 border border-secondary-200 flex-shrink-0">
+                          <CurrencyDollarIcon className="h-4 w-4 text-secondary-600" />
                         </div>
                         <h3 className="text-sm font-semibold text-gray-900 truncate">
                           {option.label.split(" - ")[0]}{" "}
@@ -939,73 +1031,138 @@ export default function AssignmentBasedInterface({
                             allocation.allocatedDebts.map((debt) => (
                               <div
                                 key={debt.debtId}
-                                className="p-2 bg-gray-50 rounded border border-gray-200 hover:bg-gray-100 transition-colors"
+                                className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow"
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium text-gray-900 truncate mb-1">
+                                {/* Simple Header */}
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center space-x-2">
+                                    <div
+                                      className={`w-2 h-2 rounded-full ${
+                                        debt.isPaid
+                                          ? "bg-green-500"
+                                          : "bg-secondary-500"
+                                      }`}
+                                    ></div>
+                                    <span className="text-sm font-medium text-gray-900">
                                       {debt.debtName}
-                                    </p>
-                                    {debt.paymentDate && (
-                                      <p className="text-xs text-gray-600 mb-1">
-                                        {debt.isPaid ? (
-                                          <span className="text-green-600 font-medium">
-                                            Paid{" "}
-                                            {formatDateSafely(
-                                              debt.paymentDate,
-                                              "MMM dd",
-                                            )}
-                                          </span>
-                                        ) : (
-                                          <span className="text-blue-600">
-                                            Pay{" "}
-                                            {formatDateSafely(
-                                              debt.paymentDate,
-                                              "MMM dd",
-                                            )}
-                                          </span>
-                                        )}
-                                      </p>
-                                    )}
-                                    {/* Month indicator showing which month this debt is from */}
-                                    {debt.originalDueDate && (
-                                      <p className="text-xs text-gray-500">
-                                        {formatDateSafely(
-                                          debt.originalDueDate,
-                                          "MMM yyyy",
-                                        )}{" "}
-                                        debt
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2 flex-shrink-0">
-                                    <span className="text-sm font-bold text-gray-900">
-                                      ${debt.amount.toLocaleString()}
                                     </span>
-                                    {debt.isPaid ? (
-                                      <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                                        <CheckCircleIcon className="h-3 w-3" />
-                                        <span>Paid</span>
-                                      </div>
-                                    ) : (
+                                  </div>
+                                </div>
+
+                                {/* Simple Details */}
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs text-gray-500">
+                                    Due{" "}
+                                    {formatDateSafely(debt.dueDate, "MMM dd")}
+                                  </span>
+
+                                  {debt.isPaid ? (
+                                    <span className="text-xs text-green-600 font-medium">
+                                      Paid{" "}
+                                      {formatDateSafely(
+                                        debt.paymentDate || "",
+                                        "MMM dd",
+                                      )}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-secondary-600">
+                                      Scheduled
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Amount Information */}
+                                <div className="flex items-center justify-between mb-3 text-xs">
+                                  <span className="text-gray-500">
+                                    Due:{" "}
+                                    <span className="font-medium text-gray-900">
+                                      $
+                                      {(debt.amount && !isNaN(debt.amount)
+                                        ? debt.amount
+                                        : 0
+                                      ).toLocaleString()}
+                                    </span>
+                                  </span>
+
+                                  {debt.paymentAmount &&
+                                    !isNaN(debt.paymentAmount) &&
+                                    debt.amount &&
+                                    !isNaN(debt.amount) &&
+                                    debt.paymentAmount !== debt.amount && (
+                                      <span className="text-secondary-600">
+                                        Paying:{" "}
+                                        <span className="font-medium text-secondary-900">
+                                          ${debt.paymentAmount.toLocaleString()}
+                                        </span>
+                                      </span>
+                                    )}
+                                </div>
+
+                                {/* Simple Actions */}
+                                <div className="flex items-center justify-end space-x-2">
+                                  {!debt.isPaid && (
+                                    <>
                                       <Button
                                         variant="outline"
                                         size="sm"
                                         onClick={() => {
                                           setMarkingAsPaid(debt.debtId);
-                                          // Initialize with current debt amount and today's date
-                                          setPaidAmount(debt.amount.toString());
+                                          // Initialize with current payment amount and today's date
+                                          setPaidAmount(
+                                            (debt.paymentAmount &&
+                                            !isNaN(debt.paymentAmount)
+                                              ? debt.paymentAmount
+                                              : debt.amount
+                                            ).toString(),
+                                          );
                                           setPaidDate(
                                             format(new Date(), "yyyy-MM-dd"),
                                           );
                                         }}
-                                        className="text-green-600 border-green-300 hover:bg-green-50 hover:border-green-400 text-xs px-2 py-1"
+                                        className="text-xs px-2 py-1 h-7"
                                         title="Mark as paid"
                                       >
                                         Mark Paid
                                       </Button>
-                                    )}
-                                    <button
+
+                                      <Button
+                                        variant="danger"
+                                        size="sm"
+                                        onClick={async () => {
+                                          setDeletingDebts((prev) =>
+                                            new Set(prev).add(debt.debtId),
+                                          );
+                                          try {
+                                            await handleDebtRemoval(
+                                              debt.debtId,
+                                            );
+                                          } finally {
+                                            setDeletingDebts((prev) => {
+                                              const newSet = new Set(prev);
+                                              newSet.delete(debt.debtId);
+                                              return newSet;
+                                            });
+                                          }
+                                        }}
+                                        disabled={deletingDebts.has(
+                                          debt.debtId,
+                                        )}
+                                        className="text-xs px-2 py-1 h-7"
+                                        title="Remove debt"
+                                      >
+                                        {deletingDebts.has(debt.debtId) ? (
+                                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500"></div>
+                                        ) : (
+                                          <XMarkIcon className="h-3 w-3" />
+                                        )}
+                                      </Button>
+                                    </>
+                                  )}
+
+                                  {debt.isPaid && (
+                                    <Button
+                                      variant="danger"
+                                      size="sm"
                                       onClick={async () => {
                                         setDeletingDebts((prev) =>
                                           new Set(prev).add(debt.debtId),
@@ -1021,7 +1178,7 @@ export default function AssignmentBasedInterface({
                                         }
                                       }}
                                       disabled={deletingDebts.has(debt.debtId)}
-                                      className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                      className="text-xs px-2 py-1 h-7"
                                       title="Remove debt"
                                     >
                                       {deletingDebts.has(debt.debtId) ? (
@@ -1029,8 +1186,8 @@ export default function AssignmentBasedInterface({
                                       ) : (
                                         <XMarkIcon className="h-3 w-3" />
                                       )}
-                                    </button>
-                                  </div>
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             )),
@@ -1117,7 +1274,11 @@ export default function AssignmentBasedInterface({
                 {editingDebt.debt.debtName}
               </p>
               <p className="text-xs text-gray-600">
-                Amount: ${editingDebt.debt.amount.toLocaleString()}
+                Amount: $
+                {(editingDebt.debt.amount && !isNaN(editingDebt.debt.amount)
+                  ? editingDebt.debt.amount
+                  : 0
+                ).toLocaleString()}
               </p>
             </div>
 
@@ -1450,7 +1611,11 @@ export default function AssignmentBasedInterface({
                             </td>
                             <td className="px-3 py-4">
                               <span className="text-sm font-semibold text-gray-900">
-                                ${debt.amount.toLocaleString()}
+                                $
+                                {(debt.amount && !isNaN(debt.amount)
+                                  ? debt.amount
+                                  : 0
+                                ).toLocaleString()}
                               </span>
                             </td>
                             <td className="px-3 py-4">
@@ -1506,6 +1671,54 @@ export default function AssignmentBasedInterface({
             )}
           </div>
         </Modal>
+      )}
+
+      {/* PaymentModal for debt allocation */}
+      {pendingDebtAssignment && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={handlePaymentModalClose}
+          onConfirm={handlePaymentModalConfirm}
+          debt={{
+            id: pendingDebtAssignment.debt.debtId,
+            name: pendingDebtAssignment.debt.debtName,
+            amount: pendingDebtAssignment.debt.amount,
+            dueDate: pendingDebtAssignment.debt.dueDate,
+            frequency: pendingDebtAssignment.debt.frequency,
+            description: pendingDebtAssignment.debt.description,
+            isRecurring: pendingDebtAssignment.debt.isRecurring,
+            categoryId: pendingDebtAssignment.debt.categoryId,
+          }}
+          paycheck={(() => {
+            // Find the actual paycheck information
+            if (pendingDebtAssignment.paycheckId.startsWith("group-")) {
+              const groupIndex = parseInt(
+                pendingDebtAssignment.paycheckId.replace("group-", ""),
+              );
+              const group = groupedPaychecks[groupIndex];
+              if (group && group.paychecks.length > 0) {
+                const paycheck = group.paychecks[0];
+                return {
+                  id: paycheck.id,
+                  name: group.names.join(", "),
+                  amount: group.totalAmount,
+                  date: paycheck.date,
+                  frequency: paycheck.frequency,
+                  userId: paycheck.userId,
+                };
+              }
+            }
+            // Fallback to a default paycheck if we can't find the actual one
+            return {
+              id: pendingDebtAssignment.paycheckId,
+              name: "Selected Paycheck",
+              amount: 0,
+              date: format(new Date(), "yyyy-MM-dd"),
+              frequency: "monthly" as const,
+              userId: "",
+            };
+          })()}
+        />
       )}
     </div>
   );

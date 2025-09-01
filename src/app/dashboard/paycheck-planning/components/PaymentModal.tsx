@@ -169,7 +169,11 @@ export default function PaymentModal({
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Original Amount:</span>
               <span className="text-sm font-medium text-gray-900">
-                ${debt.amount.toLocaleString()}
+                $
+                {(debt.amount && !isNaN(debt.amount)
+                  ? debt.amount
+                  : 0
+                ).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
@@ -235,7 +239,8 @@ export default function PaymentModal({
               {errors.paymentAmount.message}
             </p>
           )}
-          {paymentAmount > debt.amount && (
+          {paymentAmount >
+            (debt.amount && !isNaN(debt.amount) ? debt.amount : 0) && (
             <p className="mt-1 text-sm text-yellow-600">
               Note: You&apos;re paying more than the payment amount due.
             </p>
@@ -287,14 +292,24 @@ export default function PaymentModal({
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Remaining Debt:</span>
                 <span className="text-sm font-medium text-gray-900">
-                  ${Math.max(0, debt.amount - paymentAmount).toLocaleString()}
+                  $
+                  {Math.max(
+                    0,
+                    (debt.amount && !isNaN(debt.amount) ? debt.amount : 0) -
+                      paymentAmount,
+                  ).toLocaleString()}
                 </span>
               </div>
-              {paymentAmount > debt.amount && (
+              {paymentAmount >
+                (debt.amount && !isNaN(debt.amount) ? debt.amount : 0) && (
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Credit Created:</span>
                   <span className="text-sm font-medium text-green-600">
-                    ${(paymentAmount - debt.amount).toLocaleString()}
+                    $
+                    {(
+                      paymentAmount -
+                      (debt.amount && !isNaN(debt.amount) ? debt.amount : 0)
+                    ).toLocaleString()}
                   </span>
                 </div>
               )}

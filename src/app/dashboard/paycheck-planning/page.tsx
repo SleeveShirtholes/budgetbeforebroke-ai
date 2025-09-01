@@ -590,7 +590,12 @@ export default function PaycheckPlanningPage() {
     );
   }
 
-  const { paychecks = [], debts = [], warnings = [] } = planningData || {};
+  const {
+    paychecks = [],
+    futurePaychecks = [],
+    debts = [],
+    warnings = [],
+  } = planningData || {};
 
   const totalIncome = paychecks.reduce(
     (sum, paycheck) => sum + paycheck.amount,
@@ -1090,6 +1095,7 @@ export default function PaycheckPlanningPage() {
           {/* Assignment-Based Interface */}
           <AssignmentBasedInterface
             paychecks={paychecks}
+            futurePaychecks={futurePaychecks}
             allocations={allocations || []}
             unallocatedDebts={unallocatedMonthlyDebts}
             hiddenDebts={hiddenDebts || []}
