@@ -7,6 +7,7 @@ import {
 } from "@heroicons/react/20/solid";
 import { ReactNode, useState } from "react";
 import { ColumnDef, FilterValue, FiltersState, SortingState } from "./types";
+import { useDebounce } from "@/hooks/useDebounce";
 
 import TableBody from "./TableBody";
 import TableHeader from "./TableHeader";
@@ -75,6 +76,9 @@ export default function Table<T extends Record<string, unknown>>({
 
   // State for search
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Debounce search query to improve performance
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // State for column filters
   const [filters, setFilters] = useState<FiltersState>({});
@@ -226,13 +230,13 @@ export default function Table<T extends Record<string, unknown>>({
   // Filter data based on search query and column filters
   const filteredData = data.filter((row) => {
     // Apply search query filter
-    if (searchQuery) {
+    if (debouncedSearchQuery) {
       const matchesSearch = columns.some((column) => {
         const value = row[column.key];
         if (value === null || value === undefined) return false;
 
         const stringValue = value.toString().toLowerCase();
-        const searchTerm = searchQuery.toLowerCase();
+        const searchTerm = debouncedSearchQuery.toLowerCase();
 
         return stringValue.includes(searchTerm);
       });
@@ -283,9 +287,27 @@ export default function Table<T extends Record<string, unknown>>({
 
   // Calculate pagination or use all data if pagination is disabled
   const totalPages = Math.ceil(sortedData.length / pageSize);
+
+  // Virtualization threshold - only show limited rows for very large datasets
+  const VIRTUALIZATION_THRESHOLD = 1000;
+  const shouldVirtualize = sortedData.length > VIRTUALIZATION_THRESHOLD;
+
+  // For very large datasets, limit the display to improve performance
+  const effectivePageSize = shouldVirtualize
+    ? Math.min(pageSize, 50)
+    : pageSize;
+  const effectiveTotalPages = shouldVirtualize
+    ? Math.ceil(sortedData.length / effectivePageSize)
+    : totalPages;
+
   const displayData = showPagination
-    ? sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-    : sortedData;
+    ? sortedData.slice(
+        (currentPage - 1) * effectivePageSize,
+        currentPage * effectivePageSize,
+      )
+    : shouldVirtualize
+      ? sortedData.slice(0, 100) // Limit to 100 rows for very large datasets when pagination is disabled
+      : sortedData;
 
   // Toggle row expansion
   const toggleRowExpansion = (id: string) => {
@@ -440,7 +462,7 @@ export default function Table<T extends Record<string, unknown>>({
               toggleRowExpansion={toggleRowExpansion}
               detailPanel={detailPanel}
               actions={actions}
-              searchQuery={searchQuery}
+              searchQuery={debouncedSearchQuery}
               selectable={selectable}
               selectedRows={selectedRows}
               onRowSelection={handleRowSelection}
@@ -454,13 +476,18 @@ export default function Table<T extends Record<string, unknown>>({
       <div className="mt-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
         <div className="text-sm text-gray-600 text-center lg:text-left">
           Showing {displayData.length} of {sortedData.length} rows
+          {shouldVirtualize && (
+            <span className="ml-2 text-amber-600 font-medium">
+              (Large dataset - performance optimized)
+            </span>
+          )}
         </div>
 
-        {showPagination && totalPages > 1 && (
+        {showPagination && effectiveTotalPages > 1 && (
           <div className="flex justify-center lg:justify-end">
             <TablePagination
               currentPage={currentPage}
-              totalPages={totalPages}
+              totalPages={effectiveTotalPages}
               onPageChange={setCurrentPage}
               showPagination={showPagination}
               togglePagination={togglePagination}

@@ -249,8 +249,6 @@ export default function PaymentModal({
 
         {/* Payment Date */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-gray-700">Payment Date</h3>
-
           <div>
             <label
               htmlFor="paymentDate"
