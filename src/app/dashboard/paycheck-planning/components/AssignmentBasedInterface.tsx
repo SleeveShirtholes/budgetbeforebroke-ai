@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, memo } from "react";
 import { format, addMonths } from "date-fns";
 import {
   CalendarDaysIcon,
@@ -11,6 +11,7 @@ import {
 import Card from "@/components/Card";
 import Button from "@/components/Button";
 import Modal from "@/components/Modal";
+import Spinner from "@/components/Spinner";
 import CustomSelect from "@/components/Forms/CustomSelect";
 import CustomDatePicker from "@/components/Forms/CustomDatePicker";
 import NumberInput from "@/components/Forms/NumberInput";
@@ -59,20 +60,21 @@ interface AssignmentBasedInterfaceProps {
   ) => Promise<void>;
   onDebtHidden: (monthlyDebtPlanningId: string) => Promise<void>;
   onDebtRestored: (monthlyDebtPlanningId: string) => Promise<void>;
-
   onMarkPaymentAsPaid?: (
     monthlyDebtPlanningId: string, // Changed from debtId to monthlyDebtPlanningId
     paymentId: string,
     paymentAmount?: number,
     paymentDate?: string,
   ) => Promise<void>;
+  isChangingMonth?: boolean;
+  isChangingPlanningWindow?: boolean;
 }
 
 /**
  * Assignment-based interface for paycheck planning
  * Replaces drag-and-drop with simple assignment controls
  */
-export default function AssignmentBasedInterface({
+const AssignmentBasedInterface = memo(function AssignmentBasedInterface({
   paychecks,
   futurePaychecks,
   allocations,
@@ -86,6 +88,8 @@ export default function AssignmentBasedInterface({
   onDebtHidden,
   onDebtRestored,
   onMarkPaymentAsPaid,
+  isChangingMonth = false,
+  isChangingPlanningWindow = false,
 }: AssignmentBasedInterfaceProps) {
   const [editingDebt, setEditingDebt] = useState<{
     debt: MonthlyDebtRecord;
@@ -101,6 +105,7 @@ export default function AssignmentBasedInterface({
   const [deletingDebts, setDeletingDebts] = useState<Set<string>>(new Set());
   const [markingAsPaid, setMarkingAsPaid] = useState<string | null>(null);
   const [paidAmount, setPaidAmount] = useState("");
+  const [hasUserEditedPaidAmount, setHasUserEditedPaidAmount] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const calendarButtonRef = useRef<HTMLButtonElement | null>(null);
   const [paidDate, setPaidDate] = useState("");
@@ -108,6 +113,7 @@ export default function AssignmentBasedInterface({
   const [isSkippedDebtsModalOpen, setIsSkippedDebtsModalOpen] = useState(false);
   const [skippingDebts, setSkippingDebts] = useState<Set<string>>(new Set());
   const [restoringDebts, setRestoringDebts] = useState<Set<string>>(new Set());
+  const [isAssigningDebt, setIsAssigningDebt] = useState<string | null>(null);
 
   // PaymentModal state
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -229,6 +235,7 @@ export default function AssignmentBasedInterface({
               ...paycheckOptions,
             ]}
             fullWidth={false}
+            disabled={isAssigningDebt === debt.id}
           />
         );
       },
@@ -259,6 +266,8 @@ export default function AssignmentBasedInterface({
 
   // Group paychecks by date and combine amounts for same-day paychecks
   const groupedPaychecks = useMemo(() => {
+    if (!paychecks.length) return [];
+
     const groups = new Map<
       string,
       {
@@ -350,6 +359,7 @@ export default function AssignmentBasedInterface({
    */
   const computeStatus = useCallback(
     (debt: MonthlyDebtRecord): string => {
+      // Cache the parsed date to avoid repeated parsing
       const [debtYearStr, debtMonthStr] = debt.dueDate.split("-");
       const debtYear = parseInt(debtYearStr, 10);
       const debtMonth = parseInt(debtMonthStr, 10);
@@ -400,6 +410,8 @@ export default function AssignmentBasedInterface({
     // If paymentAmount and paymentDate are provided, proceed with allocation
     if (paymentAmount && paymentDate) {
       try {
+        setIsAssigningDebt(monthlyDebtPlanningId);
+
         // If it's a grouped paycheck, assign to the first paycheck in the group
         let actualPaycheckId = paycheckId;
         if (paycheckId.startsWith("group-")) {
@@ -433,6 +445,8 @@ export default function AssignmentBasedInterface({
         setErrorMessage(
           error instanceof Error ? error.message : "Failed to assign debt",
         );
+      } finally {
+        setIsAssigningDebt(null);
       }
     } else {
       // Show PaymentModal to collect payment details
@@ -548,23 +562,23 @@ export default function AssignmentBasedInterface({
         }
       }
 
-      const promises = Array.from(selectedDebts).map(
-        (monthlyDebtPlanningId: string) => {
-          // Find the debt by monthlyDebtPlanningId in filteredDebts
-          const debt = filteredDebts.find(
-            (d) => d.id === monthlyDebtPlanningId,
+      // Set loading state for all selected debts
+      const selectedDebtIds = Array.from(selectedDebts);
+      selectedDebtIds.forEach((id) => setIsAssigningDebt(id));
+
+      const promises = selectedDebtIds.map((monthlyDebtPlanningId: string) => {
+        // Find the debt by monthlyDebtPlanningId in filteredDebts
+        const debt = filteredDebts.find((d) => d.id === monthlyDebtPlanningId);
+        if (debt) {
+          return onDebtAllocated(
+            debt.id, // This is now the monthlyDebtPlanningId
+            actualPaycheckId,
+            debt.amount,
+            format(new Date(), "yyyy-MM-dd"),
           );
-          if (debt) {
-            return onDebtAllocated(
-              debt.id, // This is now the monthlyDebtPlanningId
-              actualPaycheckId,
-              debt.amount,
-              format(new Date(), "yyyy-MM-dd"),
-            );
-          }
-          return Promise.resolve();
-        },
-      );
+        }
+        return Promise.resolve();
+      });
 
       await Promise.all(promises);
       setSelectedDebts(new Set());
@@ -575,6 +589,8 @@ export default function AssignmentBasedInterface({
       setErrorMessage("Failed to assign debts. Please try again.");
     } finally {
       setIsAssigning(false);
+      // Clear individual loading states
+      selectedDebts.forEach(() => setIsAssigningDebt(null));
     }
   };
 
@@ -650,7 +666,18 @@ export default function AssignmentBasedInterface({
           </div>
         </div>
 
-        {unallocatedDebts.length === 0 ? (
+        {isChangingMonth || isChangingPlanningWindow ? (
+          <Card className="p-6">
+            <div className="text-center py-8">
+              <Spinner size="lg" />
+              <p className="mt-4 text-gray-600 font-medium">
+                {isChangingMonth
+                  ? "Loading month data..."
+                  : "Updating planning window..."}
+              </p>
+            </div>
+          </Card>
+        ) : unallocatedDebts.length === 0 ? (
           <Card className="p-6">
             <div className="text-center py-4">
               <CheckCircleIcon className="mx-auto h-8 w-8 text-green-500 mb-3" />
@@ -839,6 +866,7 @@ export default function AssignmentBasedInterface({
                                   { value: "", label: "Select paycheck..." },
                                   ...paycheckOptions,
                                 ]}
+                                disabled={isAssigningDebt === debt.id}
                               />
                               <Button
                                 variant="outline"
@@ -965,166 +993,215 @@ export default function AssignmentBasedInterface({
         </div>
 
         {/* Paycheck Cards - Responsive grid for multiple cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {paycheckOptions.map((option) => {
-            const group = option.group;
-            const paycheckAllocations = getDebtsForPaycheck(option.value);
-            const totalAllocated = paycheckAllocations.reduce(
-              (sum, allocation) =>
-                sum +
-                allocation.allocatedDebts.reduce(
-                  (debtSum, debt) =>
-                    debtSum +
-                    (debt.paymentAmount && !isNaN(debt.paymentAmount)
-                      ? debt.paymentAmount
-                      : debt.amount),
-                  0,
-                ),
-              0,
-            );
-            const remaining = group.totalAmount - totalAllocated;
+        {isChangingMonth || isChangingPlanningWindow ? (
+          <Card className="p-6">
+            <div className="text-center py-8">
+              <Spinner size="lg" />
+              <p className="mt-4 text-gray-600 font-medium">
+                {isChangingMonth
+                  ? "Loading paycheck data..."
+                  : "Updating planning window..."}
+              </p>
+            </div>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {paycheckOptions.map((option) => {
+              const group = option.group;
+              const paycheckAllocations = getDebtsForPaycheck(option.value);
+              const totalAllocated = paycheckAllocations.reduce(
+                (sum, allocation) =>
+                  sum +
+                  allocation.allocatedDebts.reduce(
+                    (debtSum, debt) =>
+                      debtSum +
+                      (debt.paymentAmount && !isNaN(debt.paymentAmount)
+                        ? debt.paymentAmount
+                        : debt.amount),
+                    0,
+                  ),
+                0,
+              );
+              const remaining = group.totalAmount - totalAllocated;
 
-            return (
-              <Card
-                key={option.value}
-                className="p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="space-y-3">
-                  {/* Paycheck Header */}
-                  <div className="pb-3 border-b border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div className="p-2 rounded-lg bg-secondary-50 border border-secondary-200 flex-shrink-0">
-                          <CurrencyDollarIcon className="h-4 w-4 text-secondary-600" />
+              return (
+                <Card
+                  key={option.value}
+                  className="p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="space-y-3">
+                    {/* Paycheck Header */}
+                    <div className="pb-3 border-b border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <div className="p-2 rounded-lg bg-secondary-50 border border-secondary-200 flex-shrink-0">
+                            <CurrencyDollarIcon className="h-4 w-4 text-secondary-600" />
+                          </div>
+                          <h3 className="text-sm font-semibold text-gray-900 truncate">
+                            {option.label.split(" - ")[0]}{" "}
+                            {/* Show "Paycheck 1", "Paycheck 2", etc. */}
+                          </h3>
                         </div>
-                        <h3 className="text-sm font-semibold text-gray-900 truncate">
-                          {option.label.split(" - ")[0]}{" "}
-                          {/* Show "Paycheck 1", "Paycheck 2", etc. */}
-                        </h3>
+                        <span className="font-bold text-gray-900 text-lg flex-shrink-0">
+                          ${group.totalAmount.toLocaleString()}
+                        </span>
                       </div>
-                      <span className="font-bold text-gray-900 text-lg flex-shrink-0">
-                        ${group.totalAmount.toLocaleString()}
-                      </span>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <CalendarDaysIcon className="h-3 w-3" />
+                        <span>
+                          {group.names.join(", ")} -{" "}
+                          {formatDateSafely(group.date, "MMM dd")}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <CalendarDaysIcon className="h-3 w-3" />
-                      <span>
-                        {group.names.join(", ")} -{" "}
-                        {formatDateSafely(group.date, "MMM dd")}
-                      </span>
-                    </div>
-                  </div>
 
-                  {/* Allocated Debts */}
-                  {(() => {
-                    const totalAllocatedDebts = paycheckAllocations.reduce(
-                      (sum, a) => sum + a.allocatedDebts.length,
-                      0,
-                    );
-                    return totalAllocatedDebts > 0 ? (
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-semibold text-gray-700 border-b border-gray-200 pb-1">
-                          Allocated Payments ({totalAllocatedDebts})
-                        </h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                          {paycheckAllocations.flatMap((allocation) =>
-                            allocation.allocatedDebts.map((debt) => (
-                              <div
-                                key={debt.debtId}
-                                className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow"
-                              >
-                                {/* Simple Header */}
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center space-x-2">
-                                    <div
-                                      className={`w-2 h-2 rounded-full ${
-                                        debt.isPaid
-                                          ? "bg-green-500"
-                                          : "bg-secondary-500"
-                                      }`}
-                                    ></div>
-                                    <span className="text-sm font-medium text-gray-900">
-                                      {debt.debtName}
-                                    </span>
+                    {/* Allocated Debts */}
+                    {(() => {
+                      const totalAllocatedDebts = paycheckAllocations.reduce(
+                        (sum, a) => sum + a.allocatedDebts.length,
+                        0,
+                      );
+                      return totalAllocatedDebts > 0 ? (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-semibold text-gray-700 border-b border-gray-200 pb-1">
+                            Allocated Payments ({totalAllocatedDebts})
+                          </h4>
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                            {paycheckAllocations.flatMap((allocation) =>
+                              allocation.allocatedDebts.map((debt) => (
+                                <div
+                                  key={debt.debtId}
+                                  className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow"
+                                >
+                                  {/* Simple Header */}
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center space-x-2">
+                                      <div
+                                        className={`w-2 h-2 rounded-full ${
+                                          debt.isPaid
+                                            ? "bg-green-500"
+                                            : "bg-secondary-500"
+                                        }`}
+                                      ></div>
+                                      <span className="text-sm font-medium text-gray-900">
+                                        {debt.debtName}
+                                      </span>
+                                    </div>
                                   </div>
-                                </div>
 
-                                {/* Simple Details */}
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-xs text-gray-500">
-                                    Due{" "}
-                                    {formatDateSafely(debt.dueDate, "MMM dd")}
-                                  </span>
-
-                                  {debt.isPaid ? (
-                                    <span className="text-xs text-green-600 font-medium">
-                                      Paid{" "}
-                                      {formatDateSafely(
-                                        debt.paymentDate || "",
-                                        "MMM dd",
-                                      )}
+                                  {/* Simple Details */}
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs text-gray-500">
+                                      Due{" "}
+                                      {formatDateSafely(debt.dueDate, "MMM dd")}
                                     </span>
-                                  ) : (
-                                    <span className="text-xs text-secondary-600">
-                                      Scheduled
-                                    </span>
-                                  )}
-                                </div>
 
-                                {/* Amount Information */}
-                                <div className="flex items-center justify-between mb-3 text-xs">
-                                  <span className="text-gray-500">
-                                    Due:{" "}
-                                    <span className="font-medium text-gray-900">
-                                      $
-                                      {(debt.amount && !isNaN(debt.amount)
-                                        ? debt.amount
-                                        : 0
-                                      ).toLocaleString()}
-                                    </span>
-                                  </span>
-
-                                  {debt.paymentAmount &&
-                                    !isNaN(debt.paymentAmount) &&
-                                    debt.amount &&
-                                    !isNaN(debt.amount) &&
-                                    debt.paymentAmount !== debt.amount && (
-                                      <span className="text-secondary-600">
-                                        Paying:{" "}
-                                        <span className="font-medium text-secondary-900">
-                                          ${debt.paymentAmount.toLocaleString()}
-                                        </span>
+                                    {debt.isPaid ? (
+                                      <span className="text-xs text-green-600 font-medium">
+                                        Paid{" "}
+                                        {formatDateSafely(
+                                          debt.paymentDate || "",
+                                          "MMM dd",
+                                        )}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-secondary-600">
+                                        Scheduled
                                       </span>
                                     )}
-                                </div>
+                                  </div>
 
-                                {/* Simple Actions */}
-                                <div className="flex items-center justify-end space-x-2">
-                                  {!debt.isPaid && (
-                                    <>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                          setMarkingAsPaid(debt.debtId);
-                                          // Initialize with current payment amount and today's date
-                                          setPaidAmount(
-                                            (debt.paymentAmount &&
-                                            !isNaN(debt.paymentAmount)
-                                              ? debt.paymentAmount
-                                              : debt.amount
-                                            ).toString(),
-                                          );
-                                          setPaidDate(
-                                            format(new Date(), "yyyy-MM-dd"),
-                                          );
-                                        }}
-                                        className="text-xs px-2 py-1 h-7"
-                                        title="Mark as paid"
-                                      >
-                                        Mark Paid
-                                      </Button>
+                                  {/* Amount Information */}
+                                  <div className="flex items-center justify-between mb-3 text-xs">
+                                    <span className="text-gray-500">
+                                      Due:{" "}
+                                      <span className="font-medium text-gray-900">
+                                        $
+                                        {(debt.amount && !isNaN(debt.amount)
+                                          ? debt.amount
+                                          : 0
+                                        ).toLocaleString()}
+                                      </span>
+                                    </span>
 
+                                    {debt.paymentAmount &&
+                                      !isNaN(debt.paymentAmount) &&
+                                      debt.amount &&
+                                      !isNaN(debt.amount) &&
+                                      debt.paymentAmount !== debt.amount && (
+                                        <span className="text-secondary-600">
+                                          Paying:{" "}
+                                          <span className="font-medium text-secondary-900">
+                                            $
+                                            {debt.paymentAmount.toLocaleString()}
+                                          </span>
+                                        </span>
+                                      )}
+                                  </div>
+
+                                  {/* Simple Actions */}
+                                  <div className="flex items-center justify-end space-x-2">
+                                    {!debt.isPaid && (
+                                      <>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            setMarkingAsPaid(debt.debtId);
+                                            // Initialize with current payment amount and today's date
+                                            setPaidAmount(
+                                              (debt.paymentAmount &&
+                                              !isNaN(debt.paymentAmount)
+                                                ? debt.paymentAmount
+                                                : debt.amount
+                                              ).toString(),
+                                            );
+                                            setPaidDate(
+                                              format(new Date(), "yyyy-MM-dd"),
+                                            );
+                                            setHasUserEditedPaidAmount(false);
+                                          }}
+                                          className="text-xs px-2 py-1 h-7"
+                                          title="Mark as paid"
+                                        >
+                                          Mark Paid
+                                        </Button>
+
+                                        <Button
+                                          variant="danger"
+                                          size="sm"
+                                          onClick={async () => {
+                                            setDeletingDebts((prev) =>
+                                              new Set(prev).add(debt.debtId),
+                                            );
+                                            try {
+                                              await handleDebtRemoval(
+                                                debt.debtId,
+                                              );
+                                            } finally {
+                                              setDeletingDebts((prev) => {
+                                                const newSet = new Set(prev);
+                                                newSet.delete(debt.debtId);
+                                                return newSet;
+                                              });
+                                            }
+                                          }}
+                                          disabled={deletingDebts.has(
+                                            debt.debtId,
+                                          )}
+                                          className="text-xs px-2 py-1 h-7"
+                                          title="Remove debt"
+                                        >
+                                          {deletingDebts.has(debt.debtId) ? (
+                                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500"></div>
+                                          ) : (
+                                            <XMarkIcon className="h-3 w-3" />
+                                          )}
+                                        </Button>
+                                      </>
+                                    )}
+
+                                    {debt.isPaid && (
                                       <Button
                                         variant="danger"
                                         size="sm"
@@ -1156,82 +1233,52 @@ export default function AssignmentBasedInterface({
                                           <XMarkIcon className="h-3 w-3" />
                                         )}
                                       </Button>
-                                    </>
-                                  )}
-
-                                  {debt.isPaid && (
-                                    <Button
-                                      variant="danger"
-                                      size="sm"
-                                      onClick={async () => {
-                                        setDeletingDebts((prev) =>
-                                          new Set(prev).add(debt.debtId),
-                                        );
-                                        try {
-                                          await handleDebtRemoval(debt.debtId);
-                                        } finally {
-                                          setDeletingDebts((prev) => {
-                                            const newSet = new Set(prev);
-                                            newSet.delete(debt.debtId);
-                                            return newSet;
-                                          });
-                                        }
-                                      }}
-                                      disabled={deletingDebts.has(debt.debtId)}
-                                      className="text-xs px-2 py-1 h-7"
-                                      title="Remove debt"
-                                    >
-                                      {deletingDebts.has(debt.debtId) ? (
-                                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500"></div>
-                                      ) : (
-                                        <XMarkIcon className="h-3 w-3" />
-                                      )}
-                                    </Button>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            )),
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-6 text-gray-500">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="p-2 rounded-full bg-gray-100">
-                            <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
+                              )),
+                            )}
                           </div>
-                          <p className="text-sm font-medium text-gray-600">
-                            No debts assigned yet
-                          </p>
-                          <p className="text-xs text-gray-500 text-center max-w-48">
-                            Assign debts from the Available Debts section above
-                            to start planning your paycheck
-                          </p>
                         </div>
-                      </div>
-                    );
-                  })()}
+                      ) : (
+                        <div className="text-center py-6 text-gray-500">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="p-2 rounded-full bg-gray-100">
+                              <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
+                            </div>
+                            <p className="text-sm font-medium text-gray-600">
+                              No debts assigned yet
+                            </p>
+                            <p className="text-xs text-gray-500 text-center max-w-48">
+                              Assign debts from the Available Debts section
+                              above to start planning your paycheck
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
-                  {/* Remaining Balance */}
-                  <div className="pt-3 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">
-                        {remaining >= 0 ? "Remaining Balance" : "Over Budget"}
-                      </span>
-                      <span
-                        className={`text-lg font-bold ${
-                          remaining >= 0 ? "text-green-700" : "text-red-700"
-                        }`}
-                      >
-                        ${Math.abs(remaining).toLocaleString()}
-                      </span>
+                    {/* Remaining Balance */}
+                    <div className="pt-3 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">
+                          {remaining >= 0 ? "Remaining Balance" : "Over Budget"}
+                        </span>
+                        <span
+                          className={`text-lg font-bold ${
+                            remaining >= 0 ? "text-green-700" : "text-red-700"
+                          }`}
+                        >
+                          ${Math.abs(remaining).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -1417,37 +1464,24 @@ export default function AssignmentBasedInterface({
           }
         >
           <div className="space-y-4">
-            {/* Debt Info */}
-            <div className="bg-gray-50 p-3 rounded">
-              <p className="text-sm font-medium text-gray-900">
-                {
-                  allocations
-                    .flatMap((a) => a.allocatedDebts)
-                    .find((d) => d.debtId === markingAsPaid)?.debtName
-                }
-              </p>
-              <p className="text-xs text-gray-600">
-                Original Amount: $
-                {allocations
-                  .flatMap((a) => a.allocatedDebts)
-                  .find((d) => d.debtId === markingAsPaid)
-                  ?.amount.toLocaleString()}
-              </p>
-            </div>
-
             {/* Payment Amount */}
             <div>
               <NumberInput
                 label="Amount Paid"
                 value={
-                  paidAmount ||
-                  allocations
-                    .flatMap((a) => a.allocatedDebts)
-                    .find((d) => d.debtId === markingAsPaid)
-                    ?.amount.toString() ||
-                  ""
+                  hasUserEditedPaidAmount
+                    ? paidAmount
+                    : paidAmount ||
+                      allocations
+                        .flatMap((a) => a.allocatedDebts)
+                        .find((d) => d.debtId === markingAsPaid)
+                        ?.amount.toString() ||
+                      ""
                 }
-                onChange={(value) => setPaidAmount(value)}
+                onChange={(value) => {
+                  setPaidAmount(value);
+                  setHasUserEditedPaidAmount(true);
+                }}
                 required
               />
             </div>
@@ -1722,4 +1756,6 @@ export default function AssignmentBasedInterface({
       )}
     </div>
   );
-}
+});
+
+export default AssignmentBasedInterface;
