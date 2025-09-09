@@ -14,8 +14,8 @@ import { db as importedDb } from "@/db/config";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const actualDb = importedDb as any;
+// Get the mocked db
+const mockDb = importedDb as jest.Mocked<typeof importedDb>;
 
 // Mock the dependencies
 jest.mock("@/lib/auth", () => ({
@@ -28,17 +28,39 @@ jest.mock("@/lib/auth", () => ({
 
 jest.mock("@/db/config", () => ({
   db: {
-    select: jest.fn().mockReturnThis(),
-    from: jest.fn().mockReturnThis(),
-    leftJoin: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    values: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    set: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
+    user: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    transaction: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    category: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
+    budgetAccount: {
+      findFirst: jest.fn(),
+    },
+    // Add Drizzle-style methods that the test is trying to use
+    select: jest.fn(),
+    from: jest.fn(),
+    leftJoin: jest.fn(),
+    where: jest.fn(),
+    orderBy: jest.fn(),
+    limit: jest.fn(),
+    insert: jest.fn(),
+    values: jest.fn(),
+    update: jest.fn(),
+    set: jest.fn(),
+    delete: jest.fn(),
   },
 }));
 
@@ -66,7 +88,7 @@ describe("Transaction Actions", () => {
     createdByUserId: mockUserId,
     amount: 100.5,
     description: "Test transaction",
-    date: "2024-01-01",
+    date: new Date("2024-01-01"),
     type: "expense",
     status: "completed",
     merchantName: "Test Merchant",
@@ -90,10 +112,14 @@ describe("Transaction Actions", () => {
     (auth.api.getSession as jest.Mock).mockResolvedValue(mockSession);
     (headers as jest.Mock).mockResolvedValue({});
 
-    // Reset all db mocks
-    Object.values(actualDb).forEach((fn: unknown) => {
-      if (typeof fn === "function" && "mockClear" in fn) {
-        (fn as jest.Mock).mockClear();
+    // Reset all Prisma db mocks
+    Object.values(mockDb).forEach((model) => {
+      if (typeof model === "object" && model !== null) {
+        Object.values(model as Record<string, unknown>).forEach((fn) => {
+          if (typeof fn === "function" && "mockClear" in fn) {
+            (fn as { mockClear: () => void }).mockClear();
+          }
+        });
       }
     });
   });
@@ -107,41 +133,97 @@ describe("Transaction Actions", () => {
 
     it("should return transactions with category names", async () => {
       // Mock the user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
 
-      const mockTransactions = [mockTransaction];
-      actualDb.orderBy.mockResolvedValueOnce(mockTransactions);
+      const mockTransactions = [
+        {
+          ...mockTransaction,
+          category: {
+            name: "Test Category",
+          },
+        },
+      ];
+      mockDb.transaction.findMany.mockResolvedValue(mockTransactions);
 
       const result = await getTransactions();
 
-      expect(result).toEqual(mockTransactions);
-      expect(actualDb.select).toHaveBeenCalled();
-      expect(actualDb.leftJoin).toHaveBeenCalled();
-      expect(actualDb.orderBy).toHaveBeenCalled();
+      expect(result).toEqual([
+        {
+          id: mockTransactionId,
+          budgetAccountId: mockAccountId,
+          categoryId: mockCategoryId,
+          createdByUserId: mockUserId,
+          amount: 100.5,
+          description: "Test transaction",
+          date: "2024-01-01", // Converted to string
+          type: "expense",
+          status: "completed",
+          merchantName: "Test Merchant",
+          plaidCategory: null,
+          pending: false,
+          createdAt: mockTransaction.createdAt,
+          updatedAt: mockTransaction.updatedAt,
+          categoryName: "Test Category", // Added from category relation
+        },
+      ]);
+      expect(mockDb.user.findFirst).toHaveBeenCalledWith({
+        where: { id: mockUserId },
+        select: { defaultBudgetAccountId: true },
+      });
+      expect(mockDb.transaction.findMany).toHaveBeenCalledWith({
+        where: { budgetAccountId: mockAccountId },
+        include: {
+          category: {
+            select: { name: true },
+          },
+        },
+        orderBy: { date: "desc" },
+      });
     });
 
     it("should use provided budget account ID", async () => {
       const customAccountId = "custom-account-123";
-      const mockTransactions = [mockTransaction];
-      actualDb.orderBy.mockResolvedValueOnce(mockTransactions);
+      const mockTransactions = [
+        {
+          ...mockTransaction,
+          category: { name: "Test Category" },
+        },
+      ];
+
+      // Mock the Prisma method that the function actually uses
+      mockDb.transaction.findMany.mockResolvedValue(mockTransactions);
 
       await getTransactions(customAccountId);
 
-      expect(actualDb.where).toHaveBeenCalled();
+      expect(mockDb.transaction.findMany).toHaveBeenCalledWith({
+        where: { budgetAccountId: customAccountId },
+        include: {
+          category: {
+            select: { name: true },
+          },
+        },
+        orderBy: { date: "desc" },
+      });
     });
 
     it("should convert amount to number", async () => {
       // Mock the user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
 
       const mockTransactionsWithStringAmount = [
-        { ...mockTransaction, amount: "100.50" },
+        {
+          ...mockTransaction,
+          amount: "100.50", // String amount to be converted
+          category: { name: "Test Category" },
+        },
       ];
-      actualDb.orderBy.mockResolvedValueOnce(mockTransactionsWithStringAmount);
+      mockDb.transaction.findMany.mockResolvedValue(
+        mockTransactionsWithStringAmount,
+      );
 
       const result = await getTransactions();
 
@@ -152,35 +234,54 @@ describe("Transaction Actions", () => {
   describe("getTransactionCategories", () => {
     it("should return categories for budget account", async () => {
       // Mock the user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
 
       const mockCategories = [mockCategory];
-      actualDb.orderBy.mockResolvedValueOnce(mockCategories);
+      mockDb.category.findMany.mockResolvedValue(mockCategories);
 
       const result = await getTransactionCategories();
 
       expect(result).toEqual(mockCategories);
-      expect(actualDb.select).toHaveBeenCalled();
-      expect(actualDb.orderBy).toHaveBeenCalled();
+      expect(mockDb.category.findMany).toHaveBeenCalledWith({
+        where: { budgetAccountId: mockAccountId },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          color: true,
+          icon: true,
+        },
+        orderBy: { name: "asc" },
+      });
     });
 
     it("should use provided budget account ID", async () => {
       const customAccountId = "custom-account-123";
       const mockCategories = [mockCategory];
-      actualDb.orderBy.mockResolvedValueOnce(mockCategories);
+      mockDb.category.findMany.mockResolvedValue(mockCategories);
 
       await getTransactionCategories(customAccountId);
 
-      expect(actualDb.where).toHaveBeenCalled();
+      expect(mockDb.category.findMany).toHaveBeenCalledWith({
+        where: { budgetAccountId: customAccountId },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          color: true,
+          icon: true,
+        },
+        orderBy: { name: "asc" },
+      });
     });
 
     it("should convert null values to undefined", async () => {
       // Mock the user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
 
       const mockCategoriesWithNulls = [
         {
@@ -190,7 +291,7 @@ describe("Transaction Actions", () => {
           icon: null,
         },
       ];
-      actualDb.orderBy.mockResolvedValueOnce(mockCategoriesWithNulls);
+      mockDb.category.findMany.mockResolvedValue(mockCategoriesWithNulls);
 
       const result = await getTransactionCategories();
 
@@ -219,23 +320,27 @@ describe("Transaction Actions", () => {
     });
 
     it("should throw error if budget account not found", async () => {
-      // Mock user query to return no default budget account
-      actualDb.limit.mockResolvedValueOnce([]);
+      // Mock user query to return default budget account
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
+      // Mock budget account query to return no account
+      mockDb.budgetAccount.findFirst.mockResolvedValue(null);
 
       await expect(createTransaction(createTransactionData)).rejects.toThrow(
-        "No default budget account found",
+        "Budget account not found",
       );
     });
 
     it("should throw error if category not found", async () => {
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
       // Mock budget account query to return account
-      actualDb.limit.mockResolvedValueOnce([{ id: mockAccountId }]);
+      mockDb.budgetAccount.findFirst.mockResolvedValue({ id: mockAccountId });
       // Mock category query to return no category
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.category.findFirst.mockResolvedValue(null);
 
       await expect(createTransaction(createTransactionData)).rejects.toThrow(
         "Category not found",
@@ -244,32 +349,35 @@ describe("Transaction Actions", () => {
 
     it("should create transaction successfully", async () => {
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
       // Mock budget account query to return account
-      actualDb.limit.mockResolvedValueOnce([{ id: mockAccountId }]);
+      mockDb.budgetAccount.findFirst.mockResolvedValue({ id: mockAccountId });
       // Mock category query to return category
-      actualDb.limit.mockResolvedValueOnce([mockCategory]);
-      actualDb.values.mockResolvedValueOnce({});
+      mockDb.category.findFirst.mockResolvedValue(mockCategory);
+      // Mock transaction creation
+      mockDb.transaction.create.mockResolvedValue({
+        id: "mock-transaction-id",
+        ...createTransactionData,
+      });
 
       const result = await createTransaction(createTransactionData);
 
       expect(result).toEqual({ id: "mock-transaction-id" });
-      expect(actualDb.insert).toHaveBeenCalled();
-      expect(actualDb.values).toHaveBeenCalledWith({
-        id: "mock-transaction-id",
-        budgetAccountId: mockAccountId,
-        categoryId: mockCategoryId,
-        createdByUserId: mockUserId,
-        amount: "100.5",
-        description: "Test transaction",
-        date: "2024-01-01",
-        type: "expense",
-        status: "completed",
-        merchantName: "Test Merchant",
-        createdAt: expect.any(Date),
-        updatedAt: expect.any(Date),
+      expect(mockDb.transaction.create).toHaveBeenCalledWith({
+        data: {
+          id: "mock-transaction-id",
+          budgetAccountId: mockAccountId,
+          categoryId: mockCategoryId,
+          createdByUserId: mockUserId,
+          amount: 100.5,
+          description: "Test transaction",
+          date: new Date("2024-01-01"),
+          type: "expense",
+          status: "completed",
+          merchantName: "Test Merchant",
+        },
       });
     });
 
@@ -281,28 +389,33 @@ describe("Transaction Actions", () => {
       };
 
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
       // Mock budget account query to return account
-      actualDb.limit.mockResolvedValueOnce([{ id: mockAccountId }]);
-      actualDb.values.mockResolvedValueOnce({});
-
-      await createTransaction(minimalData);
-
-      expect(actualDb.values).toHaveBeenCalledWith({
+      mockDb.budgetAccount.findFirst.mockResolvedValue({ id: mockAccountId });
+      // Mock transaction creation
+      mockDb.transaction.create.mockResolvedValue({
         id: "mock-transaction-id",
-        budgetAccountId: mockAccountId,
-        categoryId: null,
-        createdByUserId: mockUserId,
-        amount: "100.5",
-        description: null,
-        date: "2024-01-01",
-        type: "income",
-        status: "completed",
-        merchantName: null,
-        createdAt: expect.any(Date),
-        updatedAt: expect.any(Date),
+        ...minimalData,
+      });
+
+      const result = await createTransaction(minimalData);
+
+      expect(result).toEqual({ id: "mock-transaction-id" });
+      expect(mockDb.transaction.create).toHaveBeenCalledWith({
+        data: {
+          id: "mock-transaction-id",
+          budgetAccountId: mockAccountId,
+          categoryId: null,
+          createdByUserId: mockUserId,
+          amount: 100.5,
+          description: null,
+          date: new Date("2024-01-01"),
+          type: "income",
+          status: "completed",
+          merchantName: null,
+        },
       });
     });
   });
@@ -325,11 +438,11 @@ describe("Transaction Actions", () => {
 
     it("should throw error if transaction not found", async () => {
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
+      mockDb.limit.mockResolvedValueOnce([
         { defaultBudgetAccountId: mockAccountId },
       ]);
       // Mock transaction query to return no transaction
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.limit.mockResolvedValueOnce([]);
 
       await expect(updateTransaction(updateTransactionData)).rejects.toThrow(
         "Transaction not found",
@@ -338,13 +451,13 @@ describe("Transaction Actions", () => {
 
     it("should throw error if category not found", async () => {
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
       // Mock transaction query to return transaction
-      actualDb.limit.mockResolvedValueOnce([mockTransaction]);
+      mockDb.transaction.findFirst.mockResolvedValue(mockTransaction);
       // Mock category query to return no category
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.category.findFirst.mockResolvedValue(null);
 
       await expect(updateTransaction(updateTransactionData)).rejects.toThrow(
         "Category not found",
@@ -353,27 +466,29 @@ describe("Transaction Actions", () => {
 
     it("should update transaction successfully", async () => {
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
       // Mock transaction query to return transaction
-      actualDb.limit.mockResolvedValueOnce([mockTransaction]);
+      mockDb.transaction.findFirst.mockResolvedValue(mockTransaction);
       // Mock category query to return category
-      actualDb.limit.mockResolvedValueOnce([mockCategory]);
-
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
+      mockDb.category.findFirst.mockResolvedValue(mockCategory);
+      // Mock transaction update
+      mockDb.transaction.update.mockResolvedValue({
+        id: mockTransactionId,
+        ...updateTransactionData,
+      });
 
       const result = await updateTransaction(updateTransactionData);
 
       expect(result).toEqual({ id: mockTransactionId });
-      expect(actualDb.update).toHaveBeenCalled();
-      expect(actualDb.set).toHaveBeenCalledWith({
-        amount: "200.75",
-        description: "Updated transaction",
-        categoryId: mockCategoryId,
-        updatedAt: expect.any(Date),
+      expect(mockDb.transaction.update).toHaveBeenCalledWith({
+        where: { id: mockTransactionId },
+        data: {
+          amount: 200.75,
+          description: "Updated transaction",
+          categoryId: mockCategoryId,
+        },
       });
     });
 
@@ -384,21 +499,25 @@ describe("Transaction Actions", () => {
       };
 
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
       // Mock transaction query to return transaction
-      actualDb.limit.mockResolvedValueOnce([mockTransaction]);
+      mockDb.transaction.findFirst.mockResolvedValue(mockTransaction);
+      // Mock transaction update
+      mockDb.transaction.update.mockResolvedValue({
+        id: mockTransactionId,
+        ...partialUpdate,
+      });
 
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
+      const result = await updateTransaction(partialUpdate);
 
-      await updateTransaction(partialUpdate);
-
-      expect(actualDb.set).toHaveBeenCalledWith({
-        amount: "150.25",
-        updatedAt: expect.any(Date),
+      expect(result).toEqual({ id: mockTransactionId });
+      expect(mockDb.transaction.update).toHaveBeenCalledWith({
+        where: { id: mockTransactionId },
+        data: {
+          amount: 150.25,
+        },
       });
     });
 
@@ -409,21 +528,25 @@ describe("Transaction Actions", () => {
       };
 
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
       // Mock transaction query to return transaction
-      actualDb.limit.mockResolvedValueOnce([mockTransaction]);
+      mockDb.transaction.findFirst.mockResolvedValue(mockTransaction);
+      // Mock transaction update
+      mockDb.transaction.update.mockResolvedValue({
+        id: mockTransactionId,
+        ...dateUpdate,
+      });
 
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
+      const result = await updateTransaction(dateUpdate);
 
-      await updateTransaction(dateUpdate);
-
-      expect(actualDb.set).toHaveBeenCalledWith({
-        date: "2024-02-01",
-        updatedAt: expect.any(Date),
+      expect(result).toEqual({ id: mockTransactionId });
+      expect(mockDb.transaction.update).toHaveBeenCalledWith({
+        where: { id: mockTransactionId },
+        data: {
+          date: new Date("2024-02-01"),
+        },
       });
     });
 
@@ -435,22 +558,26 @@ describe("Transaction Actions", () => {
       };
 
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
       // Mock transaction query to return transaction
-      actualDb.limit.mockResolvedValueOnce([mockTransaction]);
+      mockDb.transaction.findFirst.mockResolvedValue(mockTransaction);
+      // Mock transaction update
+      mockDb.transaction.update.mockResolvedValue({
+        id: mockTransactionId,
+        ...dateUpdate,
+      });
 
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
+      const result = await updateTransaction(dateUpdate);
 
-      await updateTransaction(dateUpdate);
-
+      expect(result).toEqual({ id: mockTransactionId });
       // Verify that the date is correctly parsed as July 31st, not July 1st
-      expect(actualDb.set).toHaveBeenCalledWith({
-        date: "2024-07-31",
-        updatedAt: expect.any(Date),
+      expect(mockDb.transaction.update).toHaveBeenCalledWith({
+        where: { id: mockTransactionId },
+        data: {
+          date: new Date("2024-07-31"),
+        },
       });
     });
   });
@@ -458,11 +585,11 @@ describe("Transaction Actions", () => {
   describe("updateTransactionCategory", () => {
     it("should throw error if category not found", async () => {
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
       // Mock category query to return no category
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.category.findFirst.mockResolvedValue(null);
 
       await expect(
         updateTransactionCategory(mockTransactionId, mockCategoryId),
@@ -471,15 +598,15 @@ describe("Transaction Actions", () => {
 
     it("should update transaction category successfully", async () => {
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
       // Mock category query to return category
-      actualDb.limit.mockResolvedValueOnce([mockCategory]);
-
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
+      mockDb.category.findFirst.mockResolvedValue(mockCategory);
+      // Mock transaction update
+      mockDb.transaction.updateMany.mockResolvedValue({
+        count: 1,
+      });
 
       const result = await updateTransactionCategory(
         mockTransactionId,
@@ -487,29 +614,38 @@ describe("Transaction Actions", () => {
       );
 
       expect(result).toEqual({ id: mockTransactionId });
-      expect(actualDb.update).toHaveBeenCalled();
-      expect(actualDb.set).toHaveBeenCalledWith({
-        categoryId: mockCategoryId,
-        updatedAt: expect.any(Date),
+      expect(mockDb.transaction.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: mockTransactionId,
+          budgetAccountId: mockAccountId,
+        },
+        data: {
+          categoryId: mockCategoryId,
+        },
       });
     });
 
     it("should allow removing category (setting to null)", async () => {
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
+      // Mock transaction update
+      mockDb.transaction.updateMany.mockResolvedValue({
+        count: 1,
+      });
 
       const result = await updateTransactionCategory(mockTransactionId, null);
 
       expect(result).toEqual({ id: mockTransactionId });
-      expect(actualDb.set).toHaveBeenCalledWith({
-        categoryId: null,
-        updatedAt: expect.any(Date),
+      expect(mockDb.transaction.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: mockTransactionId,
+          budgetAccountId: mockAccountId,
+        },
+        data: {
+          categoryId: null,
+        },
       });
     });
   });
@@ -517,34 +653,45 @@ describe("Transaction Actions", () => {
   describe("deleteTransaction", () => {
     it("should delete transaction successfully", async () => {
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
 
-      // Mock the delete chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.delete.mockReturnValue({ where: mockWhere });
+      // Mock transaction deletion
+      mockDb.transaction.deleteMany.mockResolvedValue({
+        count: 1,
+      });
 
       const result = await deleteTransaction(mockTransactionId);
 
       expect(result).toEqual({ id: mockTransactionId });
-      expect(actualDb.delete).toHaveBeenCalled();
-      expect(mockWhere).toHaveBeenCalled();
+      expect(mockDb.transaction.deleteMany).toHaveBeenCalledWith({
+        where: {
+          id: mockTransactionId,
+          budgetAccountId: mockAccountId,
+        },
+      });
     });
 
     it("should use correct budget account ID for deletion", async () => {
       // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
+      // Mock transaction deletion
+      mockDb.transaction.deleteMany.mockResolvedValue({
+        count: 1,
+      });
 
-      // Mock the delete chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.delete.mockReturnValue({ where: mockWhere });
+      const result = await deleteTransaction(mockTransactionId);
 
-      await deleteTransaction(mockTransactionId);
-
-      expect(mockWhere).toHaveBeenCalled();
+      expect(result).toEqual({ id: mockTransactionId });
+      expect(mockDb.transaction.deleteMany).toHaveBeenCalledWith({
+        where: {
+          id: mockTransactionId,
+          budgetAccountId: mockAccountId,
+        },
+      });
     });
   });
 
@@ -557,8 +704,7 @@ describe("Transaction Actions", () => {
     });
 
     it("should throw error if no default budget account found", async () => {
-      actualDb.limit.mockResolvedValueOnce([]); // No user found
-      actualDb.orderBy.mockResolvedValueOnce([]); // Mock the transactions query
+      mockDb.user.findFirst.mockResolvedValue(null); // No user found
 
       await expect(getTransactions()).rejects.toThrow(
         "No default budget account found",
@@ -566,14 +712,15 @@ describe("Transaction Actions", () => {
     });
 
     it("should return default budget account ID", async () => {
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      actualDb.orderBy.mockResolvedValueOnce([]);
+      mockDb.user.findFirst.mockResolvedValue({
+        defaultBudgetAccountId: mockAccountId,
+      });
+      mockDb.transaction.findMany.mockResolvedValue([]);
 
-      await getTransactions();
+      const result = await getTransactions();
 
-      expect(actualDb.where).toHaveBeenCalled();
+      expect(result).toEqual([]);
+      expect(mockDb.transaction.findMany).toHaveBeenCalled();
     });
   });
 });

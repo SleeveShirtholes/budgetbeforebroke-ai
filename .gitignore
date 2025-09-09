@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database backups (may contain sensitive data)
+backup_*.json
+backup_*.sql
+
+/src/generated/prisma

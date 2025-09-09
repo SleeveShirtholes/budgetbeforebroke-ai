@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { updateDebt, type Debt } from "@/app/actions/debt";
+import { updateDebt, type DebtWithPayments } from "@/app/actions/debt";
 import DebtModal from "@/components/DebtModal";
 
 interface EditDebtModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDebtUpdated: () => void;
-  debt: Debt;
+  debt: DebtWithPayments;
   budgetAccountId: string;
 }
 

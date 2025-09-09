@@ -3,8 +3,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db/config";
 import { headers } from "next/headers";
-import { eq } from "drizzle-orm";
-import { user } from "@/db/schema";
 import { createAccount } from "./account";
 import { createIncomeSource } from "./income";
 
@@ -20,13 +18,15 @@ export async function updateUserDefaultAccount(budgetAccountId: string) {
     throw new Error("Not authenticated");
   }
 
-  await db
-    .update(user)
-    .set({
+  await db.user.update({
+    where: {
+      id: sessionResult.user.id,
+    },
+    data: {
       defaultBudgetAccountId: budgetAccountId,
       updatedAt: new Date(),
-    })
-    .where(eq(user.id, sessionResult.user.id));
+    },
+  });
 
   return { success: true };
 }
@@ -44,12 +44,14 @@ export async function completeOnboarding() {
   }
 
   // Mark user as having completed onboarding
-  await db
-    .update(user)
-    .set({
+  await db.user.update({
+    where: {
+      id: sessionResult.user.id,
+    },
+    data: {
       updatedAt: new Date(),
-    })
-    .where(eq(user.id, sessionResult.user.id));
+    },
+  });
 
   return { success: true };
 }
@@ -124,13 +126,10 @@ export async function needsOnboarding(): Promise<boolean> {
     throw new Error("Not authenticated");
   }
 
-  const userResult = await db
-    .select({
-      defaultBudgetAccountId: user.defaultBudgetAccountId,
-    })
-    .from(user)
-    .where(eq(user.id, sessionResult.user.id))
-    .limit(1);
+  const userResult = await db.user.findUnique({
+    where: { id: sessionResult.user.id },
+    select: { defaultBudgetAccountId: true },
+  });
 
-  return !userResult[0]?.defaultBudgetAccountId;
+  return !userResult?.defaultBudgetAccountId;
 }

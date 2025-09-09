@@ -36,7 +36,25 @@ export default async function TablesPage() {
  */
 async function TablesGrid() {
   try {
-    const tables = await getAvailableTables();
+    const tablesResult = await getAvailableTables();
+
+    if (!tablesResult.success || !tablesResult.data) {
+      return (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="text-center py-12">
+            <TableCellsIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              Failed to load tables
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              There was an error loading the database tables.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    const tables = tablesResult.data;
 
     if (tables.length === 0) {
       return (
@@ -58,58 +76,42 @@ async function TablesGrid() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tables.map((table) => (
           <div
-            key={table.name}
+            key={table.tablename}
             className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow duration-200 border border-gray-200"
           >
             <div className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    {table.displayName}
+                    {table.tablename}
                   </h3>
                   <p className="text-sm text-gray-500 mb-4">
                     Table:{" "}
                     <code className="bg-gray-100 px-1 rounded">
-                      {table.name}
+                      {table.tablename}
                     </code>
                   </p>
 
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center text-sm">
                       <PencilIcon className="h-4 w-4 text-green-500 mr-2" />
-                      <span className="text-gray-600">
-                        {table.editableFields.length} editable field
-                        {table.editableFields.length !== 1 ? "s" : ""}
-                      </span>
+                      <span className="text-gray-600">Editable table</span>
                     </div>
                     <div className="flex items-center text-sm">
                       <EyeIcon className="h-4 w-4 text-blue-500 mr-2" />
-                      <span className="text-gray-600">
-                        {table.searchFields.length} searchable field
-                        {table.searchFields.length !== 1 ? "s" : ""}
-                      </span>
+                      <span className="text-gray-600">Searchable table</span>
                     </div>
                   </div>
 
-                  {table.editableFields.length > 0 && (
+                  {true && (
                     <div className="mb-4">
                       <p className="text-xs font-medium text-gray-500 mb-1">
                         EDITABLE FIELDS:
                       </p>
                       <div className="flex flex-wrap gap-1">
-                        {table.editableFields.slice(0, 3).map((field) => (
-                          <span
-                            key={field}
-                            className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded"
-                          >
-                            {field}
-                          </span>
-                        ))}
-                        {table.editableFields.length > 3 && (
-                          <span className="text-xs text-gray-500">
-                            +{table.editableFields.length - 3} more
-                          </span>
-                        )}
+                        <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                          All fields
+                        </span>
                       </div>
                     </div>
                   )}
@@ -118,13 +120,13 @@ async function TablesGrid() {
 
               <div className="flex gap-2">
                 <Link
-                  href={`/admin/tables/${table.name}`}
+                  href={`/admin/tables/${table.tablename}`}
                   className="flex-1 bg-primary-600 text-white text-center py-2 px-4 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors"
                 >
                   Manage Table
                 </Link>
                 <Link
-                  href={`/admin/tables/${table.name}?view=readonly`}
+                  href={`/admin/tables/${table.tablename}?view=readonly`}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
                 >
                   View Only

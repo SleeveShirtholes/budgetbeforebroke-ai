@@ -1,12 +1,10 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
-import { budgetAccountMembers, incomeSources } from "@/db/schema";
-
 import { auth } from "@/lib/auth";
 import { db } from "@/db/config";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
+// Removed unused type import
 
 export type IncomeSource = {
   id: string;
@@ -20,19 +18,7 @@ export type IncomeSource = {
   notes?: string;
 };
 
-type DbIncomeSource = {
-  id: string;
-  userId: string;
-  name: string;
-  amount: string;
-  frequency: "weekly" | "bi-weekly" | "monthly";
-  startDate: string;
-  endDate: string | null;
-  isActive: boolean;
-  notes: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
+// Removed unused type definition
 
 /**
  * Creates a new income source for the authenticated user
@@ -53,29 +39,30 @@ export async function createIncomeSource(
     throw new Error("Not authenticated");
   }
 
-  const id = randomUUID();
-  await db.insert(incomeSources).values({
-    id,
-    userId: sessionResult.user.id,
-    name,
-    amount: amount.toString(),
-    frequency,
-    startDate: startDate,
-    endDate: endDate || null,
-    notes,
-    isActive: true,
+  const incomeSource = await db.incomeSource.create({
+    data: {
+      id: randomUUID(),
+      userId: sessionResult.user.id,
+      name,
+      amount: amount.toString(),
+      frequency,
+      startDate: startDate,
+      endDate: endDate || null,
+      notes,
+      isActive: true,
+    },
   });
 
   return {
-    id,
-    userId: sessionResult.user.id,
-    name,
-    amount,
-    frequency,
-    startDate, // Return the date string directly
-    endDate: endDate || undefined, // Return the date string directly
-    isActive: true,
-    notes,
+    id: incomeSource.id,
+    userId: incomeSource.userId,
+    name: incomeSource.name,
+    amount: Number(incomeSource.amount),
+    frequency: incomeSource.frequency,
+    startDate: incomeSource.startDate,
+    endDate: incomeSource.endDate || undefined,
+    isActive: incomeSource.isActive,
+    notes: incomeSource.notes || undefined,
   };
 }
 
@@ -103,11 +90,11 @@ export async function updateIncomeSource(
   }
 
   // Verify ownership
-  const incomeSource = await db.query.incomeSources.findFirst({
-    where: and(
-      eq(incomeSources.id, id),
-      eq(incomeSources.userId, sessionResult.user.id),
-    ),
+  const incomeSource = await db.incomeSource.findFirst({
+    where: {
+      id: id,
+      userId: sessionResult.user.id,
+    },
   });
 
   if (!incomeSource) {
@@ -115,16 +102,7 @@ export async function updateIncomeSource(
   }
 
   // Convert dates to proper format if they exist
-  const updateData: Partial<{
-    name: string;
-    amount: string;
-    frequency: "weekly" | "bi-weekly" | "monthly";
-    startDate: string;
-    endDate: string | null;
-    notes: string | null;
-    isActive: boolean;
-    updatedAt: Date;
-  }> = {
+  const updateData: Record<string, unknown> = {
     updatedAt: new Date(),
   };
 
@@ -159,20 +137,23 @@ export async function updateIncomeSource(
     updateData.isActive = data.isActive;
   }
 
-  await db
-    .update(incomeSources)
-    .set(updateData)
-    .where(eq(incomeSources.id, id));
+  const updatedIncomeSource = await db.incomeSource.update({
+    where: {
+      id: id,
+    },
+    data: updateData,
+  });
 
   return {
-    ...incomeSource,
-    ...data,
-    amount: data.amount || Number(incomeSource.amount),
-    startDate: data.startDate || incomeSource.startDate,
-    endDate:
-      data.endDate !== undefined
-        ? data.endDate || undefined
-        : incomeSource.endDate || undefined,
+    id: updatedIncomeSource.id,
+    userId: updatedIncomeSource.userId,
+    name: updatedIncomeSource.name,
+    amount: Number(updatedIncomeSource.amount),
+    frequency: updatedIncomeSource.frequency,
+    startDate: updatedIncomeSource.startDate,
+    endDate: updatedIncomeSource.endDate || undefined,
+    isActive: updatedIncomeSource.isActive,
+    notes: updatedIncomeSource.notes || undefined,
   };
 }
 
@@ -189,18 +170,22 @@ export async function deleteIncomeSource(id: string) {
   }
 
   // Verify ownership
-  const incomeSource = await db.query.incomeSources.findFirst({
-    where: and(
-      eq(incomeSources.id, id),
-      eq(incomeSources.userId, sessionResult.user.id),
-    ),
+  const incomeSource = await db.incomeSource.findFirst({
+    where: {
+      id: id,
+      userId: sessionResult.user.id,
+    },
   });
 
   if (!incomeSource) {
     throw new Error("Income source not found or not authorized");
   }
 
-  await db.delete(incomeSources).where(eq(incomeSources.id, id));
+  await db.incomeSource.delete({
+    where: {
+      id: id,
+    },
+  });
 }
 
 /**
@@ -215,9 +200,13 @@ export async function getIncomeSources() {
     throw new Error("Not authenticated");
   }
 
-  const sources = await db.query.incomeSources.findMany({
-    where: eq(incomeSources.userId, sessionResult.user.id),
-    orderBy: (incomeSources, { desc }) => [desc(incomeSources.createdAt)],
+  const sources = await db.incomeSource.findMany({
+    where: {
+      userId: sessionResult.user.id,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
   });
 
   return sources.map((source) => ({
@@ -245,19 +234,20 @@ export async function calculateMonthlyIncome(
   }
 
   // Get all members of the budget account
-  const members = await db.query.budgetAccountMembers.findMany({
-    where: eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
+  const members = await db.budgetAccountMember.findMany({
+    where: {
+      budgetAccountId: budgetAccountId,
+    },
   });
 
   // Get all active income sources for these members
-  const memberIncomeSources = await db.query.incomeSources.findMany({
-    where: and(
-      eq(incomeSources.isActive, true),
-      inArray(
-        incomeSources.userId,
-        members.map((m) => m.userId),
-      ),
-    ),
+  const memberIncomeSources = await db.incomeSource.findMany({
+    where: {
+      isActive: true,
+      userId: {
+        in: members.map((m) => m.userId),
+      },
+    },
   });
 
   // Use provided year/month or default to current
@@ -268,50 +258,47 @@ export async function calculateMonthlyIncome(
   const endOfMonth = new Date(calcYear, calcMonth, 0);
 
   // Calculate monthly equivalent for each income source
-  const monthlyIncome = memberIncomeSources.reduce(
-    (total: number, source: DbIncomeSource) => {
-      const amount = Number(source.amount);
-      let monthlyAmount = amount;
+  const monthlyIncome = memberIncomeSources.reduce((total: number, source) => {
+    const amount = Number(source.amount);
+    let monthlyAmount = amount;
 
-      switch (source.frequency) {
-        case "weekly":
-          monthlyAmount = (amount * 52) / 12;
-          break;
-        case "bi-weekly": {
-          // Get the start date of the income source - use Date object directly
-          const incomeStartDate = source.startDate;
-          // Find the first pay date on or after the income start date
-          const firstPayDate = new Date(incomeStartDate);
-          while (firstPayDate < startOfMonth) {
-            firstPayDate.setDate(firstPayDate.getDate() + 14);
-          }
-          // Count pay periods in the selected month
-          let payPeriods = 0;
-          const currentPayDate = new Date(firstPayDate);
-          while (currentPayDate <= endOfMonth) {
-            if (
-              currentPayDate >= startOfMonth &&
-              (!source.endDate ||
-                (() => {
-                  // Convert string date to Date object for comparison
-                  return currentPayDate <= new Date(source.endDate);
-                })())
-            ) {
-              payPeriods++;
-            }
-            currentPayDate.setDate(currentPayDate.getDate() + 14);
-          }
-          monthlyAmount = amount * payPeriods;
-          break;
+    switch (source.frequency) {
+      case "weekly":
+        monthlyAmount = (amount * 52) / 12;
+        break;
+      case "bi-weekly": {
+        // Get the start date of the income source - use Date object directly
+        const incomeStartDate = source.startDate;
+        // Find the first pay date on or after the income start date
+        const firstPayDate = new Date(incomeStartDate);
+        while (firstPayDate < startOfMonth) {
+          firstPayDate.setDate(firstPayDate.getDate() + 14);
         }
-        case "monthly":
-          monthlyAmount = amount;
-          break;
+        // Count pay periods in the selected month
+        let payPeriods = 0;
+        const currentPayDate = new Date(firstPayDate);
+        while (currentPayDate <= endOfMonth) {
+          if (
+            currentPayDate >= startOfMonth &&
+            (!source.endDate ||
+              (() => {
+                // Convert string date to Date object for comparison
+                return currentPayDate <= new Date(source.endDate);
+              })())
+          ) {
+            payPeriods++;
+          }
+          currentPayDate.setDate(currentPayDate.getDate() + 14);
+        }
+        monthlyAmount = amount * payPeriods;
+        break;
       }
-      return total + monthlyAmount;
-    },
-    0,
-  );
+      case "monthly":
+        monthlyAmount = amount;
+        break;
+    }
+    return total + monthlyAmount;
+  }, 0);
 
   return monthlyIncome;
 }

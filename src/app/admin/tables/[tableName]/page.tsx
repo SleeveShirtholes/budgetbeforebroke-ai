@@ -121,7 +121,7 @@ async function TableManagerWrapper({
   try {
     const [tableDataResult, schemaResult] = await Promise.all([
       getTableData(tableName, page, 50, search, sort, direction),
-      getTableSchema(tableName),
+      getTableSchema(),
     ]);
 
     if (!tableDataResult.success || !tableDataResult.data) {
@@ -140,7 +140,20 @@ async function TableManagerWrapper({
         tableName={tableName}
         data={tableDataResult.data}
         pagination={tableDataResult.pagination}
-        schema={schemaResult.data}
+        schema={{
+          tableName,
+          fields:
+            schemaResult.success && schemaResult.data
+              ? schemaResult.data.map((field) => ({
+                  name: field.column_name,
+                  type: field.data_type,
+                  required: field.is_nullable === "NO",
+                  defaultValue: field.column_default,
+                }))
+              : [],
+          editableFields: [],
+          searchFields: [],
+        }}
         initialSearch={search}
         isReadonly={isReadonly}
       />

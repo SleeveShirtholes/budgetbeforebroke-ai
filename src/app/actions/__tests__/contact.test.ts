@@ -8,26 +8,30 @@ import {
 } from "../contact";
 import { db } from "@/db/config";
 
-// Mock the database
+// Mock the database config first
 jest.mock("@/db/config", () => ({
   db: {
-    insert: jest.fn(),
-    select: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
+    contactSubmission: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
+    emailConversation: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+    },
   },
 }));
 
-// Mock drizzle-orm functions
-jest.mock("drizzle-orm", () => ({
-  eq: jest.fn(),
-  desc: jest.fn(),
-  isNull: jest.fn(),
-  relations: jest.fn(),
-  sql: jest.fn(),
-}));
-
+// Get the mocked db for type safety
 const mockDb = db as jest.Mocked<typeof db>;
+
+// Mock the email module
+jest.mock("@/lib/email", () => ({
+  sendFollowUpEmail: jest.fn().mockResolvedValue({ success: true }),
+}));
 
 describe("Contact Actions", () => {
   beforeEach(() => {
@@ -55,11 +59,7 @@ describe("Contact Actions", () => {
         updatedAt: new Date(),
       };
 
-      mockDb.insert.mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([mockSubmission]),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.create.mockResolvedValue(mockSubmission);
 
       const result = await createContactSubmission({
         name: "Test User",
@@ -75,11 +75,9 @@ describe("Contact Actions", () => {
     });
 
     it("should handle database errors gracefully", async () => {
-      mockDb.insert.mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockRejectedValue(new Error("Database error")),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.create.mockRejectedValue(
+        new Error("Database error"),
+      );
 
       const result = await createContactSubmission({
         name: "Test User",
@@ -122,11 +120,7 @@ describe("Contact Actions", () => {
         },
       ];
 
-      mockDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          orderBy: jest.fn().mockResolvedValue(mockSubmissions),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.findMany.mockResolvedValue(mockSubmissions);
 
       const result = await getContactSubmissions();
 
@@ -135,11 +129,9 @@ describe("Contact Actions", () => {
     });
 
     it("should handle database errors gracefully", async () => {
-      mockDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          orderBy: jest.fn().mockRejectedValue(new Error("Database error")),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.findMany.mockRejectedValue(
+        new Error("Database error"),
+      );
 
       const result = await getContactSubmissions();
 
@@ -157,13 +149,7 @@ describe("Contact Actions", () => {
         updatedAt: new Date(),
       };
 
-      mockDb.update.mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            returning: jest.fn().mockResolvedValue([mockUpdatedSubmission]),
-          }),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.update.mockResolvedValue(mockUpdatedSubmission);
 
       const result = await updateContactSubmissionStatus(
         "test-id",
@@ -176,13 +162,9 @@ describe("Contact Actions", () => {
     });
 
     it("should handle database errors gracefully", async () => {
-      mockDb.update.mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            returning: jest.fn().mockRejectedValue(new Error("Database error")),
-          }),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.update.mockRejectedValue(
+        new Error("Database error"),
+      );
 
       const result = await updateContactSubmissionStatus(
         "test-id",
@@ -215,25 +197,11 @@ describe("Contact Actions", () => {
       };
 
       // Mock the database queries
-      mockDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([mockSubmission]),
-        }),
-      } as unknown);
-
-      mockDb.update.mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            returning: jest.fn().mockResolvedValue([mockUpdatedSubmission]),
-          }),
-        }),
-      } as unknown);
-
-      mockDb.insert.mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([{ id: "email-1" }]),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.findFirst.mockResolvedValue(mockSubmission);
+      mockDb.contactSubmission.update.mockResolvedValue(mockUpdatedSubmission);
+      mockDb.emailConversation.create.mockResolvedValue({
+        id: "email-1",
+      });
 
       const result = await sendFollowUpEmailToUser(
         "test-id",
@@ -257,25 +225,11 @@ describe("Contact Actions", () => {
         notes: null,
       };
 
-      mockDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([mockSubmission]),
-        }),
-      } as unknown);
-
-      mockDb.update.mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            returning: jest.fn().mockResolvedValue([mockSubmission]),
-          }),
-        }),
-      } as unknown);
-
-      mockDb.insert.mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([{ id: "email-1" }]),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.findFirst.mockResolvedValue(mockSubmission);
+      mockDb.contactSubmission.update.mockResolvedValue(mockSubmission);
+      mockDb.emailConversation.create.mockResolvedValue({
+        id: "email-1",
+      });
 
       const result = await sendFollowUpEmailToUser(
         "test-id",
@@ -288,11 +242,7 @@ describe("Contact Actions", () => {
     });
 
     it("should handle missing submission gracefully", async () => {
-      mockDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([]),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.findFirst.mockResolvedValue(null);
 
       const result = await sendFollowUpEmailToUser(
         "non-existent-id",
@@ -330,21 +280,9 @@ describe("Contact Actions", () => {
         },
       ];
 
-      // Mock the first select (for submission)
-      mockDb.select.mockReturnValueOnce({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([mockSubmission]),
-        }),
-      } as unknown);
-
-      // Mock the second select (for conversations)
-      mockDb.select.mockReturnValueOnce({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            orderBy: jest.fn().mockResolvedValue(mockConversations),
-          }),
-        }),
-      } as unknown);
+      // Mock the database queries
+      mockDb.contactSubmission.findFirst.mockResolvedValue(mockSubmission);
+      mockDb.emailConversation.findMany.mockResolvedValue(mockConversations);
 
       const result = await getConversationHistory("test-id");
 
@@ -353,11 +291,7 @@ describe("Contact Actions", () => {
     });
 
     it("should handle missing submission gracefully", async () => {
-      mockDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([]),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.findFirst.mockResolvedValue(null);
 
       const result = await getConversationHistory("non-existent-id");
 
@@ -373,19 +307,8 @@ describe("Contact Actions", () => {
         { id: "sub-2", conversationId: null },
       ];
 
-      mockDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue(mockSubmissions),
-        }),
-      } as unknown);
-
-      mockDb.update.mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            returning: jest.fn().mockResolvedValue([{ id: "sub-1" }]),
-          }),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.findMany.mockResolvedValue(mockSubmissions);
+      mockDb.contactSubmission.update.mockResolvedValue({ id: "sub-1" });
 
       const result = await updateExistingSubmissionsWithConversationIds();
 
@@ -394,11 +317,9 @@ describe("Contact Actions", () => {
     });
 
     it("should handle database errors gracefully", async () => {
-      mockDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockRejectedValue(new Error("Database error")),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.findMany.mockRejectedValue(
+        new Error("Database error"),
+      );
 
       const result = await updateExistingSubmissionsWithConversationIds();
 

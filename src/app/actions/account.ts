@@ -5,17 +5,14 @@
 
 "use server";
 
-import { and, eq } from "drizzle-orm";
 import {
-  budgetAccountInvitations,
-  budgetAccountMembers,
-  budgetAccounts,
-  user,
+  BudgetAccount,
+  BudgetAccountMember,
+  BudgetAccountInvitation,
+  db,
 } from "@/db/schema";
 
-import type { InferSelectModel } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/db/config";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { sendAccountInvite } from "@/lib/email";
@@ -50,7 +47,7 @@ export type AccountWithMembers = {
 /**
  * Represents a member with optional user information
  */
-type MemberWithMaybeUser = InferSelectModel<typeof budgetAccountMembers> & {
+type MemberWithMaybeUser = BudgetAccountMember & {
   user?: {
     name?: string;
     email?: string;
@@ -61,9 +58,9 @@ type MemberWithMaybeUser = InferSelectModel<typeof budgetAccountMembers> & {
 /**
  * Represents an account with its related members and invitations
  */
-type AccountWithRelations = InferSelectModel<typeof budgetAccounts> & {
+type AccountWithRelations = BudgetAccount & {
   members: MemberWithMaybeUser[];
-  invitations: InferSelectModel<typeof budgetAccountInvitations>[];
+  invitations: BudgetAccountInvitation[];
 };
 
 /**
@@ -111,13 +108,15 @@ export async function getAccounts() {
   }
 
   // Get all accounts where the user is a member, including members and invitations
-  const accountMemberships = await db.query.budgetAccountMembers.findMany({
-    where: eq(budgetAccountMembers.userId, sessionResult.user.id),
-    with: {
+  const accountMemberships = await db.budgetAccountMember.findMany({
+    where: {
+      userId: sessionResult.user.id,
+    },
+    include: {
       budgetAccount: {
-        with: {
+        include: {
           members: {
-            with: {
+            include: {
               user: true,
             },
           },
@@ -172,16 +171,27 @@ export async function getAccount(
     throw new Error("Not authenticated");
   }
 
-  const account = await db.query.budgetAccounts.findFirst({
-    where: and(
-      eq(budgetAccounts.id, id),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
-    with: {
+  // First check if user is a member of this account
+  const membership = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: id,
+      userId: sessionResult.user.id,
+    },
+  });
+
+  if (!membership) {
+    return null;
+  }
+
+  const account = await db.budgetAccount.findFirst({
+    where: {
+      id: id,
+    },
+    include: {
       members: {
-        with: {
+        include: {
           user: {
-            columns: {
+            select: {
               name: true,
               email: true,
               image: true,
@@ -211,20 +221,23 @@ export async function updateAccountName(id: string, name: string) {
   }
 
   // Verify user has permission
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, id),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-      eq(budgetAccountMembers.role, "owner"),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: id,
+      userId: sessionResult.user.id,
+      role: "owner",
+    },
   });
 
   if (!member) throw new Error("Not authorized");
 
-  await db
-    .update(budgetAccounts)
-    .set({ name, updatedAt: new Date() })
-    .where(eq(budgetAccounts.id, id));
+  await db.budgetAccount.update({
+    where: { id },
+    data: {
+      name,
+      updatedAt: new Date(),
+    },
+  });
 }
 
 /**
@@ -243,8 +256,8 @@ export async function inviteToAccount(email: string, role: string = "member") {
   }
 
   // Get user's default account
-  const currentUser = await db.query.user.findFirst({
-    where: eq(user.id, sessionResult.user.id),
+  const currentUser = await db.user.findFirst({
+    where: { id: sessionResult.user.id },
   });
 
   if (!currentUser?.defaultBudgetAccountId) {
@@ -274,34 +287,34 @@ export async function inviteUser(
   }
 
   // Verify user has permission
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, accountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-      eq(budgetAccountMembers.role, "owner"),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: accountId,
+      userId: sessionResult.user.id,
+      role: "owner",
+    },
   });
 
   if (!member) throw new Error("Not authorized");
 
   // Get account details
-  const account = await db.query.budgetAccounts.findFirst({
-    where: eq(budgetAccounts.id, accountId),
+  const account = await db.budgetAccount.findFirst({
+    where: { id: accountId },
   });
 
   if (!account) throw new Error("Account not found");
 
   // Check if invitee is already a member by looking up their user ID
-  const inviteeUser = await db.query.user.findFirst({
-    where: eq(user.email, email),
+  const inviteeUser = await db.user.findFirst({
+    where: { email: email },
   });
 
   if (inviteeUser) {
-    const existingMember = await db.query.budgetAccountMembers.findFirst({
-      where: and(
-        eq(budgetAccountMembers.budgetAccountId, accountId),
-        eq(budgetAccountMembers.userId, inviteeUser.id),
-      ),
+    const existingMember = await db.budgetAccountMember.findFirst({
+      where: {
+        budgetAccountId: accountId,
+        userId: inviteeUser.id,
+      },
     });
 
     if (existingMember)
@@ -309,12 +322,12 @@ export async function inviteUser(
   }
 
   // Check if there's already a pending invitation
-  const existingInvite = await db.query.budgetAccountInvitations.findFirst({
-    where: and(
-      eq(budgetAccountInvitations.budgetAccountId, accountId),
-      eq(budgetAccountInvitations.inviteeEmail, email),
-      eq(budgetAccountInvitations.status, "pending"),
-    ),
+  const existingInvite = await db.budgetAccountInvitation.findFirst({
+    where: {
+      budgetAccountId: accountId,
+      inviteeEmail: email,
+      status: "pending",
+    },
   });
 
   if (existingInvite)
@@ -325,20 +338,22 @@ export async function inviteUser(
   expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
   // Create the invitation
-  await db.insert(budgetAccountInvitations).values({
-    id: randomUUID(),
-    budgetAccountId: accountId,
-    inviterId: sessionResult.user.id,
-    inviteeEmail: email,
-    role,
-    status: "pending",
-    token,
-    expiresAt,
+  await db.budgetAccountInvitation.create({
+    data: {
+      id: randomUUID(),
+      budgetAccountId: accountId,
+      inviterId: sessionResult.user.id,
+      inviteeEmail: email,
+      role,
+      status: "pending",
+      token,
+      expiresAt,
+    },
   });
 
   // Get inviter's name
-  const inviter = await db.query.user.findFirst({
-    where: eq(user.id, sessionResult.user.id),
+  const inviter = await db.user.findFirst({
+    where: { id: sessionResult.user.id },
   });
 
   if (!inviter) throw new Error("Inviter not found");
@@ -367,24 +382,22 @@ export async function removeUser(accountId: string, userId: string) {
   }
 
   // Verify user has permission
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, accountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-      eq(budgetAccountMembers.role, "owner"),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: accountId,
+      userId: sessionResult.user.id,
+      role: "owner",
+    },
   });
 
   if (!member) throw new Error("Not authorized");
 
-  await db
-    .delete(budgetAccountMembers)
-    .where(
-      and(
-        eq(budgetAccountMembers.budgetAccountId, accountId),
-        eq(budgetAccountMembers.userId, userId),
-      ),
-    );
+  await db.budgetAccountMember.deleteMany({
+    where: {
+      budgetAccountId: accountId,
+      userId: userId,
+    },
+  });
 }
 
 /**
@@ -407,25 +420,26 @@ export async function updateUserRole(
   }
 
   // Verify user has permission
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, accountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-      eq(budgetAccountMembers.role, "owner"),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: accountId,
+      userId: sessionResult.user.id,
+      role: "owner",
+    },
   });
 
   if (!member) throw new Error("Not authorized");
 
-  await db
-    .update(budgetAccountMembers)
-    .set({ role, updatedAt: new Date() })
-    .where(
-      and(
-        eq(budgetAccountMembers.budgetAccountId, accountId),
-        eq(budgetAccountMembers.userId, userId),
-      ),
-    );
+  await db.budgetAccountMember.updateMany({
+    where: {
+      budgetAccountId: accountId,
+      userId: userId,
+    },
+    data: {
+      role,
+      updatedAt: new Date(),
+    },
+  });
 }
 
 /**
@@ -441,11 +455,11 @@ export async function resendInvite(invitationId: string) {
     throw new Error("Not authenticated");
   }
 
-  const invitation = await db.query.budgetAccountInvitations.findFirst({
-    where: eq(budgetAccountInvitations.id, invitationId),
-    with: {
+  const invitation = await db.budgetAccountInvitation.findFirst({
+    where: { id: invitationId },
+    include: {
       budgetAccount: {
-        with: {
+        include: {
           members: true,
         },
       },
@@ -465,18 +479,18 @@ export async function resendInvite(invitationId: string) {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
 
-  await db
-    .update(budgetAccountInvitations)
-    .set({
+  await db.budgetAccountInvitation.update({
+    where: { id: invitationId },
+    data: {
       token,
       expiresAt,
       updatedAt: new Date(),
-    })
-    .where(eq(budgetAccountInvitations.id, invitationId));
+    },
+  });
 
   // Get inviter's name
-  const inviter = await db.query.user.findFirst({
-    where: eq(user.id, sessionResult.user.id),
+  const inviter = await db.user.findFirst({
+    where: { id: sessionResult.user.id },
   });
   if (!inviter) throw new Error("Inviter not found");
 
@@ -521,23 +535,22 @@ export async function createAccount(
   const accountId = randomUUID();
   const accountNumber = generateAccountNumber();
 
-  await db.insert(budgetAccounts).values({
-    id: accountId,
-    name,
-    description,
-    accountNumber,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  await db.budgetAccount.create({
+    data: {
+      id: accountId,
+      name,
+      description,
+      accountNumber,
+    },
   });
 
-  await db.insert(budgetAccountMembers).values({
-    id: randomUUID(),
-    budgetAccountId: accountId,
-    userId: sessionResult.user.id,
-    role: "owner",
-    joinedAt: new Date(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  await db.budgetAccountMember.create({
+    data: {
+      id: randomUUID(),
+      budgetAccountId: accountId,
+      userId: sessionResult.user.id,
+      role: "owner",
+    },
   });
 
   return accountId;
@@ -557,11 +570,11 @@ export async function deleteInvitation(invitationId: string) {
   }
 
   // Find the invitation and its account
-  const invitation = await db.query.budgetAccountInvitations.findFirst({
-    where: eq(budgetAccountInvitations.id, invitationId),
-    with: {
+  const invitation = await db.budgetAccountInvitation.findFirst({
+    where: { id: invitationId },
+    include: {
       budgetAccount: {
-        with: {
+        include: {
           members: true,
         },
       },
@@ -576,9 +589,9 @@ export async function deleteInvitation(invitationId: string) {
   if (!member) throw new Error("Not authorized");
 
   // Delete the invitation
-  await db
-    .delete(budgetAccountInvitations)
-    .where(eq(budgetAccountInvitations.id, invitationId));
+  await db.budgetAccountInvitation.delete({
+    where: { id: invitationId },
+  });
 }
 
 /**
@@ -595,9 +608,9 @@ export async function getDefaultAccount() {
     throw new Error("Not authenticated");
   }
 
-  const userResult = await db.query.user.findFirst({
-    where: eq(user.id, sessionResult.user.id),
-    columns: {
+  const userResult = await db.user.findFirst({
+    where: { id: sessionResult.user.id },
+    select: {
       defaultBudgetAccountId: true,
     },
   });
@@ -619,8 +632,8 @@ export async function updateDefaultAccount(accountId: string) {
     throw new Error("Not authenticated");
   }
 
-  await db
-    .update(user)
-    .set({ defaultBudgetAccountId: accountId })
-    .where(eq(user.id, sessionResult.user.id));
+  await db.user.update({
+    where: { id: sessionResult.user.id },
+    data: { defaultBudgetAccountId: accountId },
+  });
 }

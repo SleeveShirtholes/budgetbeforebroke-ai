@@ -181,26 +181,32 @@ async function OverviewStats() {
  */
 async function TableStatistics() {
   try {
-    const tables = await getAvailableTables();
+    const tablesResult = await getAvailableTables();
+
+    if (!tablesResult.success || !tablesResult.data) {
+      return <div>Failed to load table data</div>;
+    }
+
+    const tables = tablesResult.data;
 
     // Get record counts for each table
     const tableStats = await Promise.all(
       tables.slice(0, 8).map(async (table) => {
         try {
-          const result = await getTableData(table.name as TableName, 1, 1);
+          const result = await getTableData(table.tablename as TableName, 1, 1);
           return {
-            name: table.displayName,
+            name: table.tablename,
             count:
               result.success && result.pagination
                 ? result.pagination.totalItems
                 : 0,
-            editable: table.editableFields.length > 0,
+            editable: true, // All tables are editable in our admin interface
           };
         } catch {
           return {
-            name: table.displayName,
+            name: table.tablename,
             count: 0,
-            editable: table.editableFields.length > 0,
+            editable: true, // All tables are editable in our admin interface
           };
         }
       }),

@@ -1,8 +1,6 @@
-import * as authSchema from "../db/schema";
-
 import type { Session } from "better-auth";
 import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { passkey } from "better-auth/plugins/passkey";
 import { Resend } from "resend";
@@ -11,11 +9,8 @@ import { db } from "../db/config";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db, {
-    provider: "pg",
-    schema: {
-      ...authSchema,
-    },
+  database: prismaAdapter(db, {
+    provider: "postgresql",
   }),
   socialProviders: {
     google: {

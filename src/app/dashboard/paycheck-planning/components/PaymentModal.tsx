@@ -49,7 +49,8 @@ export default function PaymentModal({
   });
 
   const paymentAmountStr = watch("paymentAmount");
-  const paymentAmount = parseFloat(paymentAmountStr) || 0;
+  const paymentAmount =
+    Math.round(parseFloat(paymentAmountStr) * 100) / 100 || 0;
 
   // Reset form when debt changes
   useEffect(() => {
@@ -86,7 +87,7 @@ export default function PaymentModal({
         throw new Error("No debt selected");
       }
 
-      const amount = parseFloat(data.paymentAmount);
+      const amount = Math.round(parseFloat(data.paymentAmount) * 100) / 100;
 
       // Validate payment amount
       if (amount <= 0) {

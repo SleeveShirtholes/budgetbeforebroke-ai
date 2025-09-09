@@ -1,8 +1,6 @@
 "use server";
 
 import { db } from "@/db/config";
-import { supportComments, supportRequests, user } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 /**
@@ -12,20 +10,33 @@ import { randomUUID } from "crypto";
  */
 export async function getSupportCommentsForRequests(requestIds: string[]) {
   if (!requestIds.length) return [];
-  const comments = await db
-    .select({
-      id: supportComments.id,
-      requestId: supportComments.requestId,
-      userId: supportComments.userId,
-      text: supportComments.text,
-      timestamp: supportComments.timestamp,
-      userName: user.name, // Join user name from user table
-    })
-    .from(supportComments)
-    .leftJoin(user, eq(supportComments.userId, user.id))
-    .where(inArray(supportComments.requestId, requestIds))
-    .orderBy(supportComments.timestamp);
-  return comments;
+
+  const comments = await db.supportComment.findMany({
+    where: {
+      requestId: {
+        in: requestIds,
+      },
+    },
+    include: {
+      user: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      timestamp: "asc",
+    },
+  });
+
+  return comments.map((comment) => ({
+    id: comment.id,
+    requestId: comment.requestId,
+    userId: comment.userId,
+    text: comment.text,
+    timestamp: comment.timestamp,
+    userName: comment.user.name,
+  }));
 }
 
 /**
@@ -42,18 +53,22 @@ export async function addSupportComment({
   userId: string;
 }) {
   if (!userId) throw new Error("Not authenticated");
-  const comment = {
-    id: randomUUID(),
-    requestId,
-    userId,
-    text,
-    timestamp: new Date(),
-  };
-  await db.insert(supportComments).values(comment);
+
+  const comment = await db.supportComment.create({
+    data: {
+      id: randomUUID(),
+      requestId,
+      userId,
+      text,
+      timestamp: new Date(),
+    },
+  });
+
   // Update lastUpdated on the request
-  await db
-    .update(supportRequests)
-    .set({ lastUpdated: new Date() })
-    .where(eq(supportRequests.id, requestId));
+  await db.supportRequest.update({
+    where: { id: requestId },
+    data: { lastUpdated: new Date() },
+  });
+
   return comment;
 }

@@ -1,8 +1,5 @@
 "use server";
 
-import { account, passkey, session, user } from "@/db/schema";
-import { and, desc, eq } from "drizzle-orm";
-
 import { db } from "@/db/config";
 import { auth } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
@@ -11,10 +8,9 @@ import { headers } from "next/headers";
 
 export async function getPasskeyStatus(userId: string) {
   try {
-    const userPasskeys = await db
-      .select()
-      .from(passkey)
-      .where(eq(passkey.userId, userId));
+    const userPasskeys = await db.passkey.findMany({
+      where: { userId },
+    });
     return {
       hasPasskey: userPasskeys.length > 0,
       passkeys: userPasskeys.map((p) => ({
@@ -90,17 +86,15 @@ export async function addPasskey(name?: string) {
 
     // Update the passkey name if provided
     if (name) {
-      const latestPasskey = await db
-        .select()
-        .from(passkey)
-        .where(eq(passkey.userId, userId))
-        .orderBy(passkey.createdAt)
-        .limit(1);
-      if (latestPasskey.length > 0) {
-        await db
-          .update(passkey)
-          .set({ name })
-          .where(eq(passkey.id, latestPasskey[0].id));
+      const latestPasskey = await db.passkey.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+      });
+      if (latestPasskey) {
+        await db.passkey.update({
+          where: { id: latestPasskey.id },
+          data: { name },
+        });
       }
     }
 
@@ -131,7 +125,7 @@ export async function deletePasskey(passkeyId: string) {
     const result = await authClient.passkey.deletePasskey({ id: passkeyId });
     if (!result?.error) {
       // If successful, remove the passkey from the database
-      await db.delete(passkey).where(eq(passkey.id, passkeyId));
+      await db.passkey.delete({ where: { id: passkeyId } });
     }
     return { success: !result?.error, error: result?.error };
   } catch (error) {
@@ -166,19 +160,18 @@ export async function getAccountInfo() {
       return { error: "Unauthorized" };
     }
     // Get the user's credential account
-    const userAccount = await db
-      .select()
-      .from(account)
-      .where(
-        and(eq(account.userId, user.id), eq(account.providerId, "credential")),
-      )
-      .limit(1);
-    if (!userAccount.length) {
+    const userAccount = await db.account.findFirst({
+      where: {
+        userId: user.id,
+        providerId: "credential",
+      },
+    });
+    if (!userAccount) {
       return { hasPassword: false, passwordLastChanged: null };
     }
     return {
-      hasPassword: !!userAccount[0].password,
-      passwordLastChanged: userAccount[0].passwordChangedAt,
+      hasPassword: !!userAccount.password,
+      passwordLastChanged: userAccount.passwordChangedAt,
     };
   } catch (error) {
     console.error("Error fetching account data:", error);
@@ -203,16 +196,14 @@ export async function changePasswordAction(currentPassword: string | null) {
     }
 
     // Get the user's account to check if they have a password
-    const userAccount = await db
-      .select()
-      .from(account)
-      .where(eq(account.userId, user.id))
-      .limit(1);
-    if (!userAccount.length) {
+    const userAccount = await db.account.findFirst({
+      where: { userId: user.id },
+    });
+    if (!userAccount) {
       return { error: "Account not found" };
     }
 
-    const hasExistingPassword = !!userAccount[0].password;
+    const hasExistingPassword = !!userAccount.password;
 
     // If there's an existing password, we need the current password
     if (hasExistingPassword && !currentPassword) {
@@ -222,26 +213,24 @@ export async function changePasswordAction(currentPassword: string | null) {
     // If no password exists, we need to create a credential account
     if (!hasExistingPassword) {
       // Check if there's already a credential account
-      const credentialAccount = await db
-        .select()
-        .from(account)
-        .where(
-          and(
-            eq(account.userId, user.id),
-            eq(account.providerId, "credentials"),
-          ),
-        )
-        .limit(1);
-
-      if (!credentialAccount.length) {
-        // Create a new credential account
-        await db.insert(account).values({
-          id: crypto.randomUUID(),
+      const credentialAccount = await db.account.findFirst({
+        where: {
           userId: user.id,
           providerId: "credentials",
-          accountId: user.id, // For credential accounts, accountId is the same as userId
-          createdAt: new Date(),
-          updatedAt: new Date(),
+        },
+      });
+
+      if (!credentialAccount) {
+        // Create a new credential account
+        await db.account.create({
+          data: {
+            id: crypto.randomUUID(),
+            userId: user.id,
+            providerId: "credentials",
+            accountId: user.id, // For credential accounts, accountId is the same as userId
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
         });
       }
     }
@@ -274,17 +263,15 @@ export async function updateLatestPasskeyName(name: string) {
       return { error: "Unauthorized" };
     }
     // Get the latest passkey for the user
-    const latestPasskey = await db
-      .select()
-      .from(passkey)
-      .where(eq(passkey.userId, user.id))
-      .orderBy(passkey.createdAt)
-      .limit(1);
-    if (latestPasskey.length > 0) {
-      await db
-        .update(passkey)
-        .set({ name })
-        .where(eq(passkey.id, latestPasskey[0].id));
+    const latestPasskey = await db.passkey.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+    });
+    if (latestPasskey) {
+      await db.passkey.update({
+        where: { id: latestPasskey.id },
+        data: { name },
+      });
       return { message: "Passkey name updated" };
     }
     return { error: "No passkey found to update" };
@@ -325,15 +312,16 @@ export async function setPasswordAction(newPassword: string) {
     }
 
     // Update the passwordChangedAt timestamp
-    await db
-      .update(account)
-      .set({
+    await db.account.updateMany({
+      where: {
+        userId: user.id,
+        providerId: "credential",
+      },
+      data: {
         passwordChangedAt: new Date(),
         updatedAt: new Date(),
-      })
-      .where(
-        and(eq(account.userId, user.id), eq(account.providerId, "credential")),
-      );
+      },
+    });
 
     return { message: "Password set successfully" };
   } catch (error) {
@@ -361,15 +349,14 @@ export async function validatePasswordChange() {
     }
 
     // Check if user has an existing password
-    const existingAccount = await db
-      .select()
-      .from(account)
-      .where(
-        and(eq(account.userId, user.id), eq(account.providerId, "credential")),
-      )
-      .limit(1);
+    const existingAccount = await db.account.findFirst({
+      where: {
+        userId: user.id,
+        providerId: "credential",
+      },
+    });
 
-    const hasExistingPassword = existingAccount.length > 0;
+    const hasExistingPassword = !!existingAccount;
 
     // No need to validate the password here, just return the status
     return { success: true, hasExistingPassword };
@@ -410,15 +397,16 @@ export async function updatePasswordTimestamp() {
     if (!user || !user.id) {
       return { error: "Unauthorized" };
     }
-    await db
-      .update(account)
-      .set({
+    await db.account.updateMany({
+      where: {
+        userId: user.id,
+        providerId: "credential",
+      },
+      data: {
         passwordChangedAt: new Date(),
         updatedAt: new Date(),
-      })
-      .where(
-        and(eq(account.userId, user.id), eq(account.providerId, "credential")),
-      );
+      },
+    });
     return { message: "Password timestamp updated" };
   } catch (error) {
     console.error("Error updating password timestamp:", error);
@@ -436,10 +424,9 @@ export async function getProfile() {
     }
     const userId = sessionResult.user.id;
     // Get user profile
-    const [userProfile] = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, userId));
+    const userProfile = await db.user.findUnique({
+      where: { id: userId },
+    });
     if (!userProfile) {
       throw new Error("User not found");
     }
@@ -469,14 +456,14 @@ export async function updateProfile(formData: {
     const userId = sessionResult.user.id;
     const { name, phoneNumber } = formData;
     // Update user profile
-    await db
-      .update(user)
-      .set({
+    await db.user.update({
+      where: { id: userId },
+      data: {
         name: name || undefined,
         phoneNumber: phoneNumber || undefined,
         updatedAt: new Date(),
-      })
-      .where(eq(user.id, userId));
+      },
+    });
     revalidatePath("/profile");
     return { success: true };
   } catch (error) {
@@ -503,21 +490,18 @@ export async function getSignInMethods() {
     }
 
     // Get all accounts for the user
-    const userAccounts = await db
-      .select()
-      .from(account)
-      .where(eq(account.userId, user.id));
+    const userAccounts = await db.account.findMany({
+      where: { userId: user.id },
+    });
 
     // Get the most recent session for each provider
     const methods = await Promise.all(
       userAccounts.map(async (acc) => {
         // Get the most recent session for this account
-        const [latestSession] = await db
-          .select()
-          .from(session)
-          .where(eq(session.userId, user.id))
-          .orderBy(desc(session.createdAt))
-          .limit(1);
+        const latestSession = await db.session.findFirst({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+        });
 
         return {
           id: acc.id,
@@ -554,9 +538,12 @@ export async function deleteSignInMethod(methodId: string) {
     }
 
     // Delete the account
-    await db
-      .delete(account)
-      .where(and(eq(account.id, methodId), eq(account.userId, user.id)));
+    await db.account.deleteMany({
+      where: {
+        id: methodId,
+        userId: user.id,
+      },
+    });
   } catch (error) {
     console.error("Error deleting sign-in method:", error);
     throw error;
@@ -581,13 +568,14 @@ export async function addGoogleAccount() {
     }
 
     // Check if user already has a Google account
-    const existingGoogleAccount = await db
-      .select()
-      .from(account)
-      .where(and(eq(account.userId, user.id), eq(account.providerId, "google")))
-      .limit(1);
+    const existingGoogleAccount = await db.account.findFirst({
+      where: {
+        userId: user.id,
+        providerId: "google",
+      },
+    });
 
-    if (existingGoogleAccount.length > 0) {
+    if (existingGoogleAccount) {
       throw new Error("Google account already linked");
     }
 
@@ -614,21 +602,18 @@ export async function getAccountInformation() {
     const userId = sessionResult.user.id;
 
     // Get user's creation date
-    const [userProfile] = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, userId));
+    const userProfile = await db.user.findUnique({
+      where: { id: userId },
+    });
     if (!userProfile) {
       throw new Error("User not found");
     }
 
     // Get user's last login from the most recent session
-    const [lastSession] = await db
-      .select()
-      .from(session)
-      .where(eq(session.userId, userId))
-      .orderBy(desc(session.createdAt))
-      .limit(1);
+    const lastSession = await db.session.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
 
     return {
       accountCreated: userProfile.createdAt.toISOString(),

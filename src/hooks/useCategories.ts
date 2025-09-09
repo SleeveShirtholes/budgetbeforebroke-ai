@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getCategories, type Category } from "@/app/actions/category";
+import { getCategories, type CategoryWithCount } from "@/app/actions/category";
 
 /**
  * Hook to fetch categories for a budget account
@@ -7,7 +7,7 @@ import { getCategories, type Category } from "@/app/actions/category";
  * @returns Object containing categories, loading state, and error state
  */
 export function useCategories(accountId?: string) {
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<CategoryWithCount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

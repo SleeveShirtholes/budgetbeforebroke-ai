@@ -9,9 +9,13 @@ import crypto from "crypto";
 // Mock dependencies
 jest.mock("@/db/config", () => ({
   db: {
-    select: jest.fn(),
-    insert: jest.fn(),
-    update: jest.fn(),
+    supportComment: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+    supportRequest: {
+      update: jest.fn(),
+    },
   },
 }));
 
@@ -21,6 +25,17 @@ const mockUUID: `${string}-${string}-${string}-${string}-${string}` =
 jest.spyOn(crypto, "randomUUID").mockImplementation(() => mockUUID);
 
 describe("SupportComments Actions", () => {
+  const mockSupportCommentWithUser = {
+    id: "comment-1",
+    requestId: "request-1",
+    userId: "user-1",
+    text: "This is a test comment",
+    timestamp: new Date("2024-01-01T01:00:00Z"),
+    user: {
+      name: "Test User",
+    },
+  };
+
   const mockSupportComment = {
     id: "comment-1",
     requestId: "request-1",
@@ -36,66 +51,83 @@ describe("SupportComments Actions", () => {
 
   describe("getSupportCommentsForRequests", () => {
     it("should fetch comments for given request IDs", async () => {
-      const mockQueryBuilder = {
-        from: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockResolvedValue([mockSupportComment]),
-      };
-      (db.select as jest.Mock).mockReturnValueOnce(mockQueryBuilder);
+      (db.supportComment.findMany as jest.Mock).mockResolvedValue([
+        mockSupportCommentWithUser,
+      ]);
+
       const result = await getSupportCommentsForRequests(["request-1"]);
+
       expect(result).toEqual([mockSupportComment]);
+      expect(db.supportComment.findMany).toHaveBeenCalledWith({
+        where: {
+          requestId: {
+            in: ["request-1"],
+          },
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          timestamp: "asc",
+        },
+      });
     });
+
     it("should return empty array if no request IDs provided", async () => {
       const result = await getSupportCommentsForRequests([]);
       expect(result).toEqual([]);
+      expect(db.supportComment.findMany).not.toHaveBeenCalled();
     });
   });
 
   describe("addSupportComment", () => {
     it("should add a comment to a support request successfully", async () => {
-      const mockInsert = {
-        values: jest.fn().mockResolvedValue(undefined),
-      };
-      const mockUpdate = {
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue(undefined),
-        }),
-      };
-      (db.insert as jest.Mock).mockReturnValue(mockInsert);
-      (db.update as jest.Mock).mockReturnValue(mockUpdate);
       const commentData = {
         requestId: "request-1",
         text: "This is a new comment",
         userId: "user-1",
       };
+
+      (db.supportComment.create as jest.Mock).mockResolvedValue({
+        id: mockUUID,
+        ...commentData,
+        timestamp: expect.any(Date),
+      });
+      (db.supportRequest.update as jest.Mock).mockResolvedValue({});
+
       const result = await addSupportComment(commentData);
+
       expect(result).toEqual({
         id: mockUUID,
-        requestId: "request-1",
-        text: "This is a new comment",
+        ...commentData,
         timestamp: expect.any(Date),
-        userId: "user-1",
       });
-      expect(db.insert).toHaveBeenCalledTimes(1);
-      expect(mockInsert.values).toHaveBeenCalledWith({
-        id: mockUUID,
-        requestId: "request-1",
-        text: "This is a new comment",
-        timestamp: expect.any(Date),
-        userId: "user-1",
+      expect(db.supportComment.create).toHaveBeenCalledWith({
+        data: {
+          id: mockUUID,
+          requestId: commentData.requestId,
+          userId: commentData.userId,
+          text: commentData.text,
+          timestamp: expect.any(Date),
+        },
       });
-      expect(db.update).toHaveBeenCalledTimes(1);
-      expect(mockUpdate.set).toHaveBeenCalledWith({
-        lastUpdated: expect.any(Date),
+      expect(db.supportRequest.update).toHaveBeenCalledWith({
+        where: { id: commentData.requestId },
+        data: { lastUpdated: expect.any(Date) },
       });
     });
+
     it("should throw error when userId is not provided", async () => {
       const commentData = {
         requestId: "request-1",
         text: "This is a new comment",
         userId: "",
       };
+
       await expect(addSupportComment(commentData)).rejects.toThrow(
         "Not authenticated",
       );

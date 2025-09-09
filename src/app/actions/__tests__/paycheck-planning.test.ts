@@ -12,10 +12,7 @@ import { db as importedDb } from "@/db/config";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const actualDb = importedDb as any;
-
-// Mock the dependencies
+// Mock the dependencies first
 jest.mock("@/lib/auth", () => ({
   auth: {
     api: {
@@ -24,47 +21,57 @@ jest.mock("@/lib/auth", () => ({
   },
 }));
 
+// Create comprehensive Prisma mock and jest.mock in the same place
 jest.mock("@/db/config", () => ({
   db: {
-    query: {
-      budgetAccountMembers: {
-        findFirst: jest.fn(),
-      },
-      incomeSources: {
-        findMany: jest.fn(),
-      },
-      debts: {
-        findMany: jest.fn(),
-      },
-      monthlyDebtPlanning: {
-        findMany: jest.fn(),
-        insert: jest.fn(),
-      },
-      debtAllocations: {
-        findFirst: jest.fn(),
-        findMany: jest.fn(),
-        insert: jest.fn(),
-        delete: jest.fn(),
-        update: jest.fn(),
-      },
-      dismissedWarnings: {
-        findFirst: jest.fn(),
-        insert: jest.fn(),
-      },
+    budgetAccountMember: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     },
-    insert: jest.fn().mockReturnValue({
-      values: jest.fn().mockResolvedValue(undefined),
-    }),
-    update: jest.fn().mockReturnValue({
-      set: jest.fn().mockReturnValue({
-        where: jest.fn().mockResolvedValue(undefined),
-      }),
-    }),
-    delete: jest.fn().mockReturnValue({
-      where: jest.fn().mockResolvedValue(undefined),
-    }),
+    incomeSource: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    debt: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    monthlyDebtPlanning: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      createMany: jest.fn(),
+    },
+    debtAllocation: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    dismissedWarning: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    $transaction: jest.fn(),
   },
 }));
+
+// Get the mocked db
+const mockDb = importedDb as jest.Mocked<typeof importedDb>;
 
 jest.mock("next/headers", () => ({
   headers: jest.fn(),
@@ -82,19 +89,19 @@ describe("Paycheck Planning Actions", () => {
     (auth.api.getSession as jest.Mock).mockResolvedValue(mockSession);
     (headers as jest.Mock).mockResolvedValue({});
 
-    // Reset all db mocks
-    Object.values(actualDb.query).forEach((queryObj) => {
-      Object.values(queryObj as Record<string, unknown>).forEach((fn) => {
-        if (typeof fn === "function" && "mockClear" in fn) {
-          (fn as { mockClear: () => void }).mockClear();
-        }
-      });
+    // Reset all Prisma db mocks
+    Object.values(mockDb).forEach((model) => {
+      if (typeof model === "object" && model !== null) {
+        Object.values(model as Record<string, unknown>).forEach((fn) => {
+          if (typeof fn === "function" && "mockClear" in fn) {
+            (fn as { mockClear: () => void }).mockClear();
+          }
+        });
+      }
     });
 
     // Ensure all mocks are properly initialized
-    (
-      actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-    ).mockResolvedValue({
+    mockDb.budgetAccountMember.findFirst.mockResolvedValue({
       id: "member-123",
       role: "member",
     });
@@ -110,9 +117,7 @@ describe("Paycheck Planning Actions", () => {
     });
 
     it("should throw error if user has no access to budget account", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue(null);
+      mockDb.budgetAccountMember.findFirst.mockResolvedValue(null);
 
       await expect(
         getPaycheckPlanningData(mockAccountId, 2025, 1, 0),
@@ -120,40 +125,36 @@ describe("Paycheck Planning Actions", () => {
     });
 
     it("should return planning data with paychecks and debts", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
 
-      (actualDb.query.incomeSources.findMany as jest.Mock).mockResolvedValue([
+      (mockDb.incomeSource.findMany as jest.Mock).mockResolvedValue([
         {
           id: "income-1",
           name: "Salary",
           amount: "5000",
           frequency: "monthly",
-          startDate: "2025-01-01",
+          startDate: new Date("2025-01-01"),
         },
       ]);
 
-      (actualDb.query.debts.findMany as jest.Mock).mockResolvedValue([
+      (mockDb.debt.findMany as jest.Mock).mockResolvedValue([
         {
           id: "debt-1",
           name: "Credit Card",
           paymentAmount: "500",
-          dueDate: "2025-01-15",
+          dueDate: new Date("2025-01-15"),
           categoryId: "cat-1",
         },
       ]);
 
-      (
-        actualDb.query.monthlyDebtPlanning.findMany as jest.Mock
-      ).mockResolvedValue([
+      (mockDb.monthlyDebtPlanning.findMany as jest.Mock).mockResolvedValue([
         {
           id: "planning-1",
           debtId: "debt-1",
-          dueDate: "2025-01-15",
+          dueDate: new Date("2025-01-15"),
           isActive: true,
         },
       ]);
@@ -168,16 +169,12 @@ describe("Paycheck Planning Actions", () => {
 
   describe("dismissWarning", () => {
     it("should create dismissal record for new warning", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
 
-      (
-        actualDb.query.dismissedWarnings.findFirst as jest.Mock
-      ).mockResolvedValue(null);
+      (mockDb.dismissedWarning.findFirst as jest.Mock).mockResolvedValue(null);
 
       const result = await dismissWarning(
         mockAccountId,
@@ -186,20 +183,16 @@ describe("Paycheck Planning Actions", () => {
       );
 
       expect(result).toEqual({ success: true });
-      expect(actualDb.insert).toHaveBeenCalled();
+      expect(mockDb.dismissedWarning.create).toHaveBeenCalled();
     });
 
     it("should not create duplicate dismissal record", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
 
-      (
-        actualDb.query.dismissedWarnings.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.dismissedWarning.findFirst as jest.Mock).mockResolvedValue({
         id: "dismissal-1",
       });
 
@@ -210,22 +203,18 @@ describe("Paycheck Planning Actions", () => {
       );
 
       expect(result).toEqual({ success: true });
-      expect(actualDb.insert).not.toHaveBeenCalled();
+      expect(mockDb.dismissedWarning.create).not.toHaveBeenCalled();
     });
   });
 
   describe("updateDebtAllocation", () => {
     it("should create new allocation when action is 'allocate'", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
 
-      (actualDb.query.debtAllocations.findFirst as jest.Mock).mockResolvedValue(
-        null,
-      );
+      (mockDb.debtAllocation.findFirst as jest.Mock).mockResolvedValue(null);
 
       const result = await updateDebtAllocation(
         mockAccountId,
@@ -237,13 +226,11 @@ describe("Paycheck Planning Actions", () => {
       );
 
       expect(result).toEqual({ success: true });
-      expect(actualDb.insert).toHaveBeenCalled();
+      expect(mockDb.debtAllocation.create).toHaveBeenCalled();
     });
 
     it("should remove allocation when action is 'unallocate'", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
@@ -256,15 +243,13 @@ describe("Paycheck Planning Actions", () => {
       );
 
       expect(result).toEqual({ success: true });
-      expect(actualDb.delete).toHaveBeenCalled();
+      expect(mockDb.debtAllocation.deleteMany).toHaveBeenCalled();
     });
   });
 
   describe("markPaymentAsPaid", () => {
     it("should mark payment as paid", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
@@ -278,62 +263,54 @@ describe("Paycheck Planning Actions", () => {
       );
 
       expect(result).toEqual({ success: true });
-      expect(actualDb.update).toHaveBeenCalled();
+      expect(mockDb.debtAllocation.update).toHaveBeenCalled();
     });
   });
 
   describe("populateMonthlyDebtPlanning", () => {
     it("should create monthly planning records for debts", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
 
-      (actualDb.query.debts.findMany as jest.Mock).mockResolvedValue([
+      (mockDb.debt.findMany as jest.Mock).mockResolvedValue([
         {
           id: "debt-1",
           name: "Credit Card",
-          dueDate: "2025-01-15",
+          dueDate: new Date("2025-01-15"),
         },
       ]);
 
-      (
-        actualDb.query.monthlyDebtPlanning.findMany as jest.Mock
-      ).mockResolvedValue([]);
+      (mockDb.monthlyDebtPlanning.findMany as jest.Mock).mockResolvedValue([]);
 
       await populateMonthlyDebtPlanning(mockAccountId, 2025, 1, 2);
 
-      expect(actualDb.insert).toHaveBeenCalled();
+      expect(mockDb.monthlyDebtPlanning.create).toHaveBeenCalled();
     });
 
     it("should create monthly planning records for the correct months based on debt due dates", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
 
       // Mock debts with different due dates
-      (actualDb.query.debts.findMany as jest.Mock).mockResolvedValue([
+      (mockDb.debt.findMany as jest.Mock).mockResolvedValue([
         {
           id: "debt-1",
           name: "Credit Card",
-          dueDate: "2025-01-15", // Due in January
+          dueDate: new Date("2025-01-15"), // Due in January
         },
         {
           id: "debt-2",
           name: "Student Loan",
-          dueDate: "2025-03-20", // Due in March
+          dueDate: new Date("2025-03-20"), // Due in March
         },
       ]);
 
       // Mock no existing monthly planning records
-      (
-        actualDb.query.monthlyDebtPlanning.findMany as jest.Mock
-      ).mockResolvedValue([]);
+      (mockDb.monthlyDebtPlanning.findMany as jest.Mock).mockResolvedValue([]);
 
       // Call with current month = February 2025, planning window = 2 months
       await populateMonthlyDebtPlanning(mockAccountId, 2025, 2, 2);
@@ -343,36 +320,32 @@ describe("Paycheck Planning Actions", () => {
       // debt-1 (due January): appears in Feb, Mar, Apr (3 records)
       // debt-2 (due March): appears in Mar, Apr (2 records)
       // Total: 5 records
-      expect(actualDb.insert).toHaveBeenCalledTimes(5);
+      expect(mockDb.monthlyDebtPlanning.create).toHaveBeenCalledTimes(5);
     });
 
     it("should not create duplicate monthly planning records", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
 
-      (actualDb.query.debts.findMany as jest.Mock).mockResolvedValue([
+      (mockDb.debt.findMany as jest.Mock).mockResolvedValue([
         {
           id: "debt-1",
           name: "Credit Card",
-          dueDate: "2025-01-15",
+          dueDate: new Date("2025-01-15"),
         },
       ]);
 
       // Mock existing monthly planning records for some months
-      (
-        actualDb.query.monthlyDebtPlanning.findMany as jest.Mock
-      ).mockResolvedValue([
+      (mockDb.monthlyDebtPlanning.findMany as jest.Mock).mockResolvedValue([
         {
           id: "planning-1",
           budgetAccountId: mockAccountId,
           debtId: "debt-1",
           year: 2025,
           month: 2, // February already exists
-          dueDate: "2025-02-15",
+          dueDate: new Date("2025-02-15"),
           isActive: true,
         },
       ]);
@@ -382,30 +355,26 @@ describe("Paycheck Planning Actions", () => {
 
       // Should only create records for March and April (February already exists)
       // 1 debt × 2 months = 2 new records
-      expect(actualDb.insert).toHaveBeenCalledTimes(2);
+      expect(mockDb.monthlyDebtPlanning.create).toHaveBeenCalledTimes(2);
     });
 
     it("should not create records for months before debt due date", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
 
       // Mock a debt that's due in March
-      (actualDb.query.debts.findMany as jest.Mock).mockResolvedValue([
+      (mockDb.debt.findMany as jest.Mock).mockResolvedValue([
         {
           id: "debt-1",
           name: "Student Loan",
-          dueDate: "2025-03-15", // Due in March
+          dueDate: new Date("2025-03-15"), // Due in March
         },
       ]);
 
       // Mock no existing monthly planning records
-      (
-        actualDb.query.monthlyDebtPlanning.findMany as jest.Mock
-      ).mockResolvedValue([]);
+      (mockDb.monthlyDebtPlanning.findMany as jest.Mock).mockResolvedValue([]);
 
       // Call with current month = January 2025, planning window = 3 months
       await populateMonthlyDebtPlanning(mockAccountId, 2025, 1, 3);
@@ -416,15 +385,13 @@ describe("Paycheck Planning Actions", () => {
       // March: month 3 >= 3 (debt is due) - record created
       // April: month 4 > 3 (debt is due) - record created
       // Total: 2 records
-      expect(actualDb.insert).toHaveBeenCalledTimes(2);
+      expect(mockDb.monthlyDebtPlanning.create).toHaveBeenCalledTimes(2);
     });
   });
 
   describe("setMonthlyDebtPlanningActive", () => {
     it("should set monthly debt planning record to inactive (hide)", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
@@ -436,13 +403,11 @@ describe("Paycheck Planning Actions", () => {
       );
 
       expect(result).toEqual({ success: true });
-      expect(actualDb.update).toHaveBeenCalled();
+      expect(mockDb.monthlyDebtPlanning.update).toHaveBeenCalled();
     });
 
     it("should set monthly debt planning record to active (restore)", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
@@ -454,7 +419,7 @@ describe("Paycheck Planning Actions", () => {
       );
 
       expect(result).toEqual({ success: true });
-      expect(actualDb.update).toHaveBeenCalled();
+      expect(mockDb.monthlyDebtPlanning.update).toHaveBeenCalled();
     });
 
     it("should throw error if not authenticated", async () => {
@@ -466,9 +431,9 @@ describe("Paycheck Planning Actions", () => {
     });
 
     it("should throw error if user has no access to budget account", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue(null);
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
 
       await expect(
         setMonthlyDebtPlanningActive(mockAccountId, "planning-1", false),
@@ -478,30 +443,26 @@ describe("Paycheck Planning Actions", () => {
 
   describe("getHiddenMonthlyDebtPlanningData", () => {
     it("should return hidden monthly debt planning records", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         id: "member-123",
         role: "member",
       });
 
-      (actualDb.query.debts.findMany as jest.Mock).mockResolvedValue([
+      (mockDb.debt.findMany as jest.Mock).mockResolvedValue([
         {
           id: "debt-1",
           name: "Credit Card",
           paymentAmount: "500",
-          dueDate: "2025-01-15",
+          dueDate: new Date("2025-01-15"),
           categoryId: "cat-1",
         },
       ]);
 
-      (
-        actualDb.query.monthlyDebtPlanning.findMany as jest.Mock
-      ).mockResolvedValue([
+      (mockDb.monthlyDebtPlanning.findMany as jest.Mock).mockResolvedValue([
         {
           id: "planning-1",
           debtId: "debt-1",
-          dueDate: "2025-01-15",
+          dueDate: new Date("2025-01-15"),
           isActive: false,
         },
       ]);
@@ -527,9 +488,9 @@ describe("Paycheck Planning Actions", () => {
     });
 
     it("should throw error if user has no access to budget account", async () => {
-      (
-        actualDb.query.budgetAccountMembers.findFirst as jest.Mock
-      ).mockResolvedValue(null);
+      (mockDb.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
 
       await expect(
         getHiddenMonthlyDebtPlanningData(mockAccountId, 2025, 1, 0),

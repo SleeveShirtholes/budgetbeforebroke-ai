@@ -1,10 +1,9 @@
 "use server";
 
 import { db } from "@/db/config";
-import { contactSubmissions, emailConversations } from "@/db/schema";
 import { z } from "zod";
-import { eq, desc, isNull } from "drizzle-orm";
 import { generateConversationId } from "@/lib/utils";
+import { randomUUID } from "crypto";
 
 const contactFormSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name is too long"),
@@ -32,9 +31,10 @@ export async function createContactSubmission(
     const validatedData = contactFormSchema.parse(data);
 
     // Insert the contact submission into the database
-    const [submission] = await db
-      .insert(contactSubmissions)
-      .values({
+    const submission = await db.contactSubmission.create({
+      data: {
+        id: randomUUID(),
+        conversationId: randomUUID(),
         name: validatedData.name,
         email: validatedData.email,
         subject: validatedData.subject,
@@ -42,8 +42,8 @@ export async function createContactSubmission(
         ipAddress: validatedData.ipAddress,
         userAgent: validatedData.userAgent,
         status: "new",
-      })
-      .returning();
+      },
+    });
 
     if (!submission) {
       throw new Error("Failed to create contact submission");
@@ -73,10 +73,11 @@ export async function createContactSubmission(
  */
 export async function getContactSubmissions() {
   try {
-    const submissions = await db
-      .select()
-      .from(contactSubmissions)
-      .orderBy(desc(contactSubmissions.createdAt));
+    const submissions = await db.contactSubmission.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
 
     return { success: true, submissions };
   } catch (error) {
@@ -97,16 +98,17 @@ export async function updateContactSubmissionStatus(
   notes?: string,
 ) {
   try {
-    const [updatedSubmission] = await db
-      .update(contactSubmissions)
-      .set({
+    const updatedSubmission = await db.contactSubmission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
         status,
         notes,
         updatedAt: new Date(),
         resolvedAt: status === "resolved" ? new Date() : undefined,
-      })
-      .where(eq(contactSubmissions.id, submissionId))
-      .returning();
+      },
+    });
 
     if (!updatedSubmission) {
       throw new Error("Contact submission not found");
@@ -133,10 +135,11 @@ export async function sendFollowUpEmailToUser(
 ) {
   try {
     // First, get the submission to find the conversation ID
-    const [submission] = await db
-      .select()
-      .from(contactSubmissions)
-      .where(eq(contactSubmissions.id, submissionId));
+    const submission = await db.contactSubmission.findFirst({
+      where: {
+        id: submissionId,
+      },
+    });
 
     if (!submission) {
       throw new Error("Contact submission not found");
@@ -146,29 +149,34 @@ export async function sendFollowUpEmailToUser(
     let conversationId = submission.conversationId;
     if (!conversationId) {
       conversationId = generateConversationId();
-      await db
-        .update(contactSubmissions)
-        .set({
+      await db.contactSubmission.update({
+        where: {
+          id: submissionId,
+        },
+        data: {
           conversationId,
           updatedAt: new Date(),
-        })
-        .where(eq(contactSubmissions.id, submissionId));
+        },
+      });
     }
 
     // Import the email function dynamically to avoid client-side issues
     const { sendFollowUpEmail } = await import("@/lib/email");
 
     // Store the support response in the conversation
-    await db.insert(emailConversations).values({
-      conversationId: conversationId!,
-      messageId: `support-${Date.now()}`,
-      fromEmail: supportEmail,
-      fromName: supportName,
-      toEmail: submission.email,
-      subject: submission.subject,
-      message,
-      messageType: "support_response",
-      direction: "outbound",
+    await db.emailConversation.create({
+      data: {
+        id: randomUUID(),
+        conversationId: conversationId!,
+        messageId: `support-${Date.now()}`,
+        fromEmail: supportEmail,
+        fromName: supportName,
+        toEmail: submission.email,
+        subject: submission.subject,
+        message,
+        messageType: "support_response",
+        direction: "outbound",
+      },
     });
 
     // Send the follow-up email
@@ -183,17 +191,18 @@ export async function sendFollowUpEmailToUser(
     });
 
     // Update the submission with the follow-up message
-    const [updatedSubmission] = await db
-      .update(contactSubmissions)
-      .set({
+    const updatedSubmission = await db.contactSubmission.update({
+      where: {
+        id: submissionId,
+      },
+      data: {
         notes: submission.notes
           ? `${submission.notes}\n\n--- Follow-up sent on ${new Date().toISOString()} ---\n${message}`
           : `--- Follow-up sent on ${new Date().toISOString()} ---\n${message}`,
         lastSupportMessageAt: new Date(),
         updatedAt: new Date(),
-      })
-      .where(eq(contactSubmissions.id, submissionId))
-      .returning();
+      },
+    });
 
     return { success: true, submission: updatedSubmission };
   } catch (error) {
@@ -211,21 +220,25 @@ export async function sendFollowUpEmailToUser(
 export async function getConversationHistory(submissionId: string) {
   try {
     // First get the submission to find the conversation ID
-    const [submission] = await db
-      .select()
-      .from(contactSubmissions)
-      .where(eq(contactSubmissions.id, submissionId));
+    const submission = await db.contactSubmission.findFirst({
+      where: {
+        id: submissionId,
+      },
+    });
 
     if (!submission || !submission.conversationId) {
       return { success: false, error: "Submission or conversation not found" };
     }
 
     // Get all messages in the conversation, ordered by creation time
-    const conversations = await db
-      .select()
-      .from(emailConversations)
-      .where(eq(emailConversations.conversationId, submission.conversationId))
-      .orderBy(emailConversations.createdAt);
+    const conversations = await db.emailConversation.findMany({
+      where: {
+        conversationId: submission.conversationId,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
 
     return { success: true, conversations, submission };
   } catch (error) {
@@ -244,23 +257,26 @@ export async function getConversationHistory(submissionId: string) {
 export async function updateExistingSubmissionsWithConversationIds() {
   try {
     // Get all submissions without conversation IDs
-    const submissionsWithoutConversationId = await db
-      .select()
-      .from(contactSubmissions)
-      .where(isNull(contactSubmissions.conversationId));
+    // Get all submissions and filter those without conversation IDs
+    const allSubmissions = await db.contactSubmission.findMany();
+    const submissionsWithoutConversationId = allSubmissions.filter(
+      (submission) => !submission.conversationId,
+    );
 
     let updatedCount = 0;
 
     for (const submission of submissionsWithoutConversationId) {
       const conversationId = generateConversationId();
 
-      await db
-        .update(contactSubmissions)
-        .set({
+      await db.contactSubmission.update({
+        where: {
+          id: submission.id,
+        },
+        data: {
           conversationId,
           updatedAt: new Date(),
-        })
-        .where(eq(contactSubmissions.id, submission.id));
+        },
+      });
 
       updatedCount++;
     }

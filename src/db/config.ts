@@ -1,10 +1,16 @@
-import * as schema from "./schema";
+import { PrismaClient } from "@prisma/client/edge";
+import { withAccelerate } from "@prisma/extension-accelerate";
 
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+// Global variable to store the Prisma client instance
+const globalForPrisma = globalThis as unknown as {
+  prisma: ReturnType<typeof createPrismaClient> | undefined;
+};
 
-// Get the database URL from environment variables
-const sql = neon(process.env.DATABASE_URL!);
+// Helper function to create the Prisma client with Accelerate
+const createPrismaClient = () => new PrismaClient().$extends(withAccelerate());
 
-// Create the database instance with schema
-export const db = drizzle(sql, { schema });
+// Create a singleton instance of PrismaClient with Accelerate
+export const db = globalForPrisma.prisma ?? createPrismaClient();
+
+// In development, store the client on the global object to prevent multiple instances
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;

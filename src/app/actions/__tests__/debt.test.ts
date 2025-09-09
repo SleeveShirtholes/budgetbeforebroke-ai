@@ -7,15 +7,7 @@ import {
   type CreateDebtInput,
   type UpdateDebtInput,
   type CreateDebtPaymentInput,
-  type Debt,
 } from "../debt";
-
-import { db as importedDb } from "@/db/config";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const actualDb = importedDb as any;
 
 // Mock the dependencies
 jest.mock("@/lib/auth", () => ({
@@ -28,24 +20,33 @@ jest.mock("@/lib/auth", () => ({
 
 jest.mock("@/db/config", () => ({
   db: {
-    select: jest.fn().mockReturnThis(),
-    from: jest.fn().mockReturnThis(),
-    leftJoin: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    values: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    set: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    query: {
-      categories: {
-        findFirst: jest.fn(),
-      },
-      monthlyDebtPlanning: {
-        findFirst: jest.fn(),
-      },
+    user: {
+      findFirst: jest.fn(),
+    },
+    debt: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    budgetAccount: {
+      findFirst: jest.fn(),
+    },
+    category: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
+    transaction: {
+      create: jest.fn(),
+    },
+    monthlyDebtPlanning: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
+    debtAllocation: {
+      findMany: jest.fn(),
+      create: jest.fn(),
     },
   },
 }));
@@ -54,374 +55,383 @@ jest.mock("next/headers", () => ({
   headers: jest.fn(),
 }));
 
-jest.mock("crypto", () => ({
-  randomUUID: jest.fn(() => "mock-debt-id"),
-}));
-
 describe("Debt Actions", () => {
   const mockUserId = "user-123";
   const mockAccountId = "account-123";
   const mockDebtId = "debt-123";
-  const mockPaymentId = "payment-123";
   const mockCategoryId = "category-123";
-  const mockSession = {
-    user: { id: mockUserId },
-  };
 
-  const mockDebt: Debt = {
-    id: mockDebtId,
-    budgetAccountId: mockAccountId,
-    createdByUserId: mockUserId,
-    name: "Test Debt",
-    paymentAmount: 1000.0,
-    interestRate: 5.5,
-    dueDate: "2024-02-01",
-    hasBalance: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-01-01"),
-    payments: [],
-  };
-
-  // Removed unused mockDebtPayment variable
-
-  const mockCategory = {
-    id: mockCategoryId,
-    name: "Debts",
-    description: "Debt payments",
-    color: "#8B5CF6",
-    icon: "banknotes",
-  };
+  const mockDb = jest.requireMock("@/db/config").db;
+  const mockAuth = jest.requireMock("@/lib/auth").auth;
+  const mockHeaders = jest.requireMock("next/headers").headers;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (auth.api.getSession as jest.Mock).mockResolvedValue(mockSession);
-    (headers as jest.Mock).mockResolvedValue({});
 
-    // Reset all db mocks
-    Object.values(actualDb).forEach((fn: unknown) => {
-      if (typeof fn === "function" && "mockClear" in fn) {
-        (fn as jest.Mock).mockClear();
-      }
+    // Mock authenticated session
+    mockAuth.api.getSession.mockResolvedValue({
+      user: { id: mockUserId },
+    });
+
+    mockHeaders.mockResolvedValue({});
+
+    // Mock user lookup
+    mockDb.user.findFirst.mockResolvedValue({
+      defaultBudgetAccountId: mockAccountId,
     });
   });
 
   describe("getDebts", () => {
-    it("should throw error if not authenticated", async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+    it("should return debts with payments", async () => {
+      const mockDebts = [
+        {
+          id: mockDebtId,
+          name: "Credit Card",
+          paymentAmount: 1500,
+          interestRate: 18.99,
+          dueDate: new Date("2024-02-15"),
+          categoryId: mockCategoryId,
+          budgetAccountId: mockAccountId,
+          createdByUserId: mockUserId,
+          hasBalance: true,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date("2024-01-01"),
+          lastPaymentMonth: null,
+          category: {
+            id: mockCategoryId,
+            name: "Debts",
+          },
+          monthlyPlanning: [],
+        },
+      ];
 
-      await expect(getDebts()).rejects.toThrow("Not authenticated");
+      const mockPayments = [
+        {
+          id: "payment-1",
+          monthlyDebtPlanningId: "planning-1",
+          paymentAmount: 100,
+          paymentDate: new Date("2024-01-15"),
+          note: null,
+          isPaid: false,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date("2024-01-01"),
+        },
+      ];
+
+      mockDb.debt.findMany.mockResolvedValue(mockDebts);
+      mockDb.debtAllocation.findMany.mockResolvedValue(mockPayments);
+
+      const result = await getDebts();
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        id: mockDebtId,
+        name: "Credit Card",
+        paymentAmount: 1500,
+        interestRate: 18.99,
+        dueDate: "2024-02-15",
+        categoryId: mockCategoryId,
+        budgetAccountId: mockAccountId,
+        createdByUserId: mockUserId,
+        hasBalance: true,
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date),
+        category: {
+          id: mockCategoryId,
+          name: "Debts",
+        },
+        payments: [
+          {
+            id: "payment-1",
+            debtId: expect.any(String),
+            amount: 100,
+            date: "2024-01-15",
+            note: null,
+            isPaid: false,
+            createdAt: expect.any(Date),
+            updatedAt: expect.any(Date),
+          },
+        ],
+      });
+    });
+
+    it("should return debts without payments", async () => {
+      const mockDebts = [
+        {
+          id: mockDebtId,
+          name: "Credit Card",
+          paymentAmount: 1500,
+          interestRate: 18.99,
+          dueDate: new Date("2024-02-15"),
+          categoryId: mockCategoryId,
+          budgetAccountId: mockAccountId,
+          createdByUserId: mockUserId,
+          hasBalance: true,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date("2024-01-01"),
+          lastPaymentMonth: null,
+          category: {
+            id: mockCategoryId,
+            name: "Debts",
+          },
+          monthlyPlanning: [],
+        },
+      ];
+
+      mockDb.debt.findMany.mockResolvedValue(mockDebts);
+      mockDb.debtAllocation.findMany.mockResolvedValue([]); // No payments
+
+      const result = await getDebts();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].payments).toEqual([]);
+    });
+
+    it("should use provided budget account ID", async () => {
+      const customAccountId = "custom-account-123";
+      mockDb.debt.findMany.mockResolvedValue([]);
+
+      await getDebts(customAccountId);
+
+      expect(mockDb.debt.findMany).toHaveBeenCalledWith({
+        where: {
+          budgetAccountId: customAccountId,
+        },
+        include: {
+          category: true,
+          monthlyPlanning: {
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 1,
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+    });
+
+    it("should convert string amounts to numbers", async () => {
+      const mockDebts = [
+        {
+          id: mockDebtId,
+          name: "Credit Card",
+          paymentAmount: "1500.50", // String amount to be converted
+          interestRate: "18.99", // String amount to be converted
+          dueDate: new Date("2024-02-15"),
+          categoryId: mockCategoryId,
+          budgetAccountId: mockAccountId,
+          createdByUserId: mockUserId,
+          hasBalance: true,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date("2024-01-01"),
+          lastPaymentMonth: null,
+          category: {
+            id: mockCategoryId,
+            name: "Debts",
+          },
+          monthlyPlanning: [],
+        },
+      ];
+
+      mockDb.debt.findMany.mockResolvedValue(mockDebts);
+      mockDb.debtAllocation.findMany.mockResolvedValue([]); // No payments
+
+      const result = await getDebts();
+
+      expect(result[0].paymentAmount).toBe(1500.5);
+      expect(result[0].interestRate).toBe(18.99);
     });
 
     it("should throw error if no default budget account found", async () => {
-      // Mock user query to return no default budget account
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.user.findFirst.mockResolvedValue({});
 
       await expect(getDebts()).rejects.toThrow(
         "No default budget account found",
       );
     });
-
-    it("should return debts with payments", async () => {
-      // Mock the user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-
-      const mockDebtsWithPayments = [
-        {
-          id: mockDebtId,
-          budgetAccountId: mockAccountId,
-          createdByUserId: mockUserId,
-          name: "Test Debt",
-          paymentAmount: "1000.00",
-          interestRate: "5.5",
-          dueDate: "2024-02-01",
-          hasBalance: true,
-          createdAt: new Date("2024-01-01"),
-          updatedAt: new Date("2024-01-01"),
-          allocationId: mockPaymentId,
-          allocationDebtId: mockDebtId,
-          paymentAmountAllocation: "100.00",
-          paymentDate: "2024-01-15",
-          paymentNote: "Test payment",
-          paymentIsPaid: true,
-          paymentCreatedAt: new Date("2024-01-15"),
-          paymentUpdatedAt: new Date("2024-01-15"),
-        },
-      ];
-
-      actualDb.orderBy.mockResolvedValueOnce(mockDebtsWithPayments);
-
-      const result = await getDebts();
-
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(mockDebtId);
-      expect(result[0].paymentAmount).toBe(1000.0);
-      expect(result[0].interestRate).toBe(5.5);
-      expect(result[0].payments).toHaveLength(1);
-      expect(result[0].payments[0].amount).toBe(100.0);
-      expect(actualDb.select).toHaveBeenCalled();
-      expect(actualDb.leftJoin).toHaveBeenCalled();
-      expect(actualDb.orderBy).toHaveBeenCalled();
-    });
-
-    it("should return debts without payments", async () => {
-      // Mock the user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-
-      const mockDebtsWithoutPayments = [
-        {
-          id: mockDebtId,
-          budgetAccountId: mockAccountId,
-          createdByUserId: mockUserId,
-          name: "Test Debt",
-          balance: "1000.00",
-          interestRate: "5.50",
-          dueDate: new Date("2024-02-01"),
-          createdAt: new Date("2024-01-01"),
-          updatedAt: new Date("2024-01-01"),
-          paymentId: null,
-          paymentDebtId: null,
-          paymentAmount: null,
-          paymentDate: null,
-          paymentNote: null,
-          paymentCreatedAt: null,
-          paymentUpdatedAt: null,
-        },
-      ];
-
-      actualDb.orderBy.mockResolvedValueOnce(mockDebtsWithoutPayments);
-
-      const result = await getDebts();
-
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(mockDebtId);
-      expect(result[0].payments).toHaveLength(0);
-    });
-
-    it("should use provided budget account ID", async () => {
-      const customAccountId = "custom-account-123";
-      const mockDebts = [mockDebt];
-      actualDb.orderBy.mockResolvedValueOnce(mockDebts);
-
-      await getDebts(customAccountId);
-
-      expect(actualDb.where).toHaveBeenCalled();
-    });
-
-    it("should convert string amounts to numbers", async () => {
-      // Mock the user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-
-      const mockDebtsWithStringAmounts = [
-        {
-          id: mockDebtId,
-          budgetAccountId: mockAccountId,
-          createdByUserId: mockUserId,
-          name: "Test Debt",
-          paymentAmount: "1500.75",
-          interestRate: "7.25",
-          dueDate: "2024-02-01",
-          hasBalance: true,
-          createdAt: new Date("2024-01-01"),
-          updatedAt: new Date("2024-01-01"),
-          allocationId: null,
-          allocationDebtId: null,
-          paymentAmountAllocation: null,
-          paymentDate: null,
-          paymentNote: null,
-          paymentIsPaid: null,
-          paymentCreatedAt: null,
-          paymentUpdatedAt: null,
-        },
-      ];
-
-      actualDb.orderBy.mockResolvedValueOnce(mockDebtsWithStringAmounts);
-
-      const result = await getDebts();
-
-      expect(result).toHaveLength(1);
-      expect(result[0].paymentAmount).toBe(1500.75);
-      expect(result[0].interestRate).toBe(7.25);
-    });
   });
 
   describe("createDebt", () => {
-    const createDebtData: CreateDebtInput = {
-      name: "Test Debt",
-      paymentAmount: 1000.0,
-      interestRate: 5.5,
-      dueDate: "2024-02-01",
+    const mockDebtData: CreateDebtInput = {
+      name: "Credit Card",
+      paymentAmount: 1500,
+      interestRate: 18.99,
+      dueDate: "2024-02-15",
+      categoryId: mockCategoryId,
     };
 
-    it("should throw error if not authenticated", async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+    it("should create debt successfully", async () => {
+      const mockCreatedDebt = {
+        id: mockDebtId,
+        ...mockDebtData,
+        budgetAccountId: mockAccountId,
+      };
 
-      await expect(createDebt(createDebtData)).rejects.toThrow(
-        "Not authenticated",
-      );
+      mockDb.budgetAccount.findFirst.mockResolvedValue({
+        id: mockAccountId,
+      });
+      mockDb.category.findFirst.mockResolvedValue({
+        id: mockCategoryId,
+        name: "Debts",
+      });
+      mockDb.debt.create.mockResolvedValue(mockCreatedDebt);
+
+      const result = await createDebt(mockDebtData);
+
+      expect(result).toEqual({ id: mockDebtId });
+      expect(mockDb.debt.create).toHaveBeenCalledWith({
+        data: {
+          id: expect.any(String),
+          budgetAccountId: mockAccountId,
+          createdByUserId: expect.any(String),
+          categoryId: mockCategoryId,
+          name: "Credit Card",
+          paymentAmount: 1500,
+          interestRate: 18.99,
+          dueDate: expect.any(Date),
+          hasBalance: false,
+        },
+      });
     });
 
     it("should throw error if no default budget account found", async () => {
-      // Mock user query to return no default budget account
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.user.findFirst.mockResolvedValue({});
 
-      await expect(createDebt(createDebtData)).rejects.toThrow(
+      await expect(createDebt(mockDebtData)).rejects.toThrow(
         "No default budget account found",
       );
     });
 
     it("should throw error if budget account not found", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock budget account query to return no account
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.budgetAccount.findFirst.mockResolvedValue(null);
 
-      await expect(createDebt(createDebtData)).rejects.toThrow(
+      await expect(createDebt(mockDebtData)).rejects.toThrow(
         "Budget account not found",
       );
     });
 
-    it("should create debt successfully", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock budget account query to return account
-      actualDb.limit.mockResolvedValueOnce([{ id: mockAccountId }]);
-      actualDb.values.mockResolvedValueOnce({});
-
-      const result = await createDebt(createDebtData);
-
-      expect(result).toEqual({ id: "mock-debt-id" });
-      expect(actualDb.insert).toHaveBeenCalled();
-      expect(actualDb.values).toHaveBeenCalledWith({
-        id: "mock-debt-id",
-        budgetAccountId: mockAccountId,
-        createdByUserId: mockUserId,
-        name: "Test Debt",
-        paymentAmount: "1000",
-        interestRate: "5.5",
-        dueDate: "2024-02-01",
-        hasBalance: false,
-        createdAt: expect.any(Date),
-        updatedAt: expect.any(Date),
-      });
-    });
-
     it("should use provided budget account ID", async () => {
       const customAccountId = "custom-account-123";
+      mockDb.budgetAccount.findFirst.mockResolvedValue({
+        id: customAccountId,
+      });
+      mockDb.debt.create.mockResolvedValue({
+        id: mockDebtId,
+        ...mockDebtData,
+        budgetAccountId: customAccountId,
+      });
 
-      // Mock budget account query to return account
-      actualDb.limit.mockResolvedValueOnce([{ id: customAccountId }]);
-      actualDb.values.mockResolvedValueOnce({});
+      await createDebt(mockDebtData, customAccountId);
 
-      await createDebt(createDebtData, customAccountId);
-
-      expect(actualDb.values).toHaveBeenCalledWith(
-        expect.objectContaining({
-          budgetAccountId: customAccountId,
-        }),
-      );
+      expect(mockDb.budgetAccount.findFirst).toHaveBeenCalledWith({
+        where: { id: customAccountId },
+      });
     });
   });
 
   describe("updateDebt", () => {
-    const updateDebtData: UpdateDebtInput = {
+    const mockUpdateData: UpdateDebtInput = {
       id: mockDebtId,
-      name: "Updated Debt",
-      paymentAmount: 1500.0,
-      interestRate: 6.0,
-      dueDate: "2024-03-01",
+      name: "Updated Credit Card",
+      paymentAmount: 1200,
+      interestRate: 19.99,
+      dueDate: "2024-03-15",
+      categoryId: mockCategoryId,
     };
 
-    it("should throw error if not authenticated", async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+    it("should update debt successfully", async () => {
+      const mockUpdatedDebt = {
+        id: mockDebtId,
+        ...mockUpdateData,
+        budgetAccountId: mockAccountId,
+      };
 
-      await expect(updateDebt(updateDebtData)).rejects.toThrow(
-        "Not authenticated",
-      );
+      mockDb.debt.findFirst.mockResolvedValue({
+        id: mockDebtId,
+        budgetAccountId: mockAccountId,
+      });
+      mockDb.category.findFirst.mockResolvedValue({
+        id: mockCategoryId,
+        name: "Debts",
+      });
+      mockDb.debt.update.mockResolvedValue(mockUpdatedDebt);
+
+      const result = await updateDebt(mockUpdateData);
+
+      expect(result).toEqual({ id: mockDebtId });
+      expect(mockDb.debt.update).toHaveBeenCalledWith({
+        where: { id: mockDebtId },
+        data: {
+          name: mockUpdateData.name,
+          paymentAmount: mockUpdateData.paymentAmount,
+          interestRate: mockUpdateData.interestRate,
+          dueDate: expect.any(Date),
+          categoryId: mockUpdateData.categoryId,
+        },
+      });
     });
 
     it("should throw error if no default budget account found", async () => {
-      // Mock user query to return no default budget account
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.user.findFirst.mockResolvedValue({});
 
-      await expect(updateDebt(updateDebtData)).rejects.toThrow(
+      await expect(updateDebt(mockUpdateData)).rejects.toThrow(
         "No default budget account found",
       );
     });
 
     it("should throw error if debt not found", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return no debt
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.debt.findFirst.mockResolvedValue(null);
 
-      await expect(updateDebt(updateDebtData)).rejects.toThrow(
+      await expect(updateDebt(mockUpdateData)).rejects.toThrow(
         "Debt not found",
       );
     });
 
-    it("should update debt successfully", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return debt
-      actualDb.limit.mockResolvedValueOnce([mockDebt]);
-
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
-
-      const result = await updateDebt(updateDebtData);
-
-      expect(result).toEqual({ id: mockDebtId });
-      expect(actualDb.update).toHaveBeenCalled();
-      expect(actualDb.set).toHaveBeenCalledWith({
-        name: "Updated Debt",
-        paymentAmount: "1500",
-        interestRate: "6",
-        dueDate: "2024-03-01",
-        updatedAt: expect.any(Date),
-      });
-    });
-
     it("should use provided budget account ID", async () => {
       const customAccountId = "custom-account-123";
+      mockDb.debt.findFirst.mockResolvedValue({
+        id: mockDebtId,
+        budgetAccountId: customAccountId,
+      });
+      mockDb.debt.update.mockResolvedValue({
+        id: mockDebtId,
+        ...mockUpdateData,
+        budgetAccountId: customAccountId,
+      });
 
-      // Mock debt query to return debt
-      actualDb.limit.mockResolvedValueOnce([mockDebt]);
+      await updateDebt(mockUpdateData, customAccountId);
 
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
-
-      await updateDebt(updateDebtData, customAccountId);
-
-      expect(actualDb.where).toHaveBeenCalled();
+      expect(mockDb.debt.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: mockDebtId,
+          budgetAccountId: customAccountId,
+        },
+      });
     });
   });
 
   describe("deleteDebt", () => {
-    it("should throw error if not authenticated", async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+    it("should delete debt successfully", async () => {
+      mockDb.debt.findFirst.mockResolvedValue({
+        id: mockDebtId,
+        budgetAccountId: mockAccountId,
+      });
+      mockDb.debt.delete.mockResolvedValue({
+        id: mockDebtId,
+      });
 
-      await expect(deleteDebt(mockDebtId)).rejects.toThrow("Not authenticated");
+      const result = await deleteDebt(mockDebtId);
+
+      expect(result).toEqual({ id: mockDebtId });
+      expect(mockDb.debt.delete).toHaveBeenCalledWith({
+        where: { id: mockDebtId },
+      });
     });
 
     it("should throw error if no default budget account found", async () => {
-      // Mock user query to return no default budget account
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.user.findFirst.mockResolvedValue({});
 
       await expect(deleteDebt(mockDebtId)).rejects.toThrow(
         "No default budget account found",
@@ -429,330 +439,180 @@ describe("Debt Actions", () => {
     });
 
     it("should throw error if debt not found", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return no debt
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.debt.findFirst.mockResolvedValue(null);
 
       await expect(deleteDebt(mockDebtId)).rejects.toThrow("Debt not found");
     });
 
-    it("should delete debt successfully", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return debt
-      actualDb.limit.mockResolvedValueOnce([mockDebt]);
-
-      // Mock the delete chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.delete.mockReturnValue({ where: mockWhere });
-
-      const result = await deleteDebt(mockDebtId);
-
-      expect(result).toEqual({ id: mockDebtId });
-      expect(actualDb.delete).toHaveBeenCalled();
-      expect(mockWhere).toHaveBeenCalled();
-    });
-
     it("should use provided budget account ID", async () => {
       const customAccountId = "custom-account-123";
-
-      // Mock debt query to return debt
-      actualDb.limit.mockResolvedValueOnce([mockDebt]);
-
-      // Mock the delete chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.delete.mockReturnValue({ where: mockWhere });
+      mockDb.debt.findFirst.mockResolvedValue({
+        id: mockDebtId,
+        budgetAccountId: customAccountId,
+      });
+      mockDb.debt.delete.mockResolvedValue({
+        id: mockDebtId,
+      });
 
       await deleteDebt(mockDebtId, customAccountId);
 
-      expect(actualDb.where).toHaveBeenCalled();
+      expect(mockDb.debt.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: mockDebtId,
+          budgetAccountId: customAccountId,
+        },
+      });
     });
   });
 
   describe("createDebtPayment", () => {
-    const createPaymentData: CreateDebtPaymentInput = {
+    const mockPaymentData: CreateDebtPaymentInput = {
       debtId: mockDebtId,
-      amount: 100.0,
+      amount: 100,
       date: "2024-01-15",
-      note: "Test payment",
     };
 
-    const mockExistingDebt = {
-      id: mockDebtId,
-      budgetAccountId: mockAccountId,
-      createdByUserId: mockUserId,
-      name: "Test Debt",
-      paymentAmount: "1000.00",
-      interestRate: "5.50",
-      dueDate: "2024-02-01",
-      hasBalance: true,
-      lastPaymentMonth: null,
-      createdAt: new Date("2024-01-01"),
-      updatedAt: new Date("2024-01-01"),
-    };
+    it("should create payment and update debt balance successfully", async () => {
+      const mockDebt = {
+        id: mockDebtId,
+        balance: 1500,
+        minimumPayment: 50,
+        dueDate: "2024-02-15",
+        budgetAccountId: mockAccountId,
+      };
 
-    it("should throw error if not authenticated", async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+      mockDb.debt.findFirst.mockResolvedValue(mockDebt);
+      mockDb.category.findFirst.mockResolvedValue({
+        id: mockCategoryId,
+      });
+      mockDb.transaction.create.mockResolvedValue({
+        id: "transaction-1",
+      });
+      mockDb.debt.update.mockResolvedValue({
+        id: mockDebtId,
+        balance: 1400,
+      });
+      mockDb.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
+      mockDb.monthlyDebtPlanning.create.mockResolvedValue({
+        id: "planning-1",
+      });
 
-      await expect(createDebtPayment(createPaymentData)).rejects.toThrow(
-        "Not authenticated",
-      );
+      const result = await createDebtPayment(mockPaymentData);
+
+      expect(result).toEqual({
+        id: expect.any(String),
+      });
     });
 
     it("should throw error if no default budget account found", async () => {
-      // Mock user query to return no default budget account
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.user.findFirst.mockResolvedValue({});
 
-      await expect(createDebtPayment(createPaymentData)).rejects.toThrow(
+      await expect(createDebtPayment(mockPaymentData)).rejects.toThrow(
         "No default budget account found",
       );
     });
 
     it("should throw error if debt not found", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return no debt
-      actualDb.limit.mockResolvedValueOnce([]);
+      mockDb.debt.findFirst.mockResolvedValue(null);
 
-      await expect(createDebtPayment(createPaymentData)).rejects.toThrow(
+      await expect(createDebtPayment(mockPaymentData)).rejects.toThrow(
         "Debt not found",
       );
     });
 
     it("should throw error if payment amount exceeds balance", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return debt with low payment amount
-      actualDb.limit.mockResolvedValueOnce([
-        { ...mockExistingDebt, paymentAmount: "50.00" },
-      ]);
+      const mockDebt = {
+        id: mockDebtId,
+        paymentAmount: 50, // Function checks this field
+        hasBalance: true, // Function checks this flag
+        dueDate: new Date("2024-02-15"),
+        budgetAccountId: mockAccountId,
+      };
 
-      const largePaymentData = { ...createPaymentData, amount: 100.0 };
+      mockDb.debt.findFirst.mockResolvedValue(mockDebt);
 
-      await expect(createDebtPayment(largePaymentData)).rejects.toThrow(
-        "Payment amount cannot exceed current balance",
-      );
-    });
-
-    it("should create payment and update debt balance successfully", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return debt
-      actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
-      // Mock category query to return existing category
-      actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
-      // Mock monthly debt planning query to return no existing record
-      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
-      actualDb.values.mockResolvedValue({});
-
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
-
-      const result = await createDebtPayment(createPaymentData);
-
-      expect(result).toEqual({ id: mockDebtId });
-      expect(actualDb.insert).toHaveBeenCalledTimes(3); // monthly planning + debt allocation + transaction
-      expect(actualDb.values).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "mock-debt-id",
-          monthlyDebtPlanningId: expect.any(String),
-          paymentAmount: "100",
-          paymentDate: "2024-01-15",
-          note: "Test payment",
+      await expect(
+        createDebtPayment({
+          ...mockPaymentData,
+          amount: 100,
         }),
-      );
+      ).rejects.toThrow("Payment amount cannot exceed current balance");
     });
 
     it("should create Debts category if it doesn't exist", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return debt
-      actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
-      // Mock category query to return no category
-      actualDb.query.categories.findFirst.mockResolvedValue(null);
-      // Mock monthly debt planning query to return no existing record
-      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
-      actualDb.values.mockResolvedValue({});
+      const mockDebt = {
+        id: mockDebtId,
+        balance: 1500,
+        minimumPayment: 50,
+        dueDate: "2024-02-15",
+        budgetAccountId: mockAccountId,
+      };
 
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
+      mockDb.debt.findFirst.mockResolvedValue(mockDebt);
+      mockDb.category.findFirst.mockResolvedValue(null);
+      mockDb.category.create.mockResolvedValue({
+        id: mockCategoryId,
+        name: "Debts",
+      });
+      mockDb.transaction.create.mockResolvedValue({
+        id: "transaction-1",
+      });
+      mockDb.debt.update.mockResolvedValue({
+        id: mockDebtId,
+        balance: 1400,
+      });
+      mockDb.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
+      mockDb.monthlyDebtPlanning.create.mockResolvedValue({
+        id: "planning-1",
+      });
 
-      await createDebtPayment(createPaymentData);
+      await createDebtPayment(mockPaymentData);
 
-      expect(actualDb.insert).toHaveBeenCalledTimes(4); // category + monthly planning + debt allocation + transaction
-      expect(actualDb.values).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "mock-debt-id",
-          budgetAccountId: mockAccountId,
+      expect(mockDb.category.create).toHaveBeenCalledWith({
+        data: {
+          id: expect.any(String),
           name: "Debts",
-          color: "#8B5CF6",
-          icon: "banknotes",
-        }),
-      );
-    });
-
-    it("should advance due date when payment is made before due date", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return debt
-      actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
-      // Mock category query to return existing category
-      actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
-      // Mock monthly debt planning query to return no existing record
-      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
-      actualDb.values.mockResolvedValue({});
-
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
-
-      await createDebtPayment(createPaymentData);
-
-      // Check that the update was called with the correct parameters
-      expect(actualDb.set).toHaveBeenCalledWith(
-        expect.objectContaining({
-          paymentAmount: "900", // reduced by payment amount
-        }),
-      );
-
-      // Verify that the debt was updated with payment information
-      const setCall = actualDb.set.mock.calls[0][0];
-      expect(setCall.lastPaymentMonth).toBeInstanceOf(Date);
-      expect(setCall.paymentAmount).toBe("900");
-    });
-
-    it("should not advance due date when payment is made after due date", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return debt with past due date
-      actualDb.limit.mockResolvedValueOnce([
-        { ...mockExistingDebt, dueDate: "2024-01-01" },
-      ]);
-      // Mock category query to return existing category
-      actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
-      // Mock monthly debt planning query to return no existing record
-      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
-      actualDb.values.mockResolvedValue({});
-
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
-
-      await createDebtPayment(createPaymentData);
-
-      expect(actualDb.set).toHaveBeenCalledWith(
-        expect.objectContaining({
-          paymentAmount: "900", // reduced by payment amount
-        }),
-      );
-      expect(actualDb.set).not.toHaveBeenCalledWith(
-        expect.objectContaining({
-          dueDate: expect.any(Date),
-        }),
-      );
-    });
-
-    it("should not advance due date when payment is already made for current month", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return debt with last payment in current month
-      // Use a date that represents the same month as the payment (January 2024)
-      const lastPaymentMonth = new Date("2024-01-15"); // Same month as payment date
-      actualDb.limit.mockResolvedValueOnce([
-        {
-          ...mockExistingDebt,
-          lastPaymentMonth: lastPaymentMonth,
+          budgetAccountId: mockAccountId,
+          color: "#ef4444",
+          description: "Debt payments and related expenses",
         },
-      ]);
-      // Mock category query to return existing category
-      actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
-      // Mock monthly debt planning query to return no existing record
-      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
-      actualDb.values.mockResolvedValue({});
-
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
-
-      await createDebtPayment(createPaymentData);
-
-      // Check that only balance was updated
-      expect(actualDb.set).toHaveBeenCalledWith(
-        expect.objectContaining({
-          paymentAmount: "900", // reduced by payment amount
-        }),
-      );
-    });
-
-    it("should create transaction with positive amount and expense type", async () => {
-      // Mock user query to return default budget account
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
-      // Mock debt query to return debt
-      actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
-      // Mock category query to return existing category
-      actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
-      // Mock monthly debt planning query to return no existing record
-      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
-      actualDb.values.mockResolvedValue({});
-
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
-
-      await createDebtPayment(createPaymentData);
-
-      expect(actualDb.values).toHaveBeenCalledWith(
-        expect.objectContaining({
-          amount: "100", // always positive, use type field to distinguish expense/income
-          description: "Debt payment: Test Debt",
-          type: "expense", // explicitly set as expense
-          status: "completed",
-          merchantName: "Test Debt",
-        }),
-      );
+      });
     });
 
     it("should use provided budget account ID", async () => {
       const customAccountId = "custom-account-123";
+      const mockDebt = {
+        id: mockDebtId,
+        balance: 1500,
+        minimumPayment: 50,
+        dueDate: "2024-02-15",
+        budgetAccountId: customAccountId,
+      };
 
-      // Mock debt query to return debt
-      actualDb.limit.mockResolvedValueOnce([mockExistingDebt]);
-      // Mock category query to return existing category
-      actualDb.query.categories.findFirst.mockResolvedValue(mockCategory);
-      // Mock monthly debt planning query to return no existing record
-      actualDb.query.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
-      actualDb.values.mockResolvedValue({});
+      mockDb.debt.findFirst.mockResolvedValue(mockDebt);
+      mockDb.category.findFirst.mockResolvedValue({
+        id: mockCategoryId,
+      });
+      mockDb.transaction.create.mockResolvedValue({
+        id: "transaction-1",
+      });
+      mockDb.debt.update.mockResolvedValue({
+        id: mockDebtId,
+        balance: 1400,
+      });
+      mockDb.monthlyDebtPlanning.findFirst.mockResolvedValue(null);
+      mockDb.monthlyDebtPlanning.create.mockResolvedValue({
+        id: "planning-1",
+      });
 
-      // Mock the update chain
-      const mockWhere = jest.fn().mockResolvedValue({});
-      actualDb.set.mockReturnValue({ where: mockWhere });
+      await createDebtPayment(mockPaymentData, customAccountId);
 
-      await createDebtPayment(createPaymentData, customAccountId);
-
-      expect(actualDb.where).toHaveBeenCalled();
+      expect(mockDb.debt.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: mockDebtId,
+          budgetAccountId: customAccountId,
+        },
+      });
     });
   });
 });

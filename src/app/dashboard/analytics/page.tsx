@@ -9,7 +9,10 @@ import DateRangeSelector from "@/app/dashboard/analytics/components/DateRangeSel
 import KeyMetrics from "@/app/dashboard/analytics/components/KeyMetrics";
 import RecentTransactions from "./components/RecentTransactions";
 import SpendingChart from "@/app/dashboard/analytics/components/SpendingChart";
-import { getTransactions, type Transaction } from "@/app/actions/transaction";
+import {
+  getTransactions,
+  type TransactionWithCategory,
+} from "@/app/actions/transaction";
 import { getBudgetCategoriesWithSpendingForDateRange } from "@/app/actions/dashboard";
 import Spinner from "@/components/Spinner";
 import { useBudgetAccount } from "@/stores/budgetAccountStore";
@@ -23,7 +26,7 @@ type ChartViewMode = "total" | "byCategory" | "incomeVsExpense";
  * Uses normalized date comparison to avoid timezone and time issues
  */
 function filterTransactionsByDateRange(
-  transactions: Transaction[],
+  transactions: TransactionWithCategory[],
   startDate: Date,
   endDate: Date,
 ) {

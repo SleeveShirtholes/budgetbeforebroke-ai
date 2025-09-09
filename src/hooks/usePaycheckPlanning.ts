@@ -23,12 +23,7 @@ export function usePaycheckPlanning(
   month?: number,
   planningWindowMonths: number = 0, // Default to current month only, but configurable
 ) {
-  const {
-    data: planningData,
-    error,
-    isLoading,
-    mutate: mutatePlanningData,
-  } = useSWR(
+  const swrKey =
     budgetAccountId && year && month
       ? [
           PAYCHECK_PLANNING_KEY,
@@ -37,7 +32,17 @@ export function usePaycheckPlanning(
           month,
           planningWindowMonths,
         ]
-      : null,
+      : null;
+
+  console.log("usePaycheckPlanning SWR Key:", swrKey);
+
+  const {
+    data: planningData,
+    error,
+    isLoading,
+    mutate: mutatePlanningData,
+  } = useSWR(
+    swrKey,
     () =>
       getPaycheckPlanningData(
         budgetAccountId!,

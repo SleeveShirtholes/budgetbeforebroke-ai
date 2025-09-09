@@ -1,5 +1,4 @@
 import { db } from "@/db/config";
-import { plaidItems } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { plaidClient } from "@/lib/plaid";
 import { nanoid } from "nanoid";
@@ -35,15 +34,17 @@ export async function POST(req: Request) {
     const institution = institutionResponse.data.institution;
 
     // Store the Plaid item in our database
-    await db.insert(plaidItems).values({
-      id: nanoid(),
-      budgetAccountId: metadata.budgetAccountId, // You'll need to pass this from the client
-      userId: session.user.id,
-      plaidItemId: itemId,
-      plaidAccessToken: accessToken,
-      plaidInstitutionId: institution.institution_id,
-      plaidInstitutionName: institution.name,
-      status: "active",
+    await db.plaidItem.create({
+      data: {
+        id: nanoid(),
+        budgetAccountId: metadata.budgetAccountId, // You'll need to pass this from the client
+        userId: session.user.id,
+        plaidItemId: itemId,
+        plaidAccessToken: accessToken,
+        plaidInstitutionId: institution.institution_id,
+        plaidInstitutionName: institution.name,
+        status: "active",
+      },
     });
 
     return NextResponse.json({ success: true });

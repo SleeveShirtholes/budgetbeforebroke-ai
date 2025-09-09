@@ -127,7 +127,10 @@ async function StatsOverview() {
     const stats = [
       {
         name: "Database Tables",
-        value: tablesResult.length.toString(),
+        value:
+          tablesResult.success && tablesResult.data
+            ? tablesResult.data.length.toString()
+            : "0",
         icon: TableCellsIcon,
         color: "blue" as const,
       },
@@ -141,9 +144,10 @@ async function StatsOverview() {
       },
       {
         name: "Editable Tables",
-        value: tablesResult
-          .filter((table) => table.editableFields.length > 0)
-          .length.toString(),
+        value:
+          tablesResult.success && tablesResult.data
+            ? tablesResult.data.length.toString()
+            : "0",
         icon: CogIcon,
         color: "green" as const,
       },
@@ -183,23 +187,25 @@ async function StatsOverview() {
  */
 async function TablesOverview() {
   try {
-    const tables = await getAvailableTables();
+    const tablesResult = await getAvailableTables();
+
+    if (!tablesResult.success || !tablesResult.data) {
+      return <div>Failed to load tables</div>;
+    }
+
+    const tables = tablesResult.data;
 
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {tables.slice(0, 9).map((table) => (
           <Link
-            key={table.name}
-            href={`/admin/tables/${table.name}`}
+            key={table.tablename}
+            href={`/admin/tables/${table.tablename}`}
             className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
           >
-            <div className="font-medium text-gray-900">{table.displayName}</div>
-            <div className="text-sm text-gray-500 mt-1">
-              {table.editableFields.length} editable fields
-            </div>
-            <div className="text-sm text-gray-500">
-              {table.searchFields.length} searchable fields
-            </div>
+            <div className="font-medium text-gray-900">{table.tablename}</div>
+            <div className="text-sm text-gray-500 mt-1">Editable table</div>
+            <div className="text-sm text-gray-500">Searchable table</div>
           </Link>
         ))}
 
