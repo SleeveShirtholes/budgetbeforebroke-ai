@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
-    "build:prod": "next build",
+    "build": "prisma generate && next build",
+    "build:prod": "prisma generate --no-engine && next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
@@ -21,6 +21,7 @@
     "db:test-connection": "tsx scripts/test-prisma-connection.ts",
     "db:migrate-to-prisma": "tsx scripts/migrate-to-prisma-db.ts",
     "format": "prettier --write .",
+    "postinstall": "prisma generate --no-engine",
     "prepare": "husky",
     "prep": "yarn format && yarn test && yarn build"
   },
