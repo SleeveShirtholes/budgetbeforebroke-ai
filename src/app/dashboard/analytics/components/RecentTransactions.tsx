@@ -3,7 +3,7 @@
 import Card from "@/components/Card";
 import Table from "@/components/Table/Table";
 import { ColumnDef } from "@/components/Table/types";
-import { Transaction } from "@/app/actions/transaction";
+import { TransactionWithCategory } from "@/app/actions/transaction";
 import { format } from "date-fns";
 import Spinner from "@/components/Spinner";
 
@@ -11,7 +11,7 @@ import Spinner from "@/components/Spinner";
  * Props for the RecentTransactions component
  */
 interface RecentTransactionsProps {
-  transactions: Transaction[];
+  transactions: TransactionWithCategory[];
   isLoading?: boolean;
 }
 
@@ -41,14 +41,15 @@ export default function RecentTransactions({
   isLoading,
 }: RecentTransactionsProps) {
   // Define table columns with their configuration
-  const columns: ColumnDef<Transaction>[] = [
+  const columns: ColumnDef<TransactionWithCategory>[] = [
     {
       key: "date",
       header: "Date",
       sortable: true,
       filterable: true,
       // Format date to "MMM d, yyyy" format (e.g., "Jan 1, 2024")
-      accessor: (row: Transaction) => format(new Date(row.date), "MMM d, yyyy"),
+      accessor: (row: TransactionWithCategory) =>
+        format(new Date(row.date), "MMM d, yyyy"),
     },
     {
       key: "merchantName",
@@ -62,7 +63,7 @@ export default function RecentTransactions({
       sortable: true,
       filterable: true,
       // Custom renderer for amount with color coding and formatting
-      accessor: (row: Transaction) => (
+      accessor: (row: TransactionWithCategory) => (
         <span
           className={row.type === "income" ? "text-green-600" : "text-red-600"}
         >
@@ -79,7 +80,8 @@ export default function RecentTransactions({
       header: "Category",
       sortable: true,
       filterable: true,
-      accessor: (row: Transaction) => row.categoryName || "Uncategorized",
+      accessor: (row: TransactionWithCategory) =>
+        row.categoryName || "Uncategorized",
     },
   ];
 

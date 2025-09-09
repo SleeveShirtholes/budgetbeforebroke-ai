@@ -1,8 +1,6 @@
 "use server";
 
 import { db } from "@/db/config";
-import { supportRequests, user } from "@/db/schema";
-import { eq, desc, sql, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { getCurrentUserWithAdmin } from "@/lib/auth-helpers";
 
@@ -11,35 +9,46 @@ import { getCurrentUserWithAdmin } from "@/lib/auth-helpers";
  * Comments are fetched via the supportComments actions.
  */
 export async function getPublicSupportRequests(status?: string) {
-  const requests = await db
-    .select({
-      id: supportRequests.id,
-      title: supportRequests.title,
-      description: supportRequests.description,
-      category: supportRequests.category,
-      status: supportRequests.status,
-      isPublic: supportRequests.isPublic,
-      userId: supportRequests.userId,
-      upvotes: supportRequests.upvotes,
-      downvotes: supportRequests.downvotes,
-      lastUpdated: supportRequests.lastUpdated,
-      createdAt: supportRequests.createdAt,
-      user: user.name,
-    })
-    .from(supportRequests)
-    .leftJoin(user, eq(supportRequests.userId, user.id))
-    .where(
-      and(
-        eq(supportRequests.isPublic, true),
-        status === "Closed"
-          ? eq(supportRequests.status, "Closed")
-          : status === "open"
-            ? sql`${supportRequests.status} != 'Closed'`
-            : undefined,
-      ),
-    )
-    .orderBy(desc(supportRequests.lastUpdated));
-  return requests;
+  const whereClause: Record<string, unknown> = {
+    isPublic: true,
+  };
+
+  if (status === "Closed") {
+    whereClause.status = "Closed";
+  } else if (status === "open") {
+    whereClause.status = {
+      not: "Closed",
+    };
+  }
+
+  const requests = await db.supportRequest.findMany({
+    where: whereClause,
+    include: {
+      user: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      lastUpdated: "desc",
+    },
+  });
+
+  return requests.map((request) => ({
+    id: request.id,
+    title: request.title,
+    description: request.description,
+    category: request.category,
+    status: request.status,
+    isPublic: request.isPublic,
+    userId: request.userId,
+    upvotes: request.upvotes,
+    downvotes: request.downvotes,
+    lastUpdated: request.lastUpdated,
+    createdAt: request.createdAt,
+    user: request.user.name,
+  }));
 }
 
 /**
@@ -48,35 +57,47 @@ export async function getPublicSupportRequests(status?: string) {
  */
 export async function getMySupportRequests(userId: string, status?: string) {
   if (!userId) return [];
-  const requests = await db
-    .select({
-      id: supportRequests.id,
-      title: supportRequests.title,
-      description: supportRequests.description,
-      category: supportRequests.category,
-      status: supportRequests.status,
-      isPublic: supportRequests.isPublic,
-      userId: supportRequests.userId,
-      upvotes: supportRequests.upvotes,
-      downvotes: supportRequests.downvotes,
-      lastUpdated: supportRequests.lastUpdated,
-      createdAt: supportRequests.createdAt,
-      user: user.name,
-    })
-    .from(supportRequests)
-    .leftJoin(user, eq(supportRequests.userId, user.id))
-    .where(
-      and(
-        eq(supportRequests.userId, userId),
-        status === "Closed"
-          ? eq(supportRequests.status, "Closed")
-          : status === "open"
-            ? sql`${supportRequests.status} != 'Closed'`
-            : undefined,
-      ),
-    )
-    .orderBy(desc(supportRequests.lastUpdated));
-  return requests;
+
+  const whereClause: Record<string, unknown> = {
+    userId: userId,
+  };
+
+  if (status === "Closed") {
+    whereClause.status = "Closed";
+  } else if (status === "open") {
+    whereClause.status = {
+      not: "Closed",
+    };
+  }
+
+  const requests = await db.supportRequest.findMany({
+    where: whereClause,
+    include: {
+      user: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      lastUpdated: "desc",
+    },
+  });
+
+  return requests.map((request) => ({
+    id: request.id,
+    title: request.title,
+    description: request.description,
+    category: request.category,
+    status: request.status,
+    isPublic: request.isPublic,
+    userId: request.userId,
+    upvotes: request.upvotes,
+    downvotes: request.downvotes,
+    lastUpdated: request.lastUpdated,
+    createdAt: request.createdAt,
+    user: request.user.name,
+  }));
 }
 
 /**
@@ -89,33 +110,44 @@ export async function getAllSupportRequestsForAdmin(status?: string) {
     throw new Error("Global admin access required");
   }
 
-  const requests = await db
-    .select({
-      id: supportRequests.id,
-      title: supportRequests.title,
-      description: supportRequests.description,
-      category: supportRequests.category,
-      status: supportRequests.status,
-      isPublic: supportRequests.isPublic,
-      userId: supportRequests.userId,
-      upvotes: supportRequests.upvotes,
-      downvotes: supportRequests.downvotes,
-      lastUpdated: supportRequests.lastUpdated,
-      createdAt: supportRequests.createdAt,
-      user: user.name,
-    })
-    .from(supportRequests)
-    .leftJoin(user, eq(supportRequests.userId, user.id))
-    .where(
-      status === "Closed"
-        ? eq(supportRequests.status, "Closed")
-        : status === "open"
-          ? sql`${supportRequests.status} != 'Closed'`
-          : undefined,
-    )
-    .orderBy(desc(supportRequests.lastUpdated));
+  const whereClause: Record<string, unknown> = {};
 
-  return requests;
+  if (status === "Closed") {
+    whereClause.status = "Closed";
+  } else if (status === "open") {
+    whereClause.status = {
+      not: "Closed",
+    };
+  }
+
+  const requests = await db.supportRequest.findMany({
+    where: whereClause,
+    include: {
+      user: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      lastUpdated: "desc",
+    },
+  });
+
+  return requests.map((request) => ({
+    id: request.id,
+    title: request.title,
+    description: request.description,
+    category: request.category,
+    status: request.status,
+    isPublic: request.isPublic,
+    userId: request.userId,
+    upvotes: request.upvotes,
+    downvotes: request.downvotes,
+    lastUpdated: request.lastUpdated,
+    createdAt: request.createdAt,
+    user: request.user.name,
+  }));
 }
 
 /**
@@ -132,10 +164,14 @@ export async function canEditSupportRequest(
   if (currentUser.isGlobalAdmin) return true;
 
   // Check if the current user is the creator of the request
-  const [request] = await db
-    .select({ userId: supportRequests.userId })
-    .from(supportRequests)
-    .where(eq(supportRequests.id, requestId));
+  const request = await db.supportRequest.findFirst({
+    where: {
+      id: requestId,
+    },
+    select: {
+      userId: true,
+    },
+  });
 
   return request?.userId === currentUser.id;
 }
@@ -168,21 +204,21 @@ export async function createSupportRequest({
   if (!userId)
     throw new Error("Authentication required to create support request");
   const now = new Date();
-  const newRequest = {
-    id: randomUUID(),
-    title,
-    description,
-    category,
-    status: "Open",
-    isPublic,
-    userId,
-    upvotes: 0,
-    downvotes: 0,
-    lastUpdated: now,
-    createdAt: now,
-  };
-  console.log("Inserting new request:", newRequest);
-  await db.insert(supportRequests).values(newRequest);
+  const newRequest = await db.supportRequest.create({
+    data: {
+      id: randomUUID(),
+      title,
+      description,
+      category,
+      status: "Open",
+      isPublic,
+      userId,
+      upvotes: 0,
+      downvotes: 0,
+      lastUpdated: now,
+      createdAt: now,
+    },
+  });
   console.log("Request inserted successfully");
   return newRequest;
 }
@@ -191,20 +227,32 @@ export async function createSupportRequest({
  * Upvote a support request
  */
 export async function upvoteSupportRequest(requestId: string) {
-  await db
-    .update(supportRequests)
-    .set({ upvotes: sql`${supportRequests.upvotes} + 1` })
-    .where(eq(supportRequests.id, requestId));
+  await db.supportRequest.update({
+    where: {
+      id: requestId,
+    },
+    data: {
+      upvotes: {
+        increment: 1,
+      },
+    },
+  });
 }
 
 /**
  * Downvote a support request
  */
 export async function downvoteSupportRequest(requestId: string) {
-  await db
-    .update(supportRequests)
-    .set({ downvotes: sql`${supportRequests.downvotes} + 1` })
-    .where(eq(supportRequests.id, requestId));
+  await db.supportRequest.update({
+    where: {
+      id: requestId,
+    },
+    data: {
+      downvotes: {
+        increment: 1,
+      },
+    },
+  });
 }
 
 /**
@@ -220,10 +268,15 @@ export async function updateSupportRequestStatus(
     throw new Error("You don't have permission to edit this request");
   }
 
-  await db
-    .update(supportRequests)
-    .set({ status, lastUpdated: new Date() })
-    .where(eq(supportRequests.id, requestId));
+  await db.supportRequest.update({
+    where: {
+      id: requestId,
+    },
+    data: {
+      status,
+      lastUpdated: new Date(),
+    },
+  });
 }
 
 /**
@@ -244,19 +297,15 @@ export async function updateSupportRequest(
     throw new Error("You don't have permission to edit this request");
   }
 
-  const updateData: {
-    title?: string;
-    description?: string;
-    category?: string;
-    isPublic?: boolean;
-    lastUpdated?: Date;
-  } = { ...updates };
+  const updateData: Record<string, unknown> = { ...updates };
   if (Object.keys(updateData).length > 0) {
     updateData.lastUpdated = new Date();
   }
 
-  await db
-    .update(supportRequests)
-    .set(updateData)
-    .where(eq(supportRequests.id, requestId));
+  await db.supportRequest.update({
+    where: {
+      id: requestId,
+    },
+    data: updateData,
+  });
 }

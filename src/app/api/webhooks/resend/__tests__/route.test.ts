@@ -11,17 +11,19 @@ jest.mock("next/server", () => ({
   },
 }));
 
-// Mock the database
+// Mock the database with Prisma-style mocks
 jest.mock("@/db/config", () => ({
   db: {
-    insert: jest.fn(),
-    update: jest.fn(),
-    select: jest.fn(),
-    from: jest.fn(),
-    where: jest.fn(),
-    orderBy: jest.fn(),
-    limit: jest.fn(),
-    set: jest.fn(),
+    emailConversation: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    contactSubmission: {
+      findFirst: jest.fn(),
+      updateMany: jest.fn(),
+      create: jest.fn(),
+    },
   },
 }));
 
@@ -91,17 +93,12 @@ describe("Resend Webhook Route", () => {
       };
 
       // Mock database operations
-      mockDb.insert.mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([{ id: "conv-1" }]),
-        }),
-      } as unknown);
-
-      mockDb.update.mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([{ id: "sub-1" }]),
-        }),
-      } as unknown);
+      mockDb.emailConversation.create.mockResolvedValue({
+        id: "conv-1",
+      });
+      mockDb.contactSubmission.updateMany.mockResolvedValue({
+        count: 1,
+      });
 
       const request = {
         json: jest.fn().mockResolvedValue(webhookData),
@@ -179,17 +176,9 @@ describe("Resend Webhook Route", () => {
 
       // Mock the fallback function to fail with a database error
       // This will cause the function to return null, but the webhook should still succeed
-      mockDb.select.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              orderBy: jest.fn().mockReturnValue({
-                limit: jest.fn().mockRejectedValue(new Error("Database error")),
-              }),
-            }),
-          }),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.findFirst.mockRejectedValue(
+        new Error("Database error"),
+      );
 
       const request = {
         json: jest.fn().mockResolvedValue(webhookData),
@@ -218,17 +207,12 @@ describe("Resend Webhook Route", () => {
         },
       };
 
-      mockDb.insert.mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([{ id: "conv-1" }]),
-        }),
-      } as unknown);
-
-      mockDb.update.mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([{ id: "sub-1" }]),
-        }),
-      } as unknown);
+      mockDb.emailConversation.create.mockResolvedValue({
+        id: "conv-1",
+      });
+      mockDb.contactSubmission.updateMany.mockResolvedValue({
+        count: 1,
+      });
 
       const request = {
         json: jest.fn().mockResolvedValue(webhookData),
@@ -256,31 +240,16 @@ describe("Resend Webhook Route", () => {
       };
 
       // Mock finding submission by email
-      mockDb.select.mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              orderBy: jest.fn().mockReturnValue({
-                limit: jest
-                  .fn()
-                  .mockResolvedValue([{ conversationId: "conv-456" }]),
-              }),
-            }),
-          }),
-        }),
-      } as unknown);
+      mockDb.contactSubmission.findFirst.mockResolvedValue({
+        conversationId: "conv-456",
+      });
 
-      mockDb.insert.mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([{ id: "conv-1" }]),
-        }),
-      } as unknown);
-
-      mockDb.update.mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([{ id: "sub-1" }]),
-        }),
-      } as unknown);
+      mockDb.emailConversation.create.mockResolvedValue({
+        id: "conv-1",
+      });
+      mockDb.contactSubmission.updateMany.mockResolvedValue({
+        count: 1,
+      });
 
       const request = {
         json: jest.fn().mockResolvedValue(webhookData),

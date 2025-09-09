@@ -27,33 +27,33 @@ jest.mock("@/lib/auth", () => ({
 
 jest.mock("@/db/config", () => ({
   db: {
-    query: {
-      budgetAccounts: {
-        findFirst: jest.fn(),
-        findMany: jest.fn(),
-      },
-      budgetAccountMembers: {
-        findFirst: jest.fn(),
-        findMany: jest.fn(),
-      },
-      budgetAccountInvitations: {
-        findFirst: jest.fn(),
-      },
-      user: {
-        findFirst: jest.fn(),
-      },
+    budgetAccount: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     },
-    insert: jest.fn().mockReturnValue({
-      values: jest.fn().mockResolvedValue(undefined),
-    }),
-    update: jest.fn().mockReturnValue({
-      set: jest.fn().mockReturnValue({
-        where: jest.fn().mockResolvedValue(undefined),
-      }),
-    }),
-    delete: jest.fn().mockReturnValue({
-      where: jest.fn().mockResolvedValue(undefined),
-    }),
+    budgetAccountMember: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    budgetAccountInvitation: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    user: {
+      findFirst: jest.fn(),
+      update: jest.fn(),
+    },
   },
 }));
 
@@ -99,7 +99,7 @@ describe("Account Actions", () => {
 
   describe("getAccounts", () => {
     it("should return accounts for authenticated user", async () => {
-      (db.query.budgetAccountMembers.findMany as jest.Mock).mockResolvedValue([
+      (db.budgetAccountMember.findMany as jest.Mock).mockResolvedValue([
         {
           budgetAccount: mockAccount,
         },
@@ -118,16 +118,21 @@ describe("Account Actions", () => {
 
   describe("getAccount", () => {
     it("should return account by id", async () => {
-      (db.query.budgetAccounts.findFirst as jest.Mock).mockResolvedValue(
-        mockAccount,
-      );
+      // Mock the membership check
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
+        budgetAccountId: "account-1",
+        userId: "user-1",
+      });
+
+      // Mock the account fetch
+      (db.budgetAccount.findFirst as jest.Mock).mockResolvedValue(mockAccount);
 
       const account = await getAccount("account-1");
       expect(account).toEqual(mockAccount);
     });
 
     it("should return null if account not found", async () => {
-      (db.query.budgetAccounts.findFirst as jest.Mock).mockResolvedValue(null);
+      (db.budgetAccount.findFirst as jest.Mock).mockResolvedValue(null);
 
       const account = await getAccount("non-existent");
       expect(account).toBeNull();
@@ -143,18 +148,16 @@ describe("Account Actions", () => {
 
   describe("updateAccountName", () => {
     it("should update account name for owner", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue({
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         role: "owner",
       });
 
       await updateAccountName("account-1", "New Name");
-      expect(db.update).toHaveBeenCalled();
+      expect(db.budgetAccount.update).toHaveBeenCalled();
     });
 
     it("should throw error if not owner", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue(
-        null,
-      );
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue(null);
 
       await expect(updateAccountName("account-1", "New Name")).rejects.toThrow(
         "Not authorized",
@@ -164,35 +167,29 @@ describe("Account Actions", () => {
 
   describe("inviteUser", () => {
     it("should create invitation for new user", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue({
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         role: "owner",
       });
-      (db.query.budgetAccounts.findFirst as jest.Mock).mockResolvedValue(
-        mockAccount,
-      );
-      (db.query.user.findFirst as jest.Mock)
+      (db.budgetAccount.findFirst as jest.Mock).mockResolvedValue(mockAccount);
+      (db.user.findFirst as jest.Mock)
         .mockResolvedValueOnce(null) // invitee lookup
         .mockResolvedValueOnce(mockUser); // inviter lookup
-      (
-        db.query.budgetAccountInvitations.findFirst as jest.Mock
-      ).mockResolvedValue(null);
+      (db.budgetAccountInvitation.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
 
       await inviteUser("account-1", "new@example.com");
-      expect(db.insert).toHaveBeenCalled();
+      expect(db.budgetAccountInvitation.create).toHaveBeenCalled();
       expect(sendAccountInvite).toHaveBeenCalled();
     });
 
     it("should throw error if invitation already exists", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue({
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         role: "owner",
       });
-      (db.query.budgetAccounts.findFirst as jest.Mock).mockResolvedValue(
-        mockAccount,
-      );
-      (db.query.user.findFirst as jest.Mock).mockResolvedValue(null);
-      (
-        db.query.budgetAccountInvitations.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (db.budgetAccount.findFirst as jest.Mock).mockResolvedValue(mockAccount);
+      (db.user.findFirst as jest.Mock).mockResolvedValue(null);
+      (db.budgetAccountInvitation.findFirst as jest.Mock).mockResolvedValue({
         status: "pending",
       });
 
@@ -202,16 +199,14 @@ describe("Account Actions", () => {
     });
 
     it("should throw error if user is already a member", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue({
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         role: "owner",
       });
-      (db.query.budgetAccounts.findFirst as jest.Mock).mockResolvedValue(
-        mockAccount,
-      );
-      (db.query.user.findFirst as jest.Mock).mockResolvedValue({
+      (db.budgetAccount.findFirst as jest.Mock).mockResolvedValue(mockAccount);
+      (db.user.findFirst as jest.Mock).mockResolvedValue({
         id: "existing-user",
       });
-      (db.query.budgetAccountMembers.findFirst as jest.Mock)
+      (db.budgetAccountMember.findFirst as jest.Mock)
         .mockResolvedValueOnce({ role: "owner" }) // owner check
         .mockResolvedValueOnce({ id: "existing-member" }); // existing member check
 
@@ -221,10 +216,10 @@ describe("Account Actions", () => {
     });
 
     it("should throw error if account not found", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue({
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         role: "owner",
       });
-      (db.query.budgetAccounts.findFirst as jest.Mock).mockResolvedValue(null);
+      (db.budgetAccount.findFirst as jest.Mock).mockResolvedValue(null);
 
       await expect(
         inviteUser("non-existent", "new@example.com"),
@@ -232,18 +227,16 @@ describe("Account Actions", () => {
     });
 
     it("should throw error if inviter not found", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue({
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         role: "owner",
       });
-      (db.query.budgetAccounts.findFirst as jest.Mock).mockResolvedValue(
-        mockAccount,
-      );
-      (db.query.user.findFirst as jest.Mock)
+      (db.budgetAccount.findFirst as jest.Mock).mockResolvedValue(mockAccount);
+      (db.user.findFirst as jest.Mock)
         .mockResolvedValueOnce(null) // invitee lookup
         .mockResolvedValueOnce(null); // inviter lookup
-      (
-        db.query.budgetAccountInvitations.findFirst as jest.Mock
-      ).mockResolvedValue(null);
+      (db.budgetAccountInvitation.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
 
       await expect(inviteUser("account-1", "new@example.com")).rejects.toThrow(
         "Inviter not found",
@@ -253,18 +246,16 @@ describe("Account Actions", () => {
 
   describe("removeUser", () => {
     it("should remove user if caller is owner", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue({
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         role: "owner",
       });
 
       await removeUser("account-1", "user-2");
-      expect(db.delete).toHaveBeenCalled();
+      expect(db.budgetAccountMember.deleteMany).toHaveBeenCalled();
     });
 
     it("should throw error if not owner", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue(
-        null,
-      );
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue(null);
 
       await expect(removeUser("account-1", "user-2")).rejects.toThrow(
         "Not authorized",
@@ -274,18 +265,16 @@ describe("Account Actions", () => {
 
   describe("updateUserRole", () => {
     it("should update user role if caller is owner", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue({
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue({
         role: "owner",
       });
 
       await updateUserRole("account-1", "user-2", "member");
-      expect(db.update).toHaveBeenCalled();
+      expect(db.budgetAccountMember.updateMany).toHaveBeenCalled();
     });
 
     it("should throw error if not owner", async () => {
-      (db.query.budgetAccountMembers.findFirst as jest.Mock).mockResolvedValue(
-        null,
-      );
+      (db.budgetAccountMember.findFirst as jest.Mock).mockResolvedValue(null);
 
       await expect(
         updateUserRole("account-1", "user-2", "member"),
@@ -305,19 +294,19 @@ describe("Account Actions", () => {
     };
 
     it("should resend invitation if caller is owner", async () => {
-      (
-        db.query.budgetAccountInvitations.findFirst as jest.Mock
-      ).mockResolvedValue(mockInvitation);
+      (db.budgetAccountInvitation.findFirst as jest.Mock).mockResolvedValue(
+        mockInvitation,
+      );
 
       await resendInvite("invite-1");
-      expect(db.update).toHaveBeenCalled();
+      expect(db.budgetAccountInvitation.update).toHaveBeenCalled();
       expect(sendAccountInvite).toHaveBeenCalled();
     });
 
     it("should throw error if invitation not found", async () => {
-      (
-        db.query.budgetAccountInvitations.findFirst as jest.Mock
-      ).mockResolvedValue(null);
+      (db.budgetAccountInvitation.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
 
       await expect(resendInvite("non-existent")).rejects.toThrow(
         "Invitation not found",
@@ -325,9 +314,7 @@ describe("Account Actions", () => {
     });
 
     it("should throw error if not owner", async () => {
-      (
-        db.query.budgetAccountInvitations.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (db.budgetAccountInvitation.findFirst as jest.Mock).mockResolvedValue({
         ...mockInvitation,
         budgetAccount: {
           ...mockInvitation.budgetAccount,
@@ -343,7 +330,8 @@ describe("Account Actions", () => {
     it("should create new account and add user as owner", async () => {
       const accountId = await createAccount("New Account", "Description");
       expect(accountId).toBeDefined();
-      expect(db.insert).toHaveBeenCalledTimes(2); // Once for account, once for member
+      expect(db.budgetAccount.create).toHaveBeenCalledTimes(1);
+      expect(db.budgetAccountMember.create).toHaveBeenCalledTimes(1);
     });
 
     it("should throw error if not authenticated", async () => {
@@ -364,18 +352,18 @@ describe("Account Actions", () => {
     };
 
     it("should delete invitation if caller is owner", async () => {
-      (
-        db.query.budgetAccountInvitations.findFirst as jest.Mock
-      ).mockResolvedValue(mockInvitation);
+      (db.budgetAccountInvitation.findFirst as jest.Mock).mockResolvedValue(
+        mockInvitation,
+      );
 
       await deleteInvitation("invite-1");
-      expect(db.delete).toHaveBeenCalled();
+      expect(db.budgetAccountInvitation.delete).toHaveBeenCalled();
     });
 
     it("should throw error if invitation not found", async () => {
-      (
-        db.query.budgetAccountInvitations.findFirst as jest.Mock
-      ).mockResolvedValue(null);
+      (db.budgetAccountInvitation.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
 
       await expect(deleteInvitation("non-existent")).rejects.toThrow(
         "Invitation not found",
@@ -383,9 +371,7 @@ describe("Account Actions", () => {
     });
 
     it("should throw error if not owner", async () => {
-      (
-        db.query.budgetAccountInvitations.findFirst as jest.Mock
-      ).mockResolvedValue({
+      (db.budgetAccountInvitation.findFirst as jest.Mock).mockResolvedValue({
         ...mockInvitation,
         budgetAccount: {
           ...mockInvitation.budgetAccount,
@@ -401,7 +387,7 @@ describe("Account Actions", () => {
 
   describe("getDefaultAccount", () => {
     it("should return default account ID if set", async () => {
-      (db.query.user.findFirst as jest.Mock).mockResolvedValue({
+      (db.user.findFirst as jest.Mock).mockResolvedValue({
         defaultBudgetAccountId: "account-1",
       });
 
@@ -410,7 +396,7 @@ describe("Account Actions", () => {
     });
 
     it("should return null if no default account set", async () => {
-      (db.query.user.findFirst as jest.Mock).mockResolvedValue({
+      (db.user.findFirst as jest.Mock).mockResolvedValue({
         defaultBudgetAccountId: null,
       });
 
@@ -427,7 +413,7 @@ describe("Account Actions", () => {
   describe("updateDefaultAccount", () => {
     it("should update default account ID", async () => {
       await updateDefaultAccount("account-1");
-      expect(db.update).toHaveBeenCalled();
+      expect(db.user.update).toHaveBeenCalled();
     });
 
     it("should throw error if not authenticated", async () => {

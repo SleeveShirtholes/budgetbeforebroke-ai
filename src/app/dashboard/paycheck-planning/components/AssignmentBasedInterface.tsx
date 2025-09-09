@@ -1004,6 +1004,19 @@ const AssignmentBasedInterface = memo(function AssignmentBasedInterface({
               </p>
             </div>
           </Card>
+        ) : paycheckOptions.length === 0 ? (
+          <Card className="p-6">
+            <div className="text-center py-8">
+              <CurrencyDollarIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No Paychecks Available
+              </h3>
+              <p className="text-gray-600">
+                No paychecks found for this month. Please check your income
+                sources.
+              </p>
+            </div>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {paycheckOptions.map((option) => {
@@ -1350,7 +1363,8 @@ const AssignmentBasedInterface = memo(function AssignmentBasedInterface({
                     prev
                       ? {
                           ...prev,
-                          paymentAmount: parseFloat(value) || 0,
+                          paymentAmount:
+                            Math.round(parseFloat(value) * 100) / 100 || 0,
                         }
                       : null,
                   )
@@ -1424,7 +1438,9 @@ const AssignmentBasedInterface = memo(function AssignmentBasedInterface({
 
                       if (debt?.paymentId) {
                         // Parse the payment amount and date from the form
-                        const amount = parseFloat(paidAmount) || debt.amount;
+                        const amount =
+                          Math.round(parseFloat(paidAmount) * 100) / 100 ||
+                          debt.amount;
                         const date =
                           paidDate || format(new Date(), "yyyy-MM-dd");
 

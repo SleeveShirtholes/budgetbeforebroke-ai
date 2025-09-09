@@ -5,13 +5,6 @@ import {
   updateCategory,
 } from "../category";
 
-import { db as importedDb } from "@/db/config";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const actualDb = importedDb as any;
-
 // Mock the dependencies
 jest.mock("@/lib/auth", () => ({
   auth: {
@@ -23,21 +16,20 @@ jest.mock("@/lib/auth", () => ({
 
 jest.mock("@/db/config", () => ({
   db: {
-    select: jest.fn().mockReturnThis(),
-    from: jest.fn().mockReturnThis(),
-    leftJoin: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    groupBy: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    values: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    set: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    query: {
-      categories: {
-        findFirst: jest.fn(),
-      },
+    user: {
+      findFirst: jest.fn(),
+    },
+    category: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    transaction: {
+      updateMany: jest.fn(),
     },
   },
 }));
@@ -50,179 +42,216 @@ describe("Category Actions", () => {
   const mockUserId = "user-123";
   const mockAccountId = "account-123";
   const mockCategoryId = "category-123";
-  const mockSession = {
-    user: { id: mockUserId },
-  };
+
+  const mockDb = jest.requireMock("@/db/config").db;
+  const mockAuth = jest.requireMock("@/lib/auth").auth;
+  const mockHeaders = jest.requireMock("next/headers").headers;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (auth.api.getSession as jest.Mock).mockResolvedValue(mockSession);
-    (headers as jest.Mock).mockResolvedValue({});
-    // Reset all db mocks
 
-    Object.values(actualDb).forEach((fn: unknown) => {
-      if (typeof fn === "function" && "mockClear" in fn)
-        (fn as jest.Mock).mockClear();
+    // Mock authenticated session
+    mockAuth.api.getSession.mockResolvedValue({
+      user: { id: mockUserId },
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Object.values(actualDb.query.categories).forEach((fn: any) => {
-      if ("mockClear" in fn) (fn as jest.Mock).mockClear();
+    mockHeaders.mockResolvedValue({});
+
+    // Mock user lookup
+    mockDb.user.findFirst.mockResolvedValue({
+      defaultBudgetAccountId: mockAccountId,
     });
   });
 
   describe("getCategories", () => {
-    it("should throw error if not authenticated", async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+    it("should return categories with transaction counts", async () => {
+      const mockCategories = [
+        {
+          id: mockCategoryId,
+          name: "Groceries",
+          description: "Food and household items",
+          color: "#FF5733",
+          icon: "shopping-cart",
+          _count: {
+            transactions: 5,
+          },
+        },
+      ];
+
+      mockDb.category.findMany.mockResolvedValue(mockCategories);
+
+      const result = await getCategories(mockAccountId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        id: mockCategoryId,
+        name: "Groceries",
+        description: "Food and household items",
+        color: "#FF5733",
+        icon: "shopping-cart",
+        transactionCount: 5,
+      });
+    });
+
+    it("should throw error when not authenticated", async () => {
+      mockAuth.api.getSession.mockResolvedValue(null);
 
       await expect(getCategories(mockAccountId)).rejects.toThrow(
         "Not authenticated",
       );
     });
-
-    it("should return categories with transaction counts", async () => {
-      const mockCategories = [
-        {
-          id: mockCategoryId,
-          name: "Test Category",
-          description: "Test Description",
-          color: "#FF0000",
-          icon: "test-icon",
-          transactionCount: 5,
-        },
-      ];
-      actualDb.groupBy.mockResolvedValueOnce(mockCategories);
-
-      const result = await getCategories(mockAccountId);
-
-      expect(result).toEqual(mockCategories);
-      expect(actualDb.select).toHaveBeenCalled();
-    });
   });
 
   describe("createCategory", () => {
-    it("should throw error if not authenticated", async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+    it("should create a new category", async () => {
+      const categoryData = {
+        name: "Entertainment",
+        description: "Movies, games, etc.",
+        budgetAccountId: mockAccountId,
+      };
 
-      await expect(
-        createCategory({
-          name: "Test Category",
+      mockDb.category.findFirst.mockResolvedValue(null); // No existing category
+      mockDb.category.create.mockResolvedValue({
+        id: "generated-uuid",
+        name: categoryData.name,
+        description: categoryData.description,
+      });
+
+      const result = await createCategory(categoryData);
+
+      expect(result).toEqual({
+        id: expect.any(String),
+        name: categoryData.name,
+        description: categoryData.description,
+        transactionCount: 0,
+      });
+      expect(mockDb.category.create).toHaveBeenCalledWith({
+        data: {
+          id: expect.any(String),
+          name: categoryData.name,
+          description: categoryData.description,
           budgetAccountId: mockAccountId,
-        }),
-      ).rejects.toThrow("Not authenticated");
-    });
-
-    it("should throw error if no budget account id provided", async () => {
-      await expect(
-        createCategory({
-          name: "Test Category",
-          budgetAccountId: "",
-        }),
-      ).rejects.toThrow("No budget account id provided");
+        },
+      });
     });
 
     it("should throw error if category name already exists", async () => {
-      actualDb.query.categories.findFirst.mockResolvedValue({
-        id: mockCategoryId,
-        name: "Test Category",
+      const categoryData = {
+        name: "Groceries",
+        description: "Food items",
+        budgetAccountId: mockAccountId,
+      };
+
+      mockDb.category.findFirst.mockResolvedValue({
+        id: "existing-category",
+        name: "Groceries",
       });
 
-      await expect(
-        createCategory({
-          name: "Test Category",
-          budgetAccountId: mockAccountId,
-        }),
-      ).rejects.toThrow(
+      await expect(createCategory(categoryData)).rejects.toThrow(
         "Category with this name already exists for this budget account.",
       );
     });
 
-    it("should create a new category", async () => {
-      actualDb.query.categories.findFirst.mockResolvedValue(null);
-      actualDb.values.mockResolvedValueOnce({});
+    it("should throw error when not authenticated", async () => {
+      mockAuth.api.getSession.mockResolvedValue(null);
 
-      const result = await createCategory({
-        name: "Test Category",
-        description: "Test Description",
-        budgetAccountId: mockAccountId,
-      });
-
-      expect(result).toHaveProperty("id");
-      expect(result.name).toBe("Test Category");
-      expect(result.description).toBe("Test Description");
-      expect(result.transactionCount).toBe(0);
+      await expect(createCategory({ name: "Test" })).rejects.toThrow(
+        "Not authenticated",
+      );
     });
   });
 
   describe("updateCategory", () => {
-    it("should throw error if not authenticated", async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+    it("should update category successfully", async () => {
+      const updateData = {
+        id: mockCategoryId,
+        name: "Updated Groceries",
+        description: "Updated description",
+      };
 
-      await expect(
-        updateCategory({
+      const mockUpdatedCategory = {
+        id: mockCategoryId,
+        name: updateData.name,
+        description: updateData.description,
+      };
+
+      mockDb.category.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await updateCategory(updateData);
+
+      expect(result).toEqual(mockUpdatedCategory);
+      expect(mockDb.category.updateMany).toHaveBeenCalledWith({
+        where: {
           id: mockCategoryId,
-          name: "Updated Category",
-        }),
-      ).rejects.toThrow("Not authenticated");
+          budgetAccountId: mockAccountId,
+        },
+        data: {
+          name: updateData.name,
+          description: updateData.description,
+        },
+      });
     });
 
-    it("should update category successfully", async () => {
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+    it("should throw error when not authenticated", async () => {
+      mockAuth.api.getSession.mockResolvedValue(null);
 
-      const result = await updateCategory({
-        id: mockCategoryId,
-        name: "Updated Category",
-        description: "Updated Description",
-      });
-
-      expect(result).toEqual({
-        id: mockCategoryId,
-        name: "Updated Category",
-        description: "Updated Description",
-      });
+      await expect(
+        updateCategory({ id: mockCategoryId, name: "Test" }),
+      ).rejects.toThrow("Not authenticated");
     });
   });
 
   describe("deleteCategory", () => {
-    it("should throw error if not authenticated", async () => {
-      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
-
-      await expect(
-        deleteCategory({
-          id: mockCategoryId,
-        }),
-      ).rejects.toThrow("Not authenticated");
-    });
-
     it("should delete category and reassign transactions", async () => {
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      const reassignToCategoryId = "other-category-123";
+
+      mockDb.transaction.updateMany.mockResolvedValue({ count: 3 });
+      mockDb.category.deleteMany.mockResolvedValue({ count: 1 });
 
       const result = await deleteCategory({
         id: mockCategoryId,
-        reassignToCategoryId: "new-category-123",
+        reassignToCategoryId,
       });
 
       expect(result).toEqual({ success: true });
-      expect(actualDb.update).toHaveBeenCalled();
-      expect(actualDb.delete).toHaveBeenCalled();
+      expect(mockDb.transaction.updateMany).toHaveBeenCalledWith({
+        where: {
+          categoryId: mockCategoryId,
+          budgetAccountId: mockAccountId,
+        },
+        data: {
+          categoryId: reassignToCategoryId,
+        },
+      });
+      expect(mockDb.category.deleteMany).toHaveBeenCalledWith({
+        where: {
+          id: mockCategoryId,
+          budgetAccountId: mockAccountId,
+        },
+      });
     });
 
     it("should delete category without reassigning transactions", async () => {
-      actualDb.limit.mockResolvedValueOnce([
-        { defaultBudgetAccountId: mockAccountId },
-      ]);
+      mockDb.category.deleteMany.mockResolvedValue({ count: 1 });
 
-      const result = await deleteCategory({
-        id: mockCategoryId,
-      });
+      const result = await deleteCategory({ id: mockCategoryId });
 
       expect(result).toEqual({ success: true });
-      expect(actualDb.update).not.toHaveBeenCalled();
-      expect(actualDb.delete).toHaveBeenCalled();
+      expect(mockDb.transaction.updateMany).not.toHaveBeenCalled();
+      expect(mockDb.category.deleteMany).toHaveBeenCalledWith({
+        where: {
+          id: mockCategoryId,
+          budgetAccountId: mockAccountId,
+        },
+      });
+    });
+
+    it("should throw error when not authenticated", async () => {
+      mockAuth.api.getSession.mockResolvedValue(null);
+
+      await expect(deleteCategory({ id: mockCategoryId })).rejects.toThrow(
+        "Not authenticated",
+      );
     });
   });
 });

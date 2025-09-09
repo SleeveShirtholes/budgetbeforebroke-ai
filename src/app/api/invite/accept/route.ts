@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { budgetAccountInvitations, budgetAccountMembers } from "@/db/schema";
-
 import { auth } from "@/lib/auth";
 import { db } from "@/db/config";
-import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 export async function GET(req: NextRequest) {
@@ -13,8 +10,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Find the invitation
-  const invitation = await db.query.budgetAccountInvitations.findFirst({
-    where: eq(budgetAccountInvitations.token, token),
+  const invitation = await db.budgetAccountInvitation.findFirst({
+    where: { token },
   });
 
   if (!invitation) {
@@ -55,21 +52,23 @@ export async function GET(req: NextRequest) {
   }
 
   // Add user to the account as a member
-  await db.insert(budgetAccountMembers).values({
-    id: nanoid(),
-    budgetAccountId: invitation.budgetAccountId,
-    userId: sessionResult.user.id,
-    role: invitation.role,
-    joinedAt: new Date(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  await db.budgetAccountMember.create({
+    data: {
+      id: nanoid(),
+      budgetAccountId: invitation.budgetAccountId,
+      userId: sessionResult.user.id,
+      role: invitation.role,
+      joinedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
   });
 
   // Mark invitation as accepted
-  await db
-    .update(budgetAccountInvitations)
-    .set({ status: "accepted", updatedAt: new Date() })
-    .where(eq(budgetAccountInvitations.id, invitation.id));
+  await db.budgetAccountInvitation.update({
+    where: { id: invitation.id },
+    data: { status: "accepted", updatedAt: new Date() },
+  });
 
   // Redirect to the account page or show a success message
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

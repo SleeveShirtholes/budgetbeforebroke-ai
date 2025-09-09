@@ -1,19 +1,11 @@
 "use server";
 
-import { and, eq, gte, lte } from "drizzle-orm";
 import { startOfDay, addWeeks, addMonths } from "date-fns";
 import { toDateString } from "@/utils/date";
-import {
-  budgetAccountMembers,
-  incomeSources,
-  debts,
-  debtAllocations,
-  monthlyDebtPlanning,
-  dismissedWarnings,
-} from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { db } from "@/db/config";
 import { headers } from "next/headers";
+import { randomUUID } from "crypto";
 
 export interface PaycheckInfo {
   id: string;
@@ -89,11 +81,11 @@ export async function setMonthlyDebtPlanningActive(
   }
 
   // Verify user has access to the budget account
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: budgetAccountId,
+      userId: sessionResult.user.id,
+    },
   });
 
   if (!member) {
@@ -101,15 +93,15 @@ export async function setMonthlyDebtPlanningActive(
   }
 
   // Update the record to set the active state
-  await db
-    .update(monthlyDebtPlanning)
-    .set({ isActive })
-    .where(
-      and(
-        eq(monthlyDebtPlanning.id, monthlyDebtPlanningId),
-        eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
-      ),
-    );
+  await db.monthlyDebtPlanning.update({
+    where: {
+      id: monthlyDebtPlanningId,
+      budgetAccountId: budgetAccountId,
+    },
+    data: {
+      isActive,
+    },
+  });
 
   return { success: true };
 }
@@ -133,11 +125,11 @@ export async function getHiddenMonthlyDebtPlanningData(
   }
 
   // Access check
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: budgetAccountId,
+      userId: sessionResult.user.id,
+    },
   });
 
   if (!member) {
@@ -150,23 +142,22 @@ export async function getHiddenMonthlyDebtPlanningData(
   const endMonth = ((month + planningWindowMonths - 1) % 12) + 1; // 1-12
   const endDate = new Date(endYear, endMonth, 0); // last day of end month
 
-  const toYmd = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate(),
-    ).padStart(2, "0")}`;
-
   // Fetch debts and inactive monthly planning records
-  const allDebts = await db.query.debts.findMany({
-    where: eq(debts.budgetAccountId, budgetAccountId),
+  const allDebts = await db.debt.findMany({
+    where: {
+      budgetAccountId: budgetAccountId,
+    },
   });
 
-  const hiddenMonthlyRecords = await db.query.monthlyDebtPlanning.findMany({
-    where: and(
-      eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
-      eq(monthlyDebtPlanning.isActive, false),
-      gte(monthlyDebtPlanning.dueDate, toYmd(startDate)),
-      lte(monthlyDebtPlanning.dueDate, toYmd(endDate)),
-    ),
+  const hiddenMonthlyRecords = await db.monthlyDebtPlanning.findMany({
+    where: {
+      budgetAccountId: budgetAccountId,
+      isActive: false,
+      dueDate: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
   });
 
   // Map to DebtInfo shape, consistent with getPaycheckPlanningData
@@ -183,7 +174,7 @@ export async function getHiddenMonthlyDebtPlanningData(
       id: monthlyRecord.id,
       name: debt.name,
       amount: Number(debt.paymentAmount),
-      dueDate: monthlyRecord.dueDate as string,
+      dueDate: monthlyRecord.dueDate.toISOString().split("T")[0],
       frequency: "monthly",
       description: debt.name,
       isRecurring: true,
@@ -214,11 +205,11 @@ export async function getPaycheckPlanningData(
   }
 
   // Check if user has access to this budget account
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: budgetAccountId,
+      userId: sessionResult.user.id,
+    },
   });
 
   if (!member) {
@@ -226,8 +217,27 @@ export async function getPaycheckPlanningData(
   }
 
   // Get all income sources for the budget account
-  const incomeSourcesList = await db.query.incomeSources.findMany({
-    where: eq(incomeSources.userId, sessionResult.user.id),
+  const incomeSourcesList = await db.incomeSource.findMany({
+    where: {
+      userId: sessionResult.user.id,
+    },
+  });
+
+  console.log("Income Sources Debug:", {
+    userId: sessionResult.user.id,
+    budgetAccountId,
+    year,
+    month,
+    planningWindowMonths,
+    incomeSourcesCount: incomeSourcesList.length,
+    incomeSources: incomeSourcesList.map((source) => ({
+      id: source.id,
+      name: source.name,
+      amount: source.amount.toString(),
+      frequency: source.frequency,
+      startDate: source.startDate.toISOString().split("T")[0],
+      isActive: source.isActive,
+    })),
   });
 
   // Calculate paycheck dates for the current month
@@ -235,8 +245,9 @@ export async function getPaycheckPlanningData(
   const futurePaychecks: PaycheckInfo[] = [];
 
   for (const incomeSource of incomeSourcesList) {
-    // startDate is now a string (YYYY-MM-DD), parse it safely
-    const [startYear, startMonth, startDay] = incomeSource.startDate
+    // startDate is now a Date object from Prisma, convert to string first
+    const startDateString = incomeSource.startDate.toISOString().split("T")[0];
+    const [startYear, startMonth, startDay] = startDateString
       .split("-")
       .map(Number);
     const startDate = new Date(startYear, startMonth - 1, startDay);
@@ -274,7 +285,7 @@ export async function getPaycheckPlanningData(
         name: incomeSource.name,
         amount: Number(incomeSource.amount),
         date: ymd,
-        frequency: incomeSource.frequency,
+        frequency: incomeSource.frequency as "weekly" | "bi-weekly" | "monthly",
         userId: sessionResult.user.id,
       };
 
@@ -307,8 +318,10 @@ export async function getPaycheckPlanningData(
   );
 
   // Get all debts for the budget account
-  const allDebts = await db.query.debts.findMany({
-    where: eq(debts.budgetAccountId, budgetAccountId),
+  const allDebts = await db.debt.findMany({
+    where: {
+      budgetAccountId: budgetAccountId,
+    },
   });
 
   // Get monthly debt planning records for the current planning window.
@@ -318,18 +331,15 @@ export async function getPaycheckPlanningData(
   const endMonth = ((month + planningWindowMonths - 1) % 12) + 1; // 1-12
   const endDate = startOfDay(new Date(endYear, endMonth, 0)); // last day of end month
 
-  const toYmd = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-      d.getDate(),
-    ).padStart(2, "0")}`;
-
-  const monthlyPlanningRecords = await db.query.monthlyDebtPlanning.findMany({
-    where: and(
-      eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
-      eq(monthlyDebtPlanning.isActive, true),
-      gte(monthlyDebtPlanning.dueDate, toYmd(startDate)),
-      lte(monthlyDebtPlanning.dueDate, toYmd(endDate)),
-    ),
+  const monthlyPlanningRecords = await db.monthlyDebtPlanning.findMany({
+    where: {
+      budgetAccountId: budgetAccountId,
+      isActive: true,
+      dueDate: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
   });
 
   // Convert monthly planning records to DebtInfo format
@@ -346,7 +356,7 @@ export async function getPaycheckPlanningData(
       id: monthlyRecord.id, // Use the monthly planning ID
       name: debt.name,
       amount: Number(debt.paymentAmount),
-      dueDate: monthlyRecord.dueDate as string, // dueDate is already a string
+      dueDate: monthlyRecord.dueDate.toISOString().split("T")[0], // dueDate is already a string
       frequency: "monthly", // Default to monthly for monthly planning records
       description: debt.name, // Use debt name as description
       isRecurring: true, // Monthly planning records are recurring
@@ -403,11 +413,11 @@ export async function dismissWarning(
   }
 
   // Verify user has access to the budget account
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: budgetAccountId,
+      userId: sessionResult.user.id,
+    },
   });
 
   if (!member) {
@@ -415,22 +425,25 @@ export async function dismissWarning(
   }
 
   // Check if warning is already dismissed
-  const existingDismissal = await db.query.dismissedWarnings.findFirst({
-    where: and(
-      eq(dismissedWarnings.budgetAccountId, budgetAccountId),
-      eq(dismissedWarnings.userId, sessionResult.user.id),
-      eq(dismissedWarnings.warningType, warningType),
-      eq(dismissedWarnings.warningKey, warningKey),
-    ),
+  const existingDismissal = await db.dismissedWarning.findFirst({
+    where: {
+      budgetAccountId: budgetAccountId,
+      userId: sessionResult.user.id,
+      warningType: warningType,
+      warningKey: warningKey,
+    },
   });
 
   if (!existingDismissal) {
     // Create dismissal record
-    await db.insert(dismissedWarnings).values({
-      budgetAccountId,
-      userId: sessionResult.user.id,
-      warningType,
-      warningKey,
+    await db.dismissedWarning.create({
+      data: {
+        id: randomUUID(),
+        budgetAccountId,
+        userId: sessionResult.user.id,
+        warningType,
+        warningKey,
+      },
     });
   }
 
@@ -457,13 +470,17 @@ export async function getPaycheckAllocations(
   const storedAllocations = await getDebtAllocations(budgetAccountId);
 
   // Get all original debts for the budget account to find original due dates
-  const allDebts = await db.query.debts.findMany({
-    where: eq(debts.budgetAccountId, budgetAccountId),
+  const allDebts = await db.debt.findMany({
+    where: {
+      budgetAccountId: budgetAccountId,
+    },
   });
 
   // Get monthly debt planning records to link allocations to debts
-  const monthlyPlanningRecords = await db.query.monthlyDebtPlanning.findMany({
-    where: eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
+  const monthlyPlanningRecords = await db.monthlyDebtPlanning.findMany({
+    where: {
+      budgetAccountId: budgetAccountId,
+    },
   });
 
   // Create allocations based on stored data
@@ -493,10 +510,12 @@ export async function getPaycheckAllocations(
           debtName: baseDebt.name,
           amount: Number(baseDebt.paymentAmount) || 0, // Original debt amount (from paymentAmount field)
           // Use the specific instance due date for the month
-          dueDate: monthlyPlanning.dueDate,
+          dueDate: monthlyPlanning.dueDate.toISOString().split("T")[0],
           // Include the original template due date for month indicator
-          originalDueDate: originalDueDate,
-          paymentDate: allocation.paymentDate || undefined,
+          originalDueDate: originalDueDate.toISOString().split("T")[0],
+          paymentDate: allocation.paymentDate
+            ? allocation.paymentDate.toISOString().split("T")[0]
+            : undefined,
           paymentAmount: allocation.paymentAmount
             ? Number(allocation.paymentAmount) || 0
             : undefined, // Payment amount from allocation
@@ -536,22 +555,30 @@ export async function getDebtAllocations(budgetAccountId: string) {
   }
 
   // Verify user has access to the budget account
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: budgetAccountId,
+      userId: sessionResult.user.id,
+    },
   });
 
   if (!member) {
     throw new Error("Access denied to budget account");
   }
 
-  const allocations = await db.query.debtAllocations.findMany({
-    where: eq(debtAllocations.budgetAccountId, budgetAccountId),
+  const allocations = await db.debtAllocation.findMany({
+    where: {
+      budgetAccountId: budgetAccountId,
+    },
   });
 
-  return allocations;
+  // Convert Decimal fields to numbers for Client Component compatibility
+  return allocations.map((allocation) => ({
+    ...allocation,
+    paymentAmount: allocation.paymentAmount
+      ? Number(allocation.paymentAmount)
+      : null,
+  }));
 }
 
 /**
@@ -574,11 +601,11 @@ export async function updateDebtAllocation(
   }
 
   // Verify user has access to the budget account
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: budgetAccountId,
+      userId: sessionResult.user.id,
+    },
   });
 
   if (!member) {
@@ -587,87 +614,80 @@ export async function updateDebtAllocation(
 
   if (action === "allocate") {
     // Check if allocation already exists
-    const existingAllocation = await db.query.debtAllocations.findFirst({
-      where: and(
-        eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
-        eq(debtAllocations.paycheckId, paycheckId),
-        eq(debtAllocations.budgetAccountId, budgetAccountId),
-      ),
+    const existingAllocation = await db.debtAllocation.findFirst({
+      where: {
+        monthlyDebtPlanningId: monthlyDebtPlanningId,
+        paycheckId: paycheckId,
+        budgetAccountId: budgetAccountId,
+      },
     });
 
     if (!existingAllocation) {
       // Create new allocation
-      await db.insert(debtAllocations).values({
-        budgetAccountId,
-        monthlyDebtPlanningId,
-        paycheckId,
-        userId: sessionResult.user.id,
-        paymentAmount: paymentAmount ? paymentAmount.toString() : null,
-        paymentDate: paymentDate || null,
-        note: paymentDate
-          ? `Scheduled payment from paycheck allocation on ${paymentDate}`
-          : null,
-        isPaid: false,
+      await db.debtAllocation.create({
+        data: {
+          id: randomUUID(),
+          budgetAccountId,
+          monthlyDebtPlanningId,
+          paycheckId,
+          userId: sessionResult.user.id,
+          paymentAmount: paymentAmount ? paymentAmount : null,
+          paymentDate: paymentDate ? new Date(paymentDate) : null,
+          note: paymentDate
+            ? `Scheduled payment from paycheck allocation on ${paymentDate}`
+            : null,
+          isPaid: false,
+        },
       });
     } else {
       // Update existing allocation
-      await db
-        .update(debtAllocations)
-        .set({
-          paymentAmount: paymentAmount ? paymentAmount.toString() : null,
-          paymentDate: paymentDate || null,
+      await db.debtAllocation.update({
+        where: {
+          id: existingAllocation.id,
+        },
+        data: {
+          paymentAmount: paymentAmount ? paymentAmount : null,
+          paymentDate: paymentDate ? new Date(paymentDate) : null,
           note: paymentDate
             ? `Updated payment from paycheck allocation on ${paymentDate}`
             : null,
           updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
-            eq(debtAllocations.paycheckId, paycheckId),
-            eq(debtAllocations.budgetAccountId, budgetAccountId),
-          ),
-        );
+        },
+      });
     }
   } else if (action === "unallocate") {
     // Remove the allocation
-    await db
-      .delete(debtAllocations)
-      .where(
-        and(
-          eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
-          eq(debtAllocations.paycheckId, paycheckId),
-          eq(debtAllocations.budgetAccountId, budgetAccountId),
-        ),
-      );
+    await db.debtAllocation.deleteMany({
+      where: {
+        monthlyDebtPlanningId: monthlyDebtPlanningId,
+        paycheckId: paycheckId,
+        budgetAccountId: budgetAccountId,
+      },
+    });
   } else if (action === "update") {
     // Update existing allocation
-    const existingAllocation = await db.query.debtAllocations.findFirst({
-      where: and(
-        eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
-        eq(debtAllocations.paycheckId, paycheckId),
-        eq(debtAllocations.budgetAccountId, budgetAccountId),
-      ),
+    const existingAllocation = await db.debtAllocation.findFirst({
+      where: {
+        monthlyDebtPlanningId: monthlyDebtPlanningId,
+        paycheckId: paycheckId,
+        budgetAccountId: budgetAccountId,
+      },
     });
 
     if (existingAllocation) {
-      await db
-        .update(debtAllocations)
-        .set({
-          paymentAmount: paymentAmount ? paymentAmount.toString() : null,
-          paymentDate: paymentDate || null,
+      await db.debtAllocation.update({
+        where: {
+          id: existingAllocation.id,
+        },
+        data: {
+          paymentAmount: paymentAmount ? paymentAmount : null,
+          paymentDate: paymentDate ? new Date(paymentDate) : null,
           note: paymentDate
             ? `Updated payment from paycheck allocation on ${paymentDate}`
             : null,
           updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
-            eq(debtAllocations.paycheckId, paycheckId),
-            eq(debtAllocations.budgetAccountId, budgetAccountId),
-          ),
-        );
+        },
+      });
     }
   }
 
@@ -704,11 +724,11 @@ export async function markPaymentAsPaid(
   }
 
   // Verify user has access to the budget account
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId: budgetAccountId,
+      userId: sessionResult.user.id,
+    },
   });
 
   if (!member) {
@@ -716,21 +736,19 @@ export async function markPaymentAsPaid(
   }
 
   // Update the debt allocation to mark it as paid
-  await db
-    .update(debtAllocations)
-    .set({
+  await db.debtAllocation.update({
+    where: {
+      id: paymentId,
+      budgetAccountId: budgetAccountId,
+      monthlyDebtPlanningId: monthlyDebtPlanningId,
+    },
+    data: {
       isPaid: true,
-      paymentAmount: paymentAmount ? paymentAmount.toString() : null,
-      paymentDate: paymentDate || toDateString(new Date()),
+      paymentAmount: paymentAmount ? paymentAmount : null,
+      paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
       note: `Payment marked as paid on ${paymentDate || toDateString(new Date())}`,
-    })
-    .where(
-      and(
-        eq(debtAllocations.id, paymentId),
-        eq(debtAllocations.budgetAccountId, budgetAccountId),
-        eq(debtAllocations.monthlyDebtPlanningId, monthlyDebtPlanningId),
-      ),
-    );
+    },
+  });
 
   return { success: true };
 }
@@ -768,11 +786,11 @@ export async function populateMonthlyDebtPlanning(
   }
 
   // Check if user has access to this budget account
-  const member = await db.query.budgetAccountMembers.findFirst({
-    where: and(
-      eq(budgetAccountMembers.budgetAccountId, budgetAccountId),
-      eq(budgetAccountMembers.userId, sessionResult.user.id),
-    ),
+  const member = await db.budgetAccountMember.findFirst({
+    where: {
+      budgetAccountId,
+      userId: sessionResult.user.id,
+    },
   });
 
   if (!member) {
@@ -780,14 +798,14 @@ export async function populateMonthlyDebtPlanning(
   }
 
   // Get all debts for the budget account
-  const allDebts = await db.query.debts.findMany({
-    where: eq(debts.budgetAccountId, budgetAccountId),
+  const allDebts = await db.debt.findMany({
+    where: { budgetAccountId },
   });
 
   // Get ALL existing monthly debt planning records for this budget account
   // This ensures we don't create duplicates even if they exist outside the current window
-  const allExistingRecords = await db.query.monthlyDebtPlanning.findMany({
-    where: eq(monthlyDebtPlanning.budgetAccountId, budgetAccountId),
+  const allExistingRecords = await db.monthlyDebtPlanning.findMany({
+    where: { budgetAccountId },
   });
 
   // Index existing by debtId-year-month
@@ -814,9 +832,8 @@ export async function populateMonthlyDebtPlanning(
       }
 
       // Parse the debt's due date to get the year and month when this debt should start appearing
-      const [debtYear, debtMonth] = (debt.dueDate as string)
-        .split("-")
-        .map(Number);
+      const dueDateString = debt.dueDate.toISOString().split("T")[0];
+      const [debtYear, debtMonth] = dueDateString.split("-").map(Number);
 
       // Only create records for months that are on or after the debt's due date
       // This ensures debts don't appear in months before they're actually due
@@ -833,17 +850,20 @@ export async function populateMonthlyDebtPlanning(
         }
 
         // Calculate the due date for this month (keep the same day of month)
-        const [, , debtDay] = (debt.dueDate as string).split("-").map(Number);
+        const [, , debtDay] = dueDateString.split("-").map(Number);
         const dueDate = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(debtDay).padStart(2, "0")}`;
 
         try {
-          await db.insert(monthlyDebtPlanning).values({
-            budgetAccountId,
-            debtId: debt.id,
-            year: targetYear,
-            month: targetMonth,
-            dueDate: dueDate,
-            isActive: true,
+          await db.monthlyDebtPlanning.create({
+            data: {
+              id: randomUUID(),
+              budgetAccountId,
+              debtId: debt.id,
+              year: targetYear,
+              month: targetMonth,
+              dueDate: dueDate,
+              isActive: true,
+            },
           });
           existingKey.add(key);
         } catch (error) {

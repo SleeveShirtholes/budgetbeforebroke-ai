@@ -7,8 +7,6 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db/config";
-import { eq } from "drizzle-orm";
-import { user } from "@/db/schema";
 
 /**
  * Gets the current authenticated user session
@@ -41,10 +39,9 @@ export async function getCurrentUserWithAdmin() {
     }
 
     // Fetch full user data including admin status
-    const [fullUser] = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, sessionUser.id));
+    const fullUser = await db.user.findUnique({
+      where: { id: sessionUser.id },
+    });
 
     return fullUser || null;
   } catch (error) {

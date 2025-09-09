@@ -305,3 +305,14 @@ export function getLastDayOfMonth(year: number, month: number): string {
   const nextMonth = new Date(year, month, 0); // 0th day of next month = last day of current month
   return toDateString(nextMonth);
 }
+
+/**
+ * Converts a Date object to ISO-8601 DateTime string for Prisma queries
+ * This ensures proper date filtering in Prisma's gte/lte operations
+ *
+ * @param date - The Date object to convert
+ * @returns ISO-8601 DateTime string
+ */
+export function toPrismaDateTime(date: Date): string {
+  return date.toISOString();
+}

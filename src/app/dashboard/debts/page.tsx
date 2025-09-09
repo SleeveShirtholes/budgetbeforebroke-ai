@@ -295,7 +295,10 @@ function DebtsPage() {
             filteredDebts.map((debt) => (
               <DebtCard
                 key={debt.id}
-                debt={debt}
+                debt={{
+                  ...debt,
+                  categoryId: debt.categoryId || undefined,
+                }}
                 search={search}
                 onEdit={openModal}
                 onDelete={handleDelete}

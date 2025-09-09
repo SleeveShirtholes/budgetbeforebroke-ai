@@ -1,14 +1,12 @@
 "use server";
 
-import { categories, transactions, user } from "@/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { db } from "@/db/schema";
 
-import { db } from "@/db/config";
 import { auth } from "@/lib/auth";
 import { randomUUID } from "crypto";
 import { headers } from "next/headers";
 
-export type Category = {
+export type CategoryWithCount = {
   id: string;
   name: string;
   description?: string;
@@ -31,26 +29,27 @@ export async function getCategories(accountId: string) {
   }
 
   // Get categories with transaction counts
-  const categoriesWithCounts = await db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      description: categories.description,
-      color: categories.color,
-      icon: categories.icon,
-      transactionCount: sql<number>`count(${transactions.id})::int`,
-    })
-    .from(categories)
-    .leftJoin(transactions, eq(transactions.categoryId, categories.id))
-    .where(eq(categories.budgetAccountId, accountId))
-    .groupBy(categories.id);
+  const categories = await db.category.findMany({
+    where: {
+      budgetAccountId: accountId,
+    },
+    include: {
+      _count: {
+        select: {
+          transactions: true,
+        },
+      },
+    },
+  });
 
-  // Convert null values to undefined
-  return categoriesWithCounts.map((category) => ({
-    ...category,
+  // Convert to the expected format
+  return categories.map((category) => ({
+    id: category.id,
+    name: category.name,
     description: category.description || undefined,
     color: category.color || undefined,
     icon: category.icon || undefined,
+    transactionCount: category._count.transactions,
   }));
 }
 
@@ -75,12 +74,13 @@ export async function createCategory(data: {
   }
 
   // Check for duplicate category name in the same budget account
-  const existing = await db.query.categories.findFirst({
-    where: and(
-      eq(categories.budgetAccountId, data.budgetAccountId),
-      eq(categories.name, data.name),
-    ),
+  const existing = await db.category.findFirst({
+    where: {
+      budgetAccountId: data.budgetAccountId,
+      name: data.name,
+    },
   });
+
   if (existing) {
     throw new Error(
       "Category with this name already exists for this budget account.",
@@ -88,13 +88,13 @@ export async function createCategory(data: {
   }
 
   const categoryId = randomUUID();
-  await db.insert(categories).values({
-    id: categoryId,
-    budgetAccountId: data.budgetAccountId,
-    name: data.name,
-    description: data.description,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  await db.category.create({
+    data: {
+      id: categoryId,
+      budgetAccountId: data.budgetAccountId,
+      name: data.name,
+      description: data.description,
+    },
   });
 
   return {
@@ -122,32 +122,28 @@ export async function updateCategory(data: {
   }
 
   // Get the user's default budget account
-  const userResult = await db
-    .select({
-      defaultBudgetAccountId: user.defaultBudgetAccountId,
-    })
-    .from(user)
-    .where(eq(user.id, sessionResult.user.id))
-    .limit(1);
+  const userResult = await db.user.findFirst({
+    where: { id: sessionResult.user.id },
+    select: {
+      defaultBudgetAccountId: true,
+    },
+  });
 
-  if (!userResult[0]?.defaultBudgetAccountId) {
+  if (!userResult?.defaultBudgetAccountId) {
     throw new Error("No default budget account found");
   }
 
   // Update the category
-  await db
-    .update(categories)
-    .set({
+  await db.category.updateMany({
+    where: {
+      id: data.id,
+      budgetAccountId: userResult.defaultBudgetAccountId,
+    },
+    data: {
       name: data.name,
       description: data.description,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(categories.id, data.id),
-        eq(categories.budgetAccountId, userResult[0].defaultBudgetAccountId),
-      ),
-    );
+    },
+  });
 
   return {
     id: data.id,
@@ -172,46 +168,37 @@ export async function deleteCategory(data: {
   }
 
   // Get the user's default budget account
-  const userResult = await db
-    .select({
-      defaultBudgetAccountId: user.defaultBudgetAccountId,
-    })
-    .from(user)
-    .where(eq(user.id, sessionResult.user.id))
-    .limit(1);
+  const userResult = await db.user.findFirst({
+    where: { id: sessionResult.user.id },
+    select: {
+      defaultBudgetAccountId: true,
+    },
+  });
 
-  if (!userResult[0]?.defaultBudgetAccountId) {
+  if (!userResult?.defaultBudgetAccountId) {
     throw new Error("No default budget account found");
   }
 
   // If reassigning transactions, update them first
   if (data.reassignToCategoryId) {
-    await db
-      .update(transactions)
-      .set({
+    await db.transaction.updateMany({
+      where: {
+        categoryId: data.id,
+        budgetAccountId: userResult.defaultBudgetAccountId,
+      },
+      data: {
         categoryId: data.reassignToCategoryId,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(transactions.categoryId, data.id),
-          eq(
-            transactions.budgetAccountId,
-            userResult[0].defaultBudgetAccountId,
-          ),
-        ),
-      );
+      },
+    });
   }
 
   // Delete the category
-  await db
-    .delete(categories)
-    .where(
-      and(
-        eq(categories.id, data.id),
-        eq(categories.budgetAccountId, userResult[0].defaultBudgetAccountId),
-      ),
-    );
+  await db.category.deleteMany({
+    where: {
+      id: data.id,
+      budgetAccountId: userResult.defaultBudgetAccountId,
+    },
+  });
 
   return { success: true };
 }

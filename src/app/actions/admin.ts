@@ -3,21 +3,15 @@
  * Only accessible by global administrators
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-
 "use server";
 
 import { requireGlobalAdmin } from "@/lib/auth-helpers";
 import { db } from "@/db/config";
-import * as schema from "@/db/schema";
-import { eq, desc, asc, count, sql } from "drizzle-orm";
 
 // Define all table schemas with their editable fields
 const TABLE_CONFIGS = {
   user: {
-    table: schema.user,
+    model: db.user,
     editableFields: [
       "name",
       "email",
@@ -28,146 +22,154 @@ const TABLE_CONFIGS = {
     searchFields: ["name", "email"],
   },
   budgetAccounts: {
-    table: schema.budgetAccounts,
+    model: db.budgetAccount,
     editableFields: ["name", "description", "accountNumber"],
     searchFields: ["name", "accountNumber"],
   },
   budgetAccountMembers: {
-    table: schema.budgetAccountMembers,
+    model: db.budgetAccountMember,
     editableFields: ["role"],
     searchFields: ["role"],
   },
   budgetAccountInvitations: {
-    table: schema.budgetAccountInvitations,
+    model: db.budgetAccountInvitation,
     editableFields: ["inviteeEmail", "role", "status"],
     searchFields: ["inviteeEmail", "role", "status"],
   },
   budgets: {
-    table: schema.budgets,
+    model: db.budget,
     editableFields: ["name", "description", "year", "month", "totalBudget"],
     searchFields: ["name"],
   },
   categories: {
-    table: schema.categories,
+    model: db.category,
     editableFields: ["name", "description", "color", "icon"],
     searchFields: ["name"],
   },
   budgetCategories: {
-    table: schema.budgetCategories,
+    model: db.budgetCategory,
     editableFields: ["amount"],
     searchFields: [],
   },
   transactions: {
-    table: schema.transactions,
+    model: db.transaction,
     editableFields: ["amount", "description", "type", "status", "merchantName"],
     searchFields: ["description", "merchantName", "type", "status"],
   },
   goals: {
-    table: schema.goals,
+    model: db.goal,
     editableFields: [
       "name",
       "description",
       "targetAmount",
       "currentAmount",
+      "targetDate",
       "status",
     ],
-    searchFields: ["name", "status"],
+    searchFields: ["name"],
   },
   plaidItems: {
-    table: schema.plaidItems,
-    editableFields: ["status"],
-    searchFields: ["plaidInstitutionName", "status"],
+    model: db.plaidItem,
+    editableFields: ["plaidInstitutionName", "status", "lastSyncAt"],
+    searchFields: ["plaidInstitutionName"],
   },
   plaidAccounts: {
-    table: schema.plaidAccounts,
-    editableFields: ["name", "type", "subtype"],
-    searchFields: ["name", "type", "subtype"],
+    model: db.plaidAccount,
+    editableFields: ["name", "type", "subtype", "mask"],
+    searchFields: ["name"],
   },
   incomeSources: {
-    table: schema.incomeSources,
-    editableFields: ["name", "amount", "frequency", "isActive", "notes"],
-    searchFields: ["name", "frequency"],
+    model: db.incomeSource,
+    editableFields: [
+      "name",
+      "amount",
+      "frequency",
+      "startDate",
+      "endDate",
+      "isActive",
+      "notes",
+    ],
+    searchFields: ["name"],
   },
   debts: {
-    table: schema.debts,
-    editableFields: ["name", "paymentAmount", "interestRate", "hasBalance"],
+    model: db.debt,
+    editableFields: [
+      "name",
+      "paymentAmount",
+      "interestRate",
+      "dueDate",
+      "hasBalance",
+    ],
     searchFields: ["name"],
   },
   debtAllocations: {
-    table: schema.debtAllocations,
-    editableFields: ["paymentAmount", "isPaid", "note"],
+    model: db.debtAllocation,
+    editableFields: [
+      "paymentAmount",
+      "paymentDate",
+      "isPaid",
+      "paidAt",
+      "note",
+    ],
     searchFields: ["note"],
   },
   monthlyDebtPlanning: {
-    table: schema.monthlyDebtPlanning,
-    editableFields: ["year", "month", "isActive"],
+    model: db.monthlyDebtPlanning,
+    editableFields: ["year", "month", "dueDate", "isActive"],
     searchFields: [],
   },
   supportRequests: {
-    table: schema.supportRequests,
-    editableFields: ["title", "description", "category", "status", "isPublic"],
-    searchFields: ["title", "category", "status"],
+    model: db.supportRequest,
+    editableFields: [
+      "title",
+      "description",
+      "category",
+      "status",
+      "isPublic",
+      "upvotes",
+      "downvotes",
+    ],
+    searchFields: ["title", "description", "category"],
   },
   supportComments: {
-    table: schema.supportComments,
+    model: db.supportComment,
     editableFields: ["text"],
     searchFields: ["text"],
   },
   dismissedWarnings: {
-    table: schema.dismissedWarnings,
+    model: db.dismissedWarning,
     editableFields: ["warningType", "warningKey"],
-    searchFields: ["warningType"],
+    searchFields: ["warningType", "warningKey"],
   },
   contactSubmissions: {
-    table: schema.contactSubmissions,
-    editableFields: ["name", "email", "subject", "message", "status", "notes"],
-    searchFields: ["name", "email", "subject", "status"],
+    model: db.contactSubmission,
+    editableFields: [
+      "name",
+      "email",
+      "subject",
+      "message",
+      "status",
+      "assignedTo",
+      "notes",
+    ],
+    searchFields: ["name", "email", "subject"],
   },
   emailConversations: {
-    table: schema.emailConversations,
-    editableFields: ["subject", "message", "messageType", "direction"],
-    searchFields: ["subject", "messageType", "direction"],
-  },
-  session: {
-    table: schema.session,
-    editableFields: [],
-    searchFields: ["ipAddress", "userAgent"],
-  },
-  account: {
-    table: schema.account,
-    editableFields: [],
-    searchFields: ["providerId"],
-  },
-  verification: {
-    table: schema.verification,
-    editableFields: [],
-    searchFields: ["identifier"],
-  },
-  passkey: {
-    table: schema.passkey,
-    editableFields: ["name", "deviceType"],
-    searchFields: ["name", "deviceType"],
+    model: db.emailConversation,
+    editableFields: [
+      "fromEmail",
+      "fromName",
+      "toEmail",
+      "subject",
+      "message",
+      "messageType",
+      "direction",
+    ],
+    searchFields: ["fromEmail", "fromName", "subject"],
   },
 };
 
 export type TableName = keyof typeof TABLE_CONFIGS;
-
-/**
- * Gets a list of all available tables for admin management
- */
-export async function getAvailableTables() {
-  await requireGlobalAdmin();
-
-  return Object.keys(TABLE_CONFIGS).map((tableName) => ({
-    name: tableName,
-    displayName: tableName
-      .replace(/([A-Z])/g, " $1")
-      .trim()
-      .replace(/^\w/, (c) => c.toUpperCase()),
-    editableFields: TABLE_CONFIGS[tableName as TableName].editableFields,
-    searchFields: TABLE_CONFIGS[tableName as TableName].searchFields,
-  }));
-}
 
 /**
  * Gets table data with pagination and search
@@ -184,79 +186,56 @@ export async function getTableData(
 
   const config = TABLE_CONFIGS[tableName];
   if (!config) {
-    throw new Error(`Table ${tableName} not found`);
+    throw new Error(`Unknown table: ${tableName}`);
   }
 
   try {
     const offset = (page - 1) * pageSize;
 
-    // Build base query
-    let query = db.select().from(config.table);
-
-    // Add search functionality if searchTerm is provided
+    // Build where clause for search
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let whereClause: any = {};
     if (searchTerm && config.searchFields.length > 0) {
-      console.log(
-        `Searching table ${tableName} for term: "${searchTerm}" in fields:`,
-        config.searchFields,
-      );
+      const searchConditions = config.searchFields.map((field) => ({
+        [field]: {
+          contains: searchTerm,
+          mode: "insensitive" as const,
+        },
+      }));
 
-      const searchConditions = config.searchFields
-        .map((field) => {
-          // Use type assertion to access table fields dynamically
-          const tableField = (config.table as any)[field];
-          if (!tableField) {
-            console.warn(`Field ${field} not found on table ${tableName}`);
-            return null;
-          }
-          console.log(`Creating search condition for field: ${field}`);
-          return sql`${tableField} ILIKE ${`%${searchTerm}%`}`;
-        })
-        .filter(Boolean);
-
-      console.log(`Generated ${searchConditions.length} search conditions`);
-
-      if (searchConditions.length > 0) {
-        // Use type assertion to handle the query builder type changes
-        if (searchConditions.length === 1) {
-          console.log(`Applying single search condition`);
-          (query as any) = (query as any).where(searchConditions[0]);
-        } else {
-          // For multiple search conditions, use OR logic with proper SQL construction
-          console.log(`Applying multiple search conditions with OR logic`);
-          let whereClause = searchConditions[0];
-          for (let i = 1; i < searchConditions.length; i++) {
-            whereClause = sql`${whereClause} OR ${searchConditions[i]}`;
-          }
-
-          (query as any) = (query as any).where(whereClause);
-        }
+      if (searchConditions.length === 1) {
+        whereClause = searchConditions[0];
+      } else {
+        whereClause = {
+          OR: searchConditions,
+        };
       }
     }
 
-    // Add sorting
-    if (sortField && (config.table as any)[sortField]) {
-      const orderFn = sortDirection === "asc" ? asc : desc;
-      const tableField = (config.table as any)[sortField];
-      (query as any) = (query as any).orderBy(orderFn(tableField));
+    // Build orderBy clause
+    let orderBy: Record<string, string> = {};
+    if (sortField && config.editableFields.includes(sortField)) {
+      orderBy[sortField] = sortDirection;
     } else {
       // Default sort by createdAt if available, otherwise by id
-      const defaultSortField =
-        (config.table as any).createdAt || config.table.id;
-      (query as any) = (query as any).orderBy(desc(defaultSortField));
+      orderBy = { createdAt: "desc" };
     }
 
-    // Add pagination
-    query = query.limit(pageSize).offset(offset);
-
     // Execute query
-    const data = await query;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await (config.model as any).findMany({
+      where: whereClause,
+      orderBy,
+      skip: offset,
+      take: pageSize,
+    });
 
     // Get total count for pagination
-    const [countResult] = await db
-      .select({ count: count() })
-      .from(config.table);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const totalItems = await (config.model as any).count({
+      where: whereClause,
+    });
 
-    const totalItems = countResult.count;
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return {
@@ -272,46 +251,25 @@ export async function getTableData(
       },
     };
   } catch (error) {
-    console.error(`Error fetching data for table ${tableName}:`, error);
+    console.error(`Error fetching ${tableName} data:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
+      data: [],
+      pagination: {
+        page: 1,
+        pageSize: 50,
+        totalItems: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false,
+      },
     };
   }
 }
 
 /**
- * Gets a single record from a table by ID
- */
-export async function getTableRecord(tableName: TableName, id: string) {
-  await requireGlobalAdmin();
-
-  const config = TABLE_CONFIGS[tableName];
-  if (!config) {
-    throw new Error(`Table ${tableName} not found`);
-  }
-
-  try {
-    const [record] = await db
-      .select()
-      .from(config.table)
-      .where(eq(config.table.id, id));
-
-    return {
-      success: true,
-      data: record || null,
-    };
-  } catch (error) {
-    console.error(`Error fetching record from table ${tableName}:`, error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}
-
-/**
- * Updates a record in a table
+ * Updates a record in the specified table
  */
 export async function updateTableRecord(
   tableName: TableName,
@@ -322,42 +280,31 @@ export async function updateTableRecord(
 
   const config = TABLE_CONFIGS[tableName];
   if (!config) {
-    throw new Error(`Table ${tableName} not found`);
+    throw new Error(`Unknown table: ${tableName}`);
   }
 
   try {
     // Filter data to only include editable fields
-    const filteredData = Object.keys(data)
-      .filter((key) => config.editableFields.includes(key))
-      .reduce(
-        (obj, key) => {
-          obj[key] = data[key];
-          return obj;
-        },
-        {} as Record<string, unknown>,
-      );
-
-    // Add updatedAt timestamp if the field exists
-    if (config.table.updatedAt) {
-      filteredData.updatedAt = new Date();
+    const editableData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (config.editableFields.includes(key)) {
+        editableData[key] = value;
+      }
     }
 
-    const [updatedRecord] = await db
-      .update(config.table)
-      .set(filteredData)
-      .where(eq(config.table.id, id))
-      .returning();
+    // Add updatedAt timestamp
+    editableData.updatedAt = new Date();
 
-    if (!updatedRecord) {
-      throw new Error("Record not found");
-    }
+    // Update the record
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (config.model as any).update({
+      where: { id },
+      data: editableData,
+    });
 
-    return {
-      success: true,
-      data: updatedRecord,
-    };
+    return { success: true };
   } catch (error) {
-    console.error(`Error updating record in table ${tableName}:`, error);
+    console.error(`Error updating ${tableName} record:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -366,32 +313,25 @@ export async function updateTableRecord(
 }
 
 /**
- * Deletes a record from a table
+ * Deletes a record from the specified table
  */
 export async function deleteTableRecord(tableName: TableName, id: string) {
   await requireGlobalAdmin();
 
   const config = TABLE_CONFIGS[tableName];
   if (!config) {
-    throw new Error(`Table ${tableName} not found`);
+    throw new Error(`Unknown table: ${tableName}`);
   }
 
   try {
-    const [deletedRecord] = await db
-      .delete(config.table)
-      .where(eq(config.table.id, id))
-      .returning();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (config.model as any).delete({
+      where: { id },
+    });
 
-    if (!deletedRecord) {
-      throw new Error("Record not found");
-    }
-
-    return {
-      success: true,
-      data: deletedRecord,
-    };
+    return { success: true };
   } catch (error) {
-    console.error(`Error deleting record from table ${tableName}:`, error);
+    console.error(`Error deleting ${tableName} record:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -400,7 +340,7 @@ export async function deleteTableRecord(tableName: TableName, id: string) {
 }
 
 /**
- * Creates a new record in a table
+ * Creates a new record in the specified table
  */
 export async function createTableRecord(
   tableName: TableName,
@@ -410,40 +350,31 @@ export async function createTableRecord(
 
   const config = TABLE_CONFIGS[tableName];
   if (!config) {
-    throw new Error(`Table ${tableName} not found`);
+    throw new Error(`Unknown table: ${tableName}`);
   }
 
   try {
     // Filter data to only include editable fields
-    const filteredData = Object.keys(data)
-      .filter((key) => config.editableFields.includes(key))
-      .reduce(
-        (obj, key) => {
-          obj[key] = data[key];
-          return obj;
-        },
-        {} as Record<string, unknown>,
-      );
-
-    // Add timestamps if the fields exist
-    if (config.table.createdAt) {
-      filteredData.createdAt = new Date();
-    }
-    if (config.table.updatedAt) {
-      filteredData.updatedAt = new Date();
+    const editableData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (config.editableFields.includes(key)) {
+        editableData[key] = value;
+      }
     }
 
-    const [newRecord] = await db
-      .insert(config.table)
-      .values(filteredData)
-      .returning();
+    // Add timestamps
+    editableData.createdAt = new Date();
+    editableData.updatedAt = new Date();
 
-    return {
-      success: true,
-      data: newRecord,
-    };
+    // Create the record
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newRecord = await (config.model as any).create({
+      data: editableData,
+    });
+
+    return { success: true, data: newRecord };
   } catch (error) {
-    console.error(`Error creating record in table ${tableName}:`, error);
+    console.error(`Error creating ${tableName} record:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -452,82 +383,93 @@ export async function createTableRecord(
 }
 
 /**
- * Gets table schema information for dynamic form generation
+ * Gets table statistics
  */
-export async function getTableSchema(tableName: TableName) {
+export async function getTableStats() {
   await requireGlobalAdmin();
 
-  const config = TABLE_CONFIGS[tableName];
-  if (!config) {
-    throw new Error(`Table ${tableName} not found`);
+  try {
+    const stats = await Promise.all(
+      Object.entries(TABLE_CONFIGS).map(async ([tableName, config]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const count = await (config.model as any).count();
+        return {
+          tableName,
+          count,
+        };
+      }),
+    );
+
+    return {
+      success: true,
+      data: stats,
+    };
+  } catch (error) {
+    console.error("Error fetching table stats:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      data: [],
+    };
   }
+}
 
-  // This is a simplified schema - in a real implementation you might want to
-  // extract this from the Drizzle schema or database introspection
-  const fieldTypes: Record<string, string> = {
-    // Common string fields
-    name: "string",
-    email: "email",
-    description: "text",
-    subject: "string",
-    message: "text",
-    text: "text",
-    notes: "text",
-    note: "text",
-    title: "string",
+/**
+ * Get available tables for admin interface
+ */
+export async function getAvailableTables() {
+  await requireGlobalAdmin();
 
-    // Number fields
-    amount: "number",
-    paymentAmount: "number",
-    targetAmount: "number",
-    currentAmount: "number",
-    totalBudget: "number",
-    interestRate: "number",
-    year: "number",
-    month: "number",
-    upvotes: "number",
-    downvotes: "number",
+  try {
+    const tables = Object.keys(TABLE_CONFIGS).map((tableName) => ({
+      tablename: tableName,
+      schemaname: "public",
+      tableowner: "postgres",
+    }));
 
-    // Boolean fields
-    isGlobalAdmin: "boolean",
-    emailVerified: "boolean",
-    isActive: "boolean",
-    isPaid: "boolean",
-    isPublic: "boolean",
-    hasBalance: "boolean",
+    return { success: true, data: tables };
+  } catch (error) {
+    console.error("Error fetching available tables:", error);
+    return { success: false, error: "Failed to fetch available tables" };
+  }
+}
 
-    // Select fields
-    status: "select",
-    role: "select",
-    type: "select",
-    category: "select",
-    frequency: "select",
-    messageType: "select",
-    direction: "select",
-    warningType: "select",
-    deviceType: "select",
+/**
+ * Get table schema information
+ */
+export async function getTableSchema() {
+  await requireGlobalAdmin();
 
-    // Date fields
-    dueDate: "date",
-    startDate: "date",
-    endDate: "date",
-    targetDate: "date",
-    paymentDate: "date",
-  };
+  try {
+    // For now, return a basic schema structure
+    // In a real implementation, you might want to query the actual database schema
+    const schema = [
+      {
+        column_name: "id",
+        data_type: "text",
+        is_nullable: "NO",
+        column_default: null,
+        character_maximum_length: null,
+      },
+      {
+        column_name: "createdAt",
+        data_type: "timestamp",
+        is_nullable: "NO",
+        column_default: "now()",
+        character_maximum_length: null,
+      },
+      {
+        column_name: "updatedAt",
+        data_type: "timestamp",
+        is_nullable: "NO",
+        column_default: "now()",
+        character_maximum_length: null,
+      },
+    ];
 
-  const fields = config.editableFields.map((fieldName) => ({
-    name: fieldName,
-    type: fieldTypes[fieldName] || "string",
-    required: false, // You could enhance this with actual schema information
-  }));
-
-  return {
-    success: true,
-    data: {
-      tableName,
-      fields,
-      editableFields: config.editableFields,
-      searchFields: config.searchFields,
-    },
-  };
+    return { success: true, data: schema };
+  } catch (error) {
+    console.error("Error fetching table schema:", error);
+    return { success: false, error: "Failed to fetch table schema" };
+  }
 }

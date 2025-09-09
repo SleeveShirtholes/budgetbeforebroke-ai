@@ -1,0 +1,508 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id                    String    @id
+  name                  String
+  email                 String    @unique
+  emailVerified         Boolean   @default(false) @map("email_verified")
+  image                 String?
+  phoneNumber           String?   @map("phone_number")
+  isGlobalAdmin         Boolean   @default(false) @map("is_global_admin")
+  defaultBudgetAccountId String?  @map("default_budget_account_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  passwordChangedAt     DateTime? @map("password_changed_at")
+
+  // Relations
+  sessions              Session[]
+  accounts              Account[]
+  passkeys              Passkey[]
+  budgetAccountMembers  BudgetAccountMember[]
+  budgetAccountInvitations BudgetAccountInvitation[]
+  transactions          Transaction[]
+  goals                 Goal[]
+  plaidItems            PlaidItem[]
+  incomeSources         IncomeSource[]
+  debts                 Debt[]
+  debtAllocations       DebtAllocation[]
+  supportRequests       SupportRequest[]
+  supportComments       SupportComment[]
+  dismissedWarnings     DismissedWarning[]
+  contactSubmissions    ContactSubmission[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @map("expires_at")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                      String    @id
+  accountId               String    @map("account_id")
+  providerId              String    @map("provider_id")
+  userId                  String    @map("user_id")
+  accessToken             String?   @map("access_token")
+  refreshToken            String?   @map("refresh_token")
+  idToken                 String?   @map("id_token")
+  accessTokenExpiresAt    DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt   DateTime? @map("refresh_token_expires_at")
+  scope                   String?
+  password                String?
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+  passwordChangedAt       DateTime? @map("password_changed_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+}
+
+model Verification {
+  id          String   @id
+  identifier  String
+  value       String
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("verification")
+}
+
+model Passkey {
+  id           String   @id
+  name         String?
+  publicKey    String   @map("public_key")
+  userId       String   @map("user_id")
+  credentialID String   @map("credential_i_d")
+  counter      Int
+  deviceType   String   @map("device_type")
+  backedUp     Boolean  @map("backed_up")
+  transports   String?
+  createdAt    DateTime? @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("passkey")
+}
+
+// Budget Account Management
+model BudgetAccount {
+  id          String   @id
+  name        String
+  description String?
+  accountNumber String @unique @map("account_number")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  members      BudgetAccountMember[]
+  invitations  BudgetAccountInvitation[]
+  budgets      Budget[]
+  categories   Category[]
+  transactions Transaction[]
+  goals        Goal[]
+  plaidItems   PlaidItem[]
+  debts        Debt[]
+  debtAllocations DebtAllocation[]
+  monthlyDebtPlanning MonthlyDebtPlanning[]
+  dismissedWarnings DismissedWarning[]
+
+  @@map("budget_account")
+}
+
+model BudgetAccountMember {
+  id              String   @id
+  budgetAccountId String   @map("budget_account_id")
+  userId          String   @map("user_id")
+  role            String
+  joinedAt        DateTime @default(now()) @map("joined_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  budgetAccount BudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("budget_account_member")
+}
+
+model BudgetAccountInvitation {
+  id              String   @id
+  budgetAccountId String   @map("budget_account_id")
+  inviterId       String   @map("inviter_id")
+  inviteeEmail    String   @map("invitee_email")
+  role            String
+  status          String
+  token           String   @unique
+  expiresAt       DateTime @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  budgetAccount BudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  inviter       User          @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@map("budget_account_invitation")
+}
+
+// Budget Management
+model Budget {
+  id              String   @id
+  budgetAccountId String   @map("budget_account_id")
+  name            String
+  description     String?
+  year            Int
+  month           Int
+  totalBudget     Decimal? @map("total_budget") @db.Decimal(10, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  budgetAccount   BudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  budgetCategories BudgetCategory[]
+
+  @@unique([budgetAccountId, year, month], name: "yearMonthUnique")
+  @@map("budget")
+}
+
+// Category Management
+model Category {
+  id              String   @id
+  budgetAccountId String   @map("budget_account_id")
+  name            String
+  description     String?
+  color           String?
+  icon            String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  budgetAccount   BudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  budgetCategories BudgetCategory[]
+  debts           Debt[]
+  transactions    Transaction[]
+
+  @@map("category")
+}
+
+// Budget Category Allocation
+model BudgetCategory {
+  id         String   @id
+  budgetId   String   @map("budget_id")
+  categoryId String   @map("category_id")
+  amount     Decimal  @db.Decimal(10, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  budget   Budget  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@map("budget_category")
+}
+
+// Transaction Management
+model Transaction {
+  id                  String   @id
+  budgetAccountId     String   @map("budget_account_id")
+  categoryId          String?  @map("category_id")
+  createdByUserId     String   @map("created_by_user_id")
+  plaidItemId         String?  @map("plaid_item_id")
+  plaidAccountId      String?  @map("plaid_account_id")
+  plaidTransactionId  String?  @unique @map("plaid_transaction_id")
+  debtId              String?  @map("debt_id")
+  amount              Decimal  @db.Decimal(10, 2)
+  description         String?
+  date                DateTime @db.Date
+  type                String
+  status              String
+  merchantName        String?  @map("merchant_name")
+  plaidCategory       String?  @map("plaid_category")
+  pending             Boolean  @default(false)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  budgetAccount   BudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  category        Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdByUser   User          @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  plaidItem       PlaidItem?    @relation(fields: [plaidItemId], references: [id], onDelete: SetNull)
+  plaidAccount    PlaidAccount? @relation(fields: [plaidAccountId], references: [id], onDelete: SetNull)
+  debt            Debt?         @relation(fields: [debtId], references: [id], onDelete: SetNull)
+
+  @@map("transaction")
+}
+
+// Financial Goals
+model Goal {
+  id              String    @id
+  budgetAccountId String    @map("budget_account_id")
+  createdByUserId String    @map("created_by_user_id")
+  name            String
+  description     String?
+  targetAmount    Decimal   @map("target_amount") @db.Decimal(10, 2)
+  currentAmount   Decimal   @map("current_amount") @db.Decimal(10, 2) @default(0)
+  targetDate      DateTime? @map("target_date")
+  status          String
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  budgetAccount BudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  createdByUser User          @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@map("goal")
+}
+
+// Plaid Integration
+model PlaidItem {
+  id                    String   @id
+  budgetAccountId       String   @map("budget_account_id")
+  userId                String   @map("user_id")
+  plaidItemId           String   @unique @map("plaid_item_id")
+  plaidAccessToken      String   @map("plaid_access_token")
+  plaidInstitutionId    String   @map("plaid_institution_id")
+  plaidInstitutionName  String   @map("plaid_institution_name")
+  status                String
+  lastSyncAt            DateTime? @map("last_sync_at")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  budgetAccount BudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plaidAccounts PlaidAccount[]
+  transactions  Transaction[]
+
+  @@map("plaid_item")
+}
+
+model PlaidAccount {
+  id           String   @id
+  plaidItemId  String   @map("plaid_item_id")
+  plaidAccountId String @unique @map("plaid_account_id")
+  name         String
+  type         String
+  subtype      String
+  mask         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  plaidItem   PlaidItem    @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@map("plaid_account")
+}
+
+// Income Management
+model IncomeSource {
+  id        String   @id
+  userId    String   @map("user_id")
+  name      String
+  amount    Decimal  @db.Decimal(10, 2)
+  frequency String
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime? @map("end_date") @db.Date
+  isActive  Boolean  @default(true) @map("is_active")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("income_source")
+}
+
+// Debt Management
+model Debt {
+  id                String    @id
+  budgetAccountId   String    @map("budget_account_id")
+  createdByUserId   String    @map("created_by_user_id")
+  categoryId        String?   @map("category_id")
+  name              String
+  paymentAmount     Decimal   @map("payment_amount") @db.Decimal(10, 2)
+  interestRate      Decimal   @map("interest_rate") @db.Decimal(5, 2)
+  dueDate           DateTime  @map("due_date") @db.Date
+  hasBalance        Boolean   @default(false) @map("has_balance")
+  lastPaymentMonth  DateTime? @map("last_payment_month")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  budgetAccount     BudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  createdByUser     User          @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  category          Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transactions      Transaction[]
+  monthlyPlanning   MonthlyDebtPlanning[]
+
+  @@map("debt")
+}
+
+model DebtAllocation {
+  id                    String   @id
+  budgetAccountId       String   @map("budget_account_id")
+  monthlyDebtPlanningId String   @map("monthly_debt_planning_id")
+  paycheckId            String   @map("paycheck_id")
+  paymentAmount         Decimal? @map("payment_amount") @db.Decimal(10, 2)
+  paymentDate           DateTime? @map("payment_date") @db.Date
+  isPaid                Boolean  @default(false) @map("is_paid")
+  paidAt                DateTime? @map("paid_at")
+  note                  String?
+  allocatedAt           DateTime @default(now()) @map("allocated_at")
+  userId                String   @map("user_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  budgetAccount       BudgetAccount       @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  monthlyDebtPlanning MonthlyDebtPlanning @relation(fields: [monthlyDebtPlanningId], references: [id], onDelete: Cascade)
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("debt_allocations")
+}
+
+model MonthlyDebtPlanning {
+  id              String   @id
+  budgetAccountId String   @map("budget_account_id")
+  debtId          String   @map("debt_id")
+  year            Int
+  month           Int
+  dueDate         DateTime @map("due_date") @db.Date
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  budgetAccount BudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  debt          Debt          @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  allocations   DebtAllocation[]
+
+  @@unique([budgetAccountId, debtId, year, month], name: "uniqueMonthlyDebtPlanning")
+  @@map("monthly_debt_planning")
+}
+
+// Support Requests
+model SupportRequest {
+  id          String   @id
+  title       String
+  description String
+  category    String
+  status      String
+  isPublic    Boolean  @default(false) @map("is_public")
+  userId      String   @map("user_id")
+  upvotes     Int      @default(0)
+  downvotes   Int      @default(0)
+  lastUpdated DateTime @default(now()) @map("last_updated")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments SupportComment[]
+
+  @@map("support_request")
+}
+
+model SupportComment {
+  id        String   @id
+  requestId String   @map("request_id")
+  userId    String   @map("user_id")
+  text      String
+  timestamp DateTime @default(now())
+
+  // Relations
+  request SupportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("support_comment")
+}
+
+// Dismissed Warnings
+model DismissedWarning {
+  id              String   @id
+  budgetAccountId String   @map("budget_account_id")
+  userId          String   @map("user_id")
+  warningType     String   @map("warning_type")
+  warningKey      String   @map("warning_key")
+  dismissedAt     DateTime @default(now()) @map("dismissed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  budgetAccount BudgetAccount @relation(fields: [budgetAccountId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("dismissed_warnings")
+}
+
+// Contact Submissions
+model ContactSubmission {
+  id                    String    @id
+  name                  String
+  email                 String
+  subject               String
+  message               String
+  ipAddress             String?   @map("ip_address")
+  userAgent             String?   @map("user_agent")
+  status                String    @default("new")
+  assignedTo            String?   @map("assigned_to")
+  notes                 String?
+  resolvedAt            DateTime? @map("resolved_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  conversationId        String    @unique @map("conversation_id")
+  lastUserMessageAt     DateTime? @map("last_user_message_at")
+  lastSupportMessageAt  DateTime? @map("last_support_message_at")
+
+  // Relations
+  assignedUser  User?              @relation(fields: [assignedTo], references: [id])
+  conversations EmailConversation[]
+
+  @@map("contact_submission")
+}
+
+model EmailConversation {
+  id            String   @id
+  conversationId String  @map("conversation_id")
+  messageId     String?  @map("message_id")
+  fromEmail     String   @map("from_email")
+  fromName      String   @map("from_name")
+  toEmail       String   @map("to_email")
+  subject       String
+  message       String
+  messageType   String   @map("message_type")
+  direction     String
+  rawEmail      String?  @map("raw_email")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  submission ContactSubmission @relation(fields: [conversationId], references: [conversationId])
+
+  @@map("email_conversation")
+}

@@ -1,31 +1,11 @@
 "use server";
 
-import {
-  budgetAccountMembers,
-  budgetCategories,
-  budgets,
-  categories,
-} from "@/db/schema";
-import { and, eq } from "drizzle-orm";
-
 import { db } from "@/db/config";
 import { auth } from "@/lib/auth";
 import { randomUUID } from "crypto";
-import type { InferSelectModel } from "drizzle-orm";
 import { headers } from "next/headers";
 import { BudgetCategoryName } from "../dashboard/budgets/types/budget.types";
-
-type BudgetAccountMember = InferSelectModel<typeof budgetAccountMembers>;
-type Budget = InferSelectModel<typeof budgets> & {
-  budgetAccount?: {
-    members?: BudgetAccountMember[];
-  };
-};
-type Category = InferSelectModel<typeof categories>;
-type BudgetCategory = InferSelectModel<typeof budgetCategories> & {
-  category?: Category;
-  budget?: Budget;
-};
+// Removed unused type imports
 
 /**
  * Gets the budget categories for a specific budget
@@ -42,18 +22,19 @@ export async function getBudgetCategories(budgetId: string) {
     throw new Error("Not authenticated");
   }
 
-  const budgetCategoriesResult = await db
-    .select({
-      id: budgetCategories.id,
-      amount: budgetCategories.amount,
+  const budgetCategoriesResult = await db.budgetCategory.findMany({
+    where: {
+      budgetId: budgetId,
+    },
+    include: {
       category: {
-        name: categories.name,
-        color: categories.color,
+        select: {
+          name: true,
+          color: true,
+        },
       },
-    })
-    .from(budgetCategories)
-    .innerJoin(categories, eq(budgetCategories.categoryId, categories.id))
-    .where(eq(budgetCategories.budgetId, budgetId));
+    },
+  });
 
   return budgetCategoriesResult.map((bc) => ({
     id: bc.id,
@@ -85,16 +66,18 @@ export async function createBudgetCategory(
   }
 
   // Get the budget to verify ownership
-  const budget = (await db.query.budgets.findFirst({
-    where: eq(budgets.id, budgetId),
-    with: {
+  const budget = await db.budget.findFirst({
+    where: {
+      id: budgetId,
+    },
+    include: {
       budgetAccount: {
-        with: {
+        include: {
           members: true,
         },
       },
     },
-  })) as Budget | null;
+  });
 
   if (!budget) {
     throw new Error("Budget not found");
@@ -108,47 +91,39 @@ export async function createBudgetCategory(
   }
 
   // Get or create the category
-  let category = await db.query.categories.findFirst({
-    where: and(
-      eq(categories.budgetAccountId, budget.budgetAccountId),
-      eq(categories.name, name),
-    ),
+  let category = await db.category.findFirst({
+    where: {
+      budgetAccountId: budget.budgetAccountId,
+      name: name,
+    },
   });
 
   if (!category) {
-    const categoryId = randomUUID();
-    await db.insert(categories).values({
-      id: categoryId,
-      budgetAccountId: budget.budgetAccountId,
-      name,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    category = await db.category.create({
+      data: {
+        id: randomUUID(),
+        budgetAccountId: budget.budgetAccountId,
+        name,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     });
-    category = {
-      id: categoryId,
-      budgetAccountId: budget.budgetAccountId,
-      name,
-      description: null,
-      color: null,
-      icon: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
   }
 
   // Create the budget category
-  const budgetCategoryId = randomUUID();
-  await db.insert(budgetCategories).values({
-    id: budgetCategoryId,
-    budgetId,
-    categoryId: category.id,
-    amount: amount.toString(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  const budgetCategory = await db.budgetCategory.create({
+    data: {
+      id: randomUUID(),
+      budgetId,
+      categoryId: category.id,
+      amount: amount.toString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
   });
 
   return {
-    id: budgetCategoryId,
+    id: budgetCategory.id,
     name: category.name as BudgetCategoryName,
     amount: Number(amount),
     color: category.color || "#64748B",
@@ -175,21 +150,23 @@ export async function updateBudgetCategory(
   }
 
   // Get the budget category with its related data
-  const budgetCategory = (await db.query.budgetCategories.findFirst({
-    where: eq(budgetCategories.id, budgetCategoryId),
-    with: {
+  const budgetCategory = await db.budgetCategory.findFirst({
+    where: {
+      id: budgetCategoryId,
+    },
+    include: {
       category: true,
       budget: {
-        with: {
+        include: {
           budgetAccount: {
-            with: {
+            include: {
               members: true,
             },
           },
         },
       },
     },
-  })) as BudgetCategory | null;
+  });
 
   if (!budgetCategory) {
     throw new Error("Budget category not found");
@@ -203,13 +180,15 @@ export async function updateBudgetCategory(
   }
 
   // Update the budget category
-  await db
-    .update(budgetCategories)
-    .set({
+  await db.budgetCategory.update({
+    where: {
+      id: budgetCategoryId,
+    },
+    data: {
       amount: amount.toString(),
       updatedAt: new Date(),
-    })
-    .where(eq(budgetCategories.id, budgetCategoryId));
+    },
+  });
 
   return {
     id: budgetCategoryId,
@@ -234,20 +213,22 @@ export async function deleteBudgetCategory(budgetCategoryId: string) {
   }
 
   // Get the budget category with its related data
-  const budgetCategory = (await db.query.budgetCategories.findFirst({
-    where: eq(budgetCategories.id, budgetCategoryId),
-    with: {
+  const budgetCategory = await db.budgetCategory.findFirst({
+    where: {
+      id: budgetCategoryId,
+    },
+    include: {
       budget: {
-        with: {
+        include: {
           budgetAccount: {
-            with: {
+            include: {
               members: true,
             },
           },
         },
       },
     },
-  })) as BudgetCategory | null;
+  });
 
   if (!budgetCategory) {
     throw new Error("Budget category not found");
@@ -261,9 +242,11 @@ export async function deleteBudgetCategory(budgetCategoryId: string) {
   }
 
   // Delete the budget category
-  await db
-    .delete(budgetCategories)
-    .where(eq(budgetCategories.id, budgetCategoryId));
+  await db.budgetCategory.delete({
+    where: {
+      id: budgetCategoryId,
+    },
+  });
 }
 
 /**
@@ -290,12 +273,12 @@ export async function createBudget(
   }
 
   // Check if budget already exists
-  const existingBudget = await db.query.budgets.findFirst({
-    where: and(
-      eq(budgets.budgetAccountId, budgetAccountId),
-      eq(budgets.year, year),
-      eq(budgets.month, month),
-    ),
+  const existingBudget = await db.budget.findFirst({
+    where: {
+      budgetAccountId: budgetAccountId,
+      year: year,
+      month: month,
+    },
   });
 
   if (existingBudget) {
@@ -303,30 +286,21 @@ export async function createBudget(
   }
 
   // Create new budget
-  const budgetId = randomUUID();
-  await db.insert(budgets).values({
-    id: budgetId,
-    budgetAccountId,
-    name: `${new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" })} Budget`,
-    description: null,
-    year,
-    month,
-    totalBudget: totalBudget?.toString(),
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  const budget = await db.budget.create({
+    data: {
+      id: randomUUID(),
+      budgetAccountId,
+      name: `${new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" })} Budget`,
+      description: null,
+      year,
+      month,
+      totalBudget: totalBudget?.toString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
   });
 
-  return {
-    id: budgetId,
-    budgetAccountId,
-    name: `${new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" })} Budget`,
-    description: null,
-    year,
-    month,
-    totalBudget: totalBudget ? totalBudget.toString() : null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  return budget;
 }
 
 /**
@@ -346,16 +320,18 @@ export async function updateBudget(budgetId: string, totalBudget: number) {
   }
 
   // Get the budget to verify ownership
-  const budget = (await db.query.budgets.findFirst({
-    where: eq(budgets.id, budgetId),
-    with: {
+  const budget = await db.budget.findFirst({
+    where: {
+      id: budgetId,
+    },
+    include: {
       budgetAccount: {
-        with: {
+        include: {
           members: true,
         },
       },
     },
-  })) as Budget | null;
+  });
 
   if (!budget) {
     throw new Error("Budget not found");
@@ -369,18 +345,17 @@ export async function updateBudget(budgetId: string, totalBudget: number) {
   }
 
   // Update the budget
-  await db
-    .update(budgets)
-    .set({
+  const updatedBudget = await db.budget.update({
+    where: {
+      id: budgetId,
+    },
+    data: {
       totalBudget: totalBudget.toString(),
       updatedAt: new Date(),
-    })
-    .where(eq(budgets.id, budgetId));
+    },
+  });
 
-  return {
-    ...budget,
-    totalBudget: Number(totalBudget),
-  };
+  return updatedBudget;
 }
 
 /**
@@ -404,12 +379,12 @@ export async function getBudget(
   }
 
   // Fetch the budget if it exists
-  const existingBudget = await db.query.budgets.findFirst({
-    where: and(
-      eq(budgets.budgetAccountId, budgetAccountId),
-      eq(budgets.year, year),
-      eq(budgets.month, month),
-    ),
+  const existingBudget = await db.budget.findFirst({
+    where: {
+      budgetAccountId: budgetAccountId,
+      year: year,
+      month: month,
+    },
   });
 
   return existingBudget || null;

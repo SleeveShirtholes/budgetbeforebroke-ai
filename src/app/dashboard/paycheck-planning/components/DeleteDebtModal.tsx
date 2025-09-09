@@ -2,13 +2,13 @@ import { useState } from "react";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import Button from "@/components/Button";
 import Modal from "@/components/Modal/Modal";
-import { deleteDebt, type Debt } from "@/app/actions/debt";
+import { deleteDebt, type DebtWithPayments } from "@/app/actions/debt";
 
 interface DeleteDebtModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDebtDeleted: () => void;
-  debt: Debt;
+  debt: DebtWithPayments;
   budgetAccountId: string;
 }
 

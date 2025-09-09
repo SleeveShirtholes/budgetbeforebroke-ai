@@ -43,8 +43,7 @@ import Skeleton, {
 } from "@/components/Skeleton";
 
 import "@/styles/sortable.css";
-import { debtAllocations } from "@/db/schema";
-import type { InferSelectModel } from "drizzle-orm";
+// Removed Drizzle imports - using Prisma now
 
 /**
  * Enhanced PaycheckPlanningPage Component
@@ -65,7 +64,21 @@ export default function PaycheckPlanningPage() {
   const [planningWindowMonths, setPlanningWindowMonths] = useState(0);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [allDebtAllocations, setAllDebtAllocations] = useState<
-    InferSelectModel<typeof debtAllocations>[]
+    Array<{
+      id: string;
+      budgetAccountId: string;
+      monthlyDebtPlanningId: string;
+      paycheckId: string;
+      userId: string;
+      paymentAmount: string | null;
+      paymentDate: string | null;
+      note: string | null;
+      isPaid: boolean;
+      paidAt: Date | null;
+      allocatedAt: Date;
+      createdAt: Date;
+      updatedAt: Date;
+    }>
   >([]);
   const [isChangingPlanningWindow, setIsChangingPlanningWindow] =
     useState(false);
@@ -127,6 +140,77 @@ export default function PaycheckPlanningPage() {
     }));
   }, [hiddenDebtsData]);
 
+  // Debug logging to understand data structure
+  console.log("Paycheck Planning Debug:", {
+    selectedAccount: selectedAccount
+      ? {
+          id: selectedAccount.id,
+          name: selectedAccount.nickname,
+        }
+      : null,
+    selectedDate: selectedDate.toISOString().split("T")[0],
+    planningWindowMonths,
+    paychecks: planningData?.paychecks?.length || 0,
+    futurePaychecks: planningData?.futurePaychecks?.length || 0,
+    allocations: allocations?.length || 0,
+    unallocatedMonthlyDebts: planningData?.debts?.length || 0,
+    hiddenDebts: hiddenDebts?.length || 0,
+    isPlanningDataLoading,
+    isHiddenDebtsLoading,
+    isInitialLoading,
+    isAccountsLoading,
+    planningData: planningData
+      ? {
+          paychecks: planningData.paychecks?.length || 0,
+          futurePaychecks: planningData.futurePaychecks?.length || 0,
+          debts: planningData.debts?.length || 0,
+          warnings: planningData.warnings?.length || 0,
+        }
+      : null,
+  });
+
+  // Memoize expensive calculations - MUST be before any early returns
+  const paychecks = useMemo(
+    () => planningData?.paychecks || [],
+    [planningData?.paychecks],
+  );
+  const futurePaychecks = planningData?.futurePaychecks || [];
+  const debts = useMemo(() => planningData?.debts || [], [planningData?.debts]);
+  const warnings = planningData?.warnings || [];
+
+  const totalIncome = useMemo(
+    () => paychecks.reduce((sum, paycheck) => sum + paycheck.amount, 0),
+    [paychecks],
+  );
+
+  const totalDebts = useMemo(
+    () => debts.reduce((sum, debt) => sum + debt.amount, 0),
+    [debts],
+  );
+
+  const totalAllocated = useMemo(
+    () =>
+      (allocations || []).reduce(
+        (sum, allocation) =>
+          sum +
+          allocation.allocatedDebts.reduce(
+            (debtSum, debt) => debtSum + debt.amount,
+            0,
+          ),
+        0,
+      ),
+    [allocations],
+  );
+
+  const totalRemaining = useMemo(
+    () => totalIncome - totalAllocated,
+    [totalIncome, totalAllocated],
+  );
+
+  const isCurrentMonth =
+    selectedDate.getMonth() === new Date().getMonth() &&
+    selectedDate.getFullYear() === new Date().getFullYear();
+
   // Populate monthly debt planning rows for the visible window,
   // then revalidate to ensure newly inserted rows are reflected immediately
   // Note: This will only populate if there are existing debts in the system
@@ -162,8 +246,8 @@ export default function PaycheckPlanningPage() {
     selectedAccount?.id,
     selectedDate,
     planningWindowMonths,
-    mutatePlanningData,
     mutateAllocations,
+    mutatePlanningData,
   ]);
 
   // Fetch all debt allocations for the budget account
@@ -175,7 +259,17 @@ export default function PaycheckPlanningPage() {
         const allocations = await getDebtAllocations(selectedAccount.id);
 
         if (!isCancelled) {
-          setAllDebtAllocations(allocations);
+          setAllDebtAllocations(
+            allocations.map((allocation) => ({
+              ...allocation,
+              paymentAmount: allocation.paymentAmount
+                ? allocation.paymentAmount.toString()
+                : null,
+              paymentDate: allocation.paymentDate
+                ? allocation.paymentDate.toISOString().split("T")[0]
+                : null,
+            })),
+          );
         }
       } catch (error) {
         console.error("Failed to fetch all debt allocations:", error);
@@ -210,7 +304,17 @@ export default function PaycheckPlanningPage() {
             mutatePlanningData?.(),
             mutateAllocations?.(),
           ]);
-          setAllDebtAllocations(updatedAllocations);
+          setAllDebtAllocations(
+            updatedAllocations.map((allocation) => ({
+              ...allocation,
+              paymentAmount: allocation.paymentAmount
+                ? allocation.paymentAmount.toString()
+                : null,
+              paymentDate: allocation.paymentDate
+                ? allocation.paymentDate.toISOString().split("T")[0]
+                : null,
+            })),
+          );
         } catch (error) {
           console.error("Failed to refresh debt allocations:", error);
         }
@@ -239,7 +343,17 @@ export default function PaycheckPlanningPage() {
             mutatePlanningData?.(),
             mutateAllocations?.(),
           ]);
-          setAllDebtAllocations(updatedAllocations);
+          setAllDebtAllocations(
+            updatedAllocations.map((allocation) => ({
+              ...allocation,
+              paymentAmount: allocation.paymentAmount
+                ? allocation.paymentAmount.toString()
+                : null,
+              paymentDate: allocation.paymentDate
+                ? allocation.paymentDate.toISOString().split("T")[0]
+                : null,
+            })),
+          );
         } catch (error) {
           console.error("Failed to refresh debt allocations:", error);
         }
@@ -517,47 +631,6 @@ export default function PaycheckPlanningPage() {
     }
   }, [isDropdownOpen]);
 
-  // Memoize expensive calculations before early returns
-  const {
-    paychecks = [],
-    futurePaychecks = [],
-    debts = [],
-    warnings = [],
-  } = planningData || {};
-
-  const totalIncome = useMemo(
-    () => paychecks.reduce((sum, paycheck) => sum + paycheck.amount, 0),
-    [paychecks],
-  );
-
-  const totalDebts = useMemo(
-    () => debts.reduce((sum, debt) => sum + debt.amount, 0),
-    [debts],
-  );
-
-  const totalAllocated = useMemo(
-    () =>
-      allocations?.reduce(
-        (sum, allocation) =>
-          sum +
-          allocation.allocatedDebts.reduce(
-            (debtSum, debt) => debtSum + debt.amount,
-            0,
-          ),
-        0,
-      ) || 0,
-    [allocations],
-  );
-
-  const totalRemaining = useMemo(
-    () => totalIncome - totalAllocated,
-    [totalIncome, totalAllocated],
-  );
-
-  const isCurrentMonth =
-    selectedDate.getMonth() === new Date().getMonth() &&
-    selectedDate.getFullYear() === new Date().getFullYear();
-
   // Loading states
   if (isAccountsLoading) {
     return (
@@ -834,10 +907,10 @@ export default function PaycheckPlanningPage() {
                           Allocated
                         </p>
                         <p className="text-sm text-gray-500">
-                          {allocations?.reduce(
+                          {(allocations || []).reduce(
                             (sum, a) => sum + a.allocatedDebts.length,
                             0,
-                          ) || 0}{" "}
+                          )}{" "}
                           payments
                         </p>
                       </div>
@@ -907,10 +980,10 @@ export default function PaycheckPlanningPage() {
                       Allocated
                     </p>
                     <p className="text-sm text-gray-500 hidden sm:block">
-                      {allocations?.reduce(
+                      {(allocations || []).reduce(
                         (sum, a) => sum + a.allocatedDebts.length,
                         0,
-                      ) || 0}{" "}
+                      )}{" "}
                       payments
                     </p>
                   </div>
@@ -1131,7 +1204,19 @@ export default function PaycheckPlanningPage() {
                         const updatedAllocations = await getDebtAllocations(
                           selectedAccount.id,
                         );
-                        setAllDebtAllocations(updatedAllocations);
+                        setAllDebtAllocations(
+                          updatedAllocations.map((allocation) => ({
+                            ...allocation,
+                            paymentAmount: allocation.paymentAmount
+                              ? allocation.paymentAmount.toString()
+                              : null,
+                            paymentDate: allocation.paymentDate
+                              ? allocation.paymentDate
+                                  .toISOString()
+                                  .split("T")[0]
+                              : null,
+                          })),
+                        );
                       }
                     })(),
                   ]);

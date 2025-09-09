@@ -10,12 +10,190 @@ process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
 process.env.SUPPORT_TEAM_EMAIL = "support@test.com";
 
 // Global mocks for database
-jest.mock("@neondatabase/serverless", () => ({
-  neon: jest.fn(() => {
-    const mockSql = jest.fn();
-    mockSql.setTypeParser = jest.fn();
-    return mockSql;
-  }),
+const mockDb = {
+  user: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    count: jest.fn(),
+    aggregate: jest.fn(),
+    groupBy: jest.fn(),
+  },
+  budgetAccount: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  budgetAccountMember: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    count: jest.fn(),
+  },
+  budgetAccountInvitation: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  budget: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  category: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  budgetCategory: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  transaction: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    count: jest.fn(),
+    aggregate: jest.fn(),
+    groupBy: jest.fn(),
+  },
+  goal: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  plaidItem: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  plaidAccount: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  incomeSource: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  debt: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  debtAllocation: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  monthlyDebtPlanning: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  supportRequest: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  supportComment: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  dismissedWarning: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  contactSubmission: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  emailConversation: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  $disconnect: jest.fn(),
+  $connect: jest.fn(),
+  $transaction: jest.fn(),
+};
+
+// Mock the database config
+jest.mock("@/db/config", () => ({
+  db: mockDb,
+}));
+
+// Also mock PrismaClient for any direct imports
+jest.mock("@prisma/client", () => ({
+  PrismaClient: jest.fn(() => mockDb),
 }));
 
 jest.mock("resend", () => ({
@@ -24,6 +202,30 @@ jest.mock("resend", () => ({
       send: jest.fn().mockResolvedValue({ id: "test-email-id" }),
     },
   })),
+}));
+
+// Mock better-auth and related modules to avoid ESM issues
+jest.mock("better-auth", () => ({
+  betterAuth: jest.fn(() => ({
+    api: {
+      getSession: jest.fn(),
+    },
+  })),
+}));
+
+jest.mock("better-auth/adapters/prisma", () => ({
+  prismaAdapter: jest.fn(() => ({})),
+}));
+
+jest.mock("better-auth/plugins/organization", () => ({
+  organization: jest.fn(() => ({})),
+}));
+
+// Mock uncrypto to avoid ESM issues
+jest.mock("uncrypto", () => ({
+  randomUUID: () => "00000000-0000-0000-0000-000000000000",
+  getRandomValues: jest.fn(),
+  subtle: {},
 }));
 
 // Mock react-hot-toast for tests

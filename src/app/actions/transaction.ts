@@ -1,9 +1,7 @@
 "use server";
 
-import { budgetAccounts, categories, transactions, user } from "@/db/schema";
-import { and, eq, desc } from "drizzle-orm";
+import { db } from "@/db/schema";
 
-import { db } from "@/db/config";
 import { auth } from "@/lib/auth";
 import { randomUUID } from "crypto";
 import { headers } from "next/headers";
@@ -36,7 +34,7 @@ export type UpdateTransactionInput = {
 /**
  * Transaction data structure with optional category name
  */
-export type Transaction = {
+export type TransactionWithCategory = {
   id: string;
   budgetAccountId: string;
   categoryId: string | null;
@@ -76,20 +74,19 @@ async function getDefaultBudgetAccountId(): Promise<string> {
   }
 
   // Query the database for the user's default budget account
-  const userResult = await db
-    .select({
-      defaultBudgetAccountId: user.defaultBudgetAccountId,
-    })
-    .from(user)
-    .where(eq(user.id, sessionResult.user.id))
-    .limit(1);
+  const userResult = await db.user.findFirst({
+    where: { id: sessionResult.user.id },
+    select: {
+      defaultBudgetAccountId: true,
+    },
+  });
 
   // Ensure the user has a default budget account
-  if (!userResult[0]?.defaultBudgetAccountId) {
+  if (!userResult?.defaultBudgetAccountId) {
     throw new Error("No default budget account found");
   }
 
-  return userResult[0].defaultBudgetAccountId;
+  return userResult.defaultBudgetAccountId;
 }
 
 /**
@@ -137,42 +134,46 @@ function parseTransactionDate(dateString?: string): string {
  * in descending order (most recent first).
  *
  * @param budgetAccountId - Optional budget account ID. If not provided, uses the user's default account
- * @returns Promise<Transaction[]> - Array of transactions with category names
+ * @returns Promise<TransactionWithCategory[]> - Array of transactions with category names
  */
 export async function getTransactions(budgetAccountId?: string) {
   // Use provided account ID or get the default one
   const accountId = budgetAccountId || (await getDefaultBudgetAccountId());
 
-  // Get transactions with category names using a left join
-  const transactionsWithCategories = await db
-    .select({
-      id: transactions.id,
-      budgetAccountId: transactions.budgetAccountId,
-      categoryId: transactions.categoryId,
-      createdByUserId: transactions.createdByUserId,
-      amount: transactions.amount,
-      description: transactions.description,
-      date: transactions.date,
-      type: transactions.type,
-      status: transactions.status,
-      merchantName: transactions.merchantName,
-      plaidCategory: transactions.plaidCategory,
-      pending: transactions.pending,
-      createdAt: transactions.createdAt,
-      updatedAt: transactions.updatedAt,
-      categoryName: categories.name,
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .where(eq(transactions.budgetAccountId, accountId))
-    .orderBy(desc(transactions.date));
+  // Get transactions with category names using include
+  const transactionsWithCategories = await db.transaction.findMany({
+    where: {
+      budgetAccountId: accountId,
+    },
+    include: {
+      category: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      date: "desc",
+    },
+  });
 
   // Convert amount to number and return transactions
   return transactionsWithCategories.map((transaction) => ({
-    ...transaction,
+    id: transaction.id,
+    budgetAccountId: transaction.budgetAccountId,
+    categoryId: transaction.categoryId,
+    createdByUserId: transaction.createdByUserId,
     amount: Number(transaction.amount),
+    description: transaction.description,
+    date: transaction.date.toISOString().split("T")[0], // Convert to YYYY-MM-DD
     type: transaction.type as "income" | "expense",
-    categoryName: transaction.categoryName || undefined,
+    status: transaction.status,
+    merchantName: transaction.merchantName,
+    plaidCategory: transaction.plaidCategory,
+    pending: transaction.pending,
+    createdAt: transaction.createdAt,
+    updatedAt: transaction.updatedAt,
+    categoryName: transaction.category?.name || undefined,
   }));
 }
 
@@ -190,17 +191,21 @@ export async function getTransactionCategories(budgetAccountId?: string) {
   const accountId = budgetAccountId || (await getDefaultBudgetAccountId());
 
   // Query categories for the specified budget account
-  const categoriesResult = await db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      description: categories.description,
-      color: categories.color,
-      icon: categories.icon,
-    })
-    .from(categories)
-    .where(eq(categories.budgetAccountId, accountId))
-    .orderBy(categories.name);
+  const categoriesResult = await db.category.findMany({
+    where: {
+      budgetAccountId: accountId,
+    },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      color: true,
+      icon: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
 
   // Convert null values to undefined for optional fields
   return categoriesResult.map((category) => ({
@@ -237,25 +242,21 @@ export async function createTransaction(data: CreateTransactionInput) {
   const budgetAccountId = await getDefaultBudgetAccountId();
 
   // Verify the budget account exists
-  const budgetAccount = await db
-    .select()
-    .from(budgetAccounts)
-    .where(eq(budgetAccounts.id, budgetAccountId))
-    .limit(1);
+  const budgetAccount = await db.budgetAccount.findFirst({
+    where: { id: budgetAccountId },
+  });
 
-  if (!budgetAccount[0]) {
+  if (!budgetAccount) {
     throw new Error("Budget account not found");
   }
 
   // Verify category exists if provided
   if (data.categoryId) {
-    const category = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.id, data.categoryId))
-      .limit(1);
+    const category = await db.category.findFirst({
+      where: { id: data.categoryId },
+    });
 
-    if (!category[0]) {
+    if (!category) {
       throw new Error("Category not found");
     }
   }
@@ -266,19 +267,19 @@ export async function createTransaction(data: CreateTransactionInput) {
   // Parse the date using the helper function
   const transactionDate = parseTransactionDate(data.date);
 
-  await db.insert(transactions).values({
-    id: transactionId,
-    budgetAccountId,
-    categoryId: data.categoryId || null,
-    createdByUserId: sessionResult.user.id,
-    amount: data.amount.toString(),
-    description: data.description || null,
-    date: transactionDate,
-    type: data.type,
-    status: "completed",
-    merchantName: data.merchantName || null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  await db.transaction.create({
+    data: {
+      id: transactionId,
+      budgetAccountId,
+      categoryId: data.categoryId || null,
+      createdByUserId: sessionResult.user.id,
+      amount: data.amount,
+      description: data.description || null,
+      date: new Date(transactionDate),
+      type: data.type,
+      status: "completed",
+      merchantName: data.merchantName || null,
+    },
   });
 
   return { id: transactionId };
@@ -310,59 +311,44 @@ export async function updateTransaction(data: UpdateTransactionInput) {
   const budgetAccountId = await getDefaultBudgetAccountId();
 
   // Verify the transaction exists and belongs to the user's budget account
-  const existingTransaction = await db
-    .select({
-      id: transactions.id,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.id, data.id),
-        eq(transactions.budgetAccountId, budgetAccountId),
-      ),
-    )
-    .limit(1);
+  const existingTransaction = await db.transaction.findFirst({
+    where: {
+      id: data.id,
+      budgetAccountId: budgetAccountId,
+    },
+    select: {
+      id: true,
+    },
+  });
 
-  if (!existingTransaction[0]) {
+  if (!existingTransaction) {
     throw new Error("Transaction not found");
   }
 
   // Verify category exists if provided
   if (data.categoryId) {
-    const category = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.id, data.categoryId))
-      .limit(1);
+    const category = await db.category.findFirst({
+      where: { id: data.categoryId },
+    });
 
-    if (!category[0]) {
+    if (!category) {
       throw new Error("Category not found");
     }
   }
 
   // Build update data object with only provided fields
-  const updateData: Partial<{
-    amount: string;
-    description: string | null;
-    date: string;
-    type: "income" | "expense";
-    categoryId: string | null;
-    merchantName: string | null;
-    updatedAt: Date;
-  }> = {
-    updatedAt: new Date(),
-  };
+  const updateData: Record<string, unknown> = {};
 
   // Add provided fields to update data
   if (data.amount !== undefined) {
-    updateData.amount = data.amount.toString();
+    updateData.amount = data.amount;
   }
   if (data.description !== undefined) {
     updateData.description = data.description || null;
   }
   if (data.date !== undefined) {
     // Parse the date using the helper function
-    updateData.date = parseTransactionDate(data.date);
+    updateData.date = new Date(parseTransactionDate(data.date));
   }
   if (data.type !== undefined) {
     updateData.type = data.type;
@@ -375,10 +361,10 @@ export async function updateTransaction(data: UpdateTransactionInput) {
   }
 
   // Update the transaction
-  await db
-    .update(transactions)
-    .set(updateData)
-    .where(eq(transactions.id, data.id));
+  await db.transaction.update({
+    where: { id: data.id },
+    data: updateData,
+  });
 
   return { id: data.id };
 }
@@ -404,30 +390,25 @@ export async function updateTransactionCategory(
 
   // Verify category exists if provided
   if (categoryId) {
-    const category = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.id, categoryId))
-      .limit(1);
+    const category = await db.category.findFirst({
+      where: { id: categoryId },
+    });
 
-    if (!category[0]) {
+    if (!category) {
       throw new Error("Category not found");
     }
   }
 
   // Update the transaction category in the database
-  await db
-    .update(transactions)
-    .set({
+  await db.transaction.updateMany({
+    where: {
+      id: transactionId,
+      budgetAccountId: budgetAccountId,
+    },
+    data: {
       categoryId,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(transactions.id, transactionId),
-        eq(transactions.budgetAccountId, budgetAccountId),
-      ),
-    );
+    },
+  });
 
   return { id: transactionId };
 }
@@ -448,14 +429,12 @@ export async function deleteTransaction(transactionId: string) {
   const budgetAccountId = await getDefaultBudgetAccountId();
 
   // Delete the transaction from the database
-  await db
-    .delete(transactions)
-    .where(
-      and(
-        eq(transactions.id, transactionId),
-        eq(transactions.budgetAccountId, budgetAccountId),
-      ),
-    );
+  await db.transaction.deleteMany({
+    where: {
+      id: transactionId,
+      budgetAccountId: budgetAccountId,
+    },
+  });
 
   return { id: transactionId };
 }

@@ -1,18 +1,10 @@
 "use server";
 
-import { and, eq, gte, lte, sql, desc } from "drizzle-orm";
-import {
-  transactions,
-  categories,
-  budgetCategories,
-  budgets,
-  user,
-} from "@/db/schema";
+import { db } from "@/db/schema";
 
-import { db } from "@/db/config";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { toDateString } from "@/utils/date";
+import { toPrismaDateTime } from "@/utils/date";
 
 /**
  * Dashboard data structure
@@ -42,19 +34,18 @@ async function getDefaultBudgetAccountId(): Promise<string> {
     throw new Error("Not authenticated");
   }
 
-  const userResult = await db
-    .select({
-      defaultBudgetAccountId: user.defaultBudgetAccountId,
-    })
-    .from(user)
-    .where(eq(user.id, sessionResult.user.id))
-    .limit(1);
+  const userResult = await db.user.findFirst({
+    where: { id: sessionResult.user.id },
+    select: {
+      defaultBudgetAccountId: true,
+    },
+  });
 
-  if (!userResult[0]?.defaultBudgetAccountId) {
+  if (!userResult?.defaultBudgetAccountId) {
     throw new Error("No default budget account found");
   }
 
-  return userResult[0].defaultBudgetAccountId;
+  return userResult.defaultBudgetAccountId;
 }
 
 /**
@@ -90,16 +81,29 @@ function getCurrentMonthDateRange() {
 export async function getAccountBalance(budgetAccountId?: string) {
   const accountId = budgetAccountId || (await getDefaultBudgetAccountId());
 
-  const balanceResult = await db
-    .select({
-      totalIncome: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.amount} ELSE 0 END), 0)`,
-      totalExpenses: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.amount} ELSE 0 END), 0)`,
-    })
-    .from(transactions)
-    .where(eq(transactions.budgetAccountId, accountId));
+  // Get income and expenses separately
+  const incomeResult = await db.transaction.aggregate({
+    where: {
+      budgetAccountId: accountId,
+      type: "income",
+    },
+    _sum: {
+      amount: true,
+    },
+  });
 
-  const income = Number(balanceResult[0]?.totalIncome || 0);
-  const expenses = Number(balanceResult[0]?.totalExpenses || 0);
+  const expenseResult = await db.transaction.aggregate({
+    where: {
+      budgetAccountId: accountId,
+      type: "expense",
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  const income = Number(incomeResult._sum.amount || 0);
+  const expenses = Number(expenseResult._sum.amount || 0);
 
   return income - expenses;
 }
@@ -112,12 +116,12 @@ export async function getMonthlyIncome(budgetAccountId?: string) {
 
   // Get current budget to determine the month to use
   const now = new Date();
-  const currentBudget = await db.query.budgets.findFirst({
-    where: and(
-      eq(budgets.budgetAccountId, accountId),
-      eq(budgets.year, now.getFullYear()),
-      eq(budgets.month, now.getMonth() + 1),
-    ),
+  const currentBudget = await db.budget.findFirst({
+    where: {
+      budgetAccountId: accountId,
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+    },
   });
 
   // Use budget's month if available, otherwise fall back to current month
@@ -148,21 +152,21 @@ export async function getMonthlyIncome(budgetAccountId?: string) {
     endOfMonth = currentEnd;
   }
 
-  const incomeResult = await db
-    .select({
-      totalIncome: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.budgetAccountId, accountId),
-        eq(transactions.type, "income"),
-        gte(transactions.date, toDateString(startOfMonth)),
-        lte(transactions.date, toDateString(endOfMonth)),
-      ),
-    );
+  const incomeResult = await db.transaction.aggregate({
+    where: {
+      budgetAccountId: accountId,
+      type: "income",
+      date: {
+        gte: toPrismaDateTime(startOfMonth),
+        lte: toPrismaDateTime(endOfMonth),
+      },
+    },
+    _sum: {
+      amount: true,
+    },
+  });
 
-  return Number(incomeResult[0]?.totalIncome || 0);
+  return Number(incomeResult._sum.amount || 0);
 }
 
 /**
@@ -173,12 +177,12 @@ export async function getMonthlyExpenses(budgetAccountId?: string) {
 
   // Get current budget to determine the month to use
   const now = new Date();
-  const currentBudget = await db.query.budgets.findFirst({
-    where: and(
-      eq(budgets.budgetAccountId, accountId),
-      eq(budgets.year, now.getFullYear()),
-      eq(budgets.month, now.getMonth() + 1),
-    ),
+  const currentBudget = await db.budget.findFirst({
+    where: {
+      budgetAccountId: accountId,
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+    },
   });
 
   // Use budget's month if available, otherwise fall back to current month
@@ -209,21 +213,21 @@ export async function getMonthlyExpenses(budgetAccountId?: string) {
     endOfMonth = currentEnd;
   }
 
-  const expenseResult = await db
-    .select({
-      totalExpenses: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.budgetAccountId, accountId),
-        eq(transactions.type, "expense"),
-        gte(transactions.date, toDateString(startOfMonth)),
-        lte(transactions.date, toDateString(endOfMonth)),
-      ),
-    );
+  const expenseResult = await db.transaction.aggregate({
+    where: {
+      budgetAccountId: accountId,
+      type: "expense",
+      date: {
+        gte: toPrismaDateTime(startOfMonth),
+        lte: toPrismaDateTime(endOfMonth),
+      },
+    },
+    _sum: {
+      amount: true,
+    },
+  });
 
-  return Number(expenseResult[0]?.totalExpenses || 0);
+  return Number(expenseResult._sum.amount || 0);
 }
 
 /**
@@ -235,17 +239,21 @@ export async function getMonthlySpendingData(budgetAccountId?: string) {
   const accountId = budgetAccountId || (await getDefaultBudgetAccountId());
 
   // Get all transactions for this account (no date filtering)
-  const allTransactions = await db
-    .select({
-      id: transactions.id,
-      amount: transactions.amount,
-      type: transactions.type,
-      date: transactions.date,
-      description: transactions.description,
-    })
-    .from(transactions)
-    .where(eq(transactions.budgetAccountId, accountId))
-    .orderBy(desc(transactions.date));
+  const allTransactions = await db.transaction.findMany({
+    where: {
+      budgetAccountId: accountId,
+    },
+    select: {
+      id: true,
+      amount: true,
+      type: true,
+      date: true,
+      description: true,
+    },
+    orderBy: {
+      date: "desc",
+    },
+  });
 
   // Group transactions by month
   const monthlyTotals = new Map<string, { income: number; expenses: number }>();
@@ -298,12 +306,12 @@ export async function getBudgetCategoriesWithSpending(
   // Get current budget
   const now = new Date();
 
-  const currentBudget = await db.query.budgets.findFirst({
-    where: and(
-      eq(budgets.budgetAccountId, accountId),
-      eq(budgets.year, now.getFullYear()),
-      eq(budgets.month, now.getMonth() + 1),
-    ),
+  const currentBudget = await db.budget.findFirst({
+    where: {
+      budgetAccountId: accountId,
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+    },
   });
 
   if (!currentBudget) {
@@ -330,27 +338,42 @@ export async function getBudgetCategoriesWithSpending(
     999,
   );
 
-  // Single grouped query for all categories' spending
-  const categoriesWithSpendingRaw = await db
-    .select({
-      categoryName: categories.name,
-      budgetAmount: budgetCategories.amount,
-      totalSpent: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
-    })
-    .from(budgetCategories)
-    .innerJoin(categories, eq(budgetCategories.categoryId, categories.id))
-    .leftJoin(
-      transactions,
-      and(
-        eq(transactions.categoryId, categories.id),
-        eq(transactions.budgetAccountId, accountId),
-        eq(transactions.type, "expense"),
-        gte(transactions.date, toDateString(budgetStartOfMonth)),
-        lte(transactions.date, toDateString(budgetEndOfMonth)),
-      ),
-    )
-    .where(eq(budgetCategories.budgetId, currentBudget.id))
-    .groupBy(categories.name, budgetCategories.amount);
+  // Get budget categories with their amounts
+  const budgetCategories = await db.budgetCategory.findMany({
+    where: {
+      budgetId: currentBudget.id,
+    },
+    include: {
+      category: true,
+    },
+  });
+
+  // Get spending data for each category
+  const categoriesWithSpending = await Promise.all(
+    budgetCategories.map(async (budgetCat) => {
+      const spendingResult = await db.transaction.aggregate({
+        where: {
+          categoryId: budgetCat.categoryId,
+          budgetAccountId: accountId,
+          type: "expense",
+          date: {
+            gte: toPrismaDateTime(budgetStartOfMonth),
+            lte: toPrismaDateTime(budgetEndOfMonth),
+          },
+        },
+        _sum: {
+          amount: true,
+        },
+      });
+
+      return {
+        name: budgetCat.category.name,
+        spent: Number(spendingResult._sum.amount || 0),
+        budget: Number(budgetCat.amount),
+        color: budgetCat.category.color || "rgb(78, 0, 142)",
+      };
+    }),
+  );
 
   // Color scheme for budget categories (primary colors)
   const colors = [
@@ -361,17 +384,11 @@ export async function getBudgetCategoriesWithSpending(
     "rgb(230, 204, 255)", // primary-100
   ];
 
-  // Map results to match previous structure and assign colors
-  const categoriesWithSpending = categoriesWithSpendingRaw.map(
-    (row, index) => ({
-      name: row.categoryName,
-      spent: Number(row.totalSpent || 0),
-      budget: Number(row.budgetAmount),
-      color: colors[index % colors.length],
-    }),
-  );
-
-  return categoriesWithSpending;
+  // Assign colors if not set
+  return categoriesWithSpending.map((category, index) => ({
+    ...category,
+    color: category.color || colors[index % colors.length],
+  }));
 }
 
 /**
@@ -386,47 +403,55 @@ export async function getBudgetCategoriesWithSpendingForDateRange(
 
   // Get current budget (we'll use this for budget amounts)
   const now = new Date();
-  const currentBudget = await db.query.budgets.findFirst({
-    where: and(
-      eq(budgets.budgetAccountId, accountId),
-      eq(budgets.year, now.getFullYear()),
-      eq(budgets.month, now.getMonth() + 1),
-    ),
+  const currentBudget = await db.budget.findFirst({
+    where: {
+      budgetAccountId: accountId,
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+    },
   });
 
   // Get all categories for the budget account
-  const allCategories = await db
-    .select({
-      id: categories.id,
-      name: categories.name,
-      color: categories.color,
-    })
-    .from(categories)
-    .where(eq(categories.budgetAccountId, accountId));
+  const allCategories = await db.category.findMany({
+    where: {
+      budgetAccountId: accountId,
+    },
+    select: {
+      id: true,
+      name: true,
+      color: true,
+    },
+  });
 
   // If no current budget exists, show all categories with zero budget
   if (!currentBudget) {
     // Get spending data for the date range
-    const spendingData = await db
-      .select({
-        categoryId: transactions.categoryId,
-        totalSpent: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
-      })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.budgetAccountId, accountId),
-          eq(transactions.type, "expense"),
-          gte(transactions.date, toDateString(startDate)),
-          lte(transactions.date, toDateString(endDate)),
-          sql`${transactions.categoryId} IS NOT NULL`,
-        ),
-      )
-      .groupBy(transactions.categoryId);
+    const spendingData = await db.transaction.groupBy({
+      by: ["categoryId"],
+      where: {
+        budgetAccountId: accountId,
+        type: "expense",
+        date: {
+          gte: toPrismaDateTime(startDate),
+          lte: toPrismaDateTime(endDate),
+        },
+        categoryId: {
+          not: null,
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
 
     // Create a map of category ID to spending
     const spendingMap = new Map(
-      spendingData.map((s) => [s.categoryId, Number(s.totalSpent)]),
+      (
+        spendingData as {
+          categoryId: string;
+          _sum: { amount: number | null };
+        }[]
+      ).map((s) => [s.categoryId, Number(s._sum.amount || 0)]),
     );
 
     // Color scheme for budget categories (primary colors)
@@ -448,13 +473,15 @@ export async function getBudgetCategoriesWithSpendingForDateRange(
   }
 
   // Get budget amounts for each category
-  const budgetAmounts = await db
-    .select({
-      categoryId: budgetCategories.categoryId,
-      amount: budgetCategories.amount,
-    })
-    .from(budgetCategories)
-    .where(eq(budgetCategories.budgetId, currentBudget.id));
+  const budgetAmounts = await db.budgetCategory.findMany({
+    where: {
+      budgetId: currentBudget.id,
+    },
+    select: {
+      categoryId: true,
+      amount: true,
+    },
+  });
 
   // Create a map of category ID to budget amount
   const budgetMap = new Map(
@@ -462,26 +489,29 @@ export async function getBudgetCategoriesWithSpendingForDateRange(
   );
 
   // Get spending data for the date range
-  const spendingData = await db
-    .select({
-      categoryId: transactions.categoryId,
-      totalSpent: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.budgetAccountId, accountId),
-        eq(transactions.type, "expense"),
-        gte(transactions.date, toDateString(startDate)),
-        lte(transactions.date, toDateString(endDate)),
-        sql`${transactions.categoryId} IS NOT NULL`,
-      ),
-    )
-    .groupBy(transactions.categoryId);
+  const spendingData = await db.transaction.groupBy({
+    by: ["categoryId"],
+    where: {
+      budgetAccountId: accountId,
+      type: "expense",
+      date: {
+        gte: toPrismaDateTime(startDate),
+        lte: toPrismaDateTime(endDate),
+      },
+      categoryId: {
+        not: null,
+      },
+    },
+    _sum: {
+      amount: true,
+    },
+  });
 
   // Create a map of category ID to spending
   const spendingMap = new Map(
-    spendingData.map((s) => [s.categoryId, Number(s.totalSpent)]),
+    (
+      spendingData as { categoryId: string; _sum: { amount: number | null } }[]
+    ).map((s) => [s.categoryId, Number(s._sum.amount || 0)]),
   );
 
   // Color scheme for budget categories (primary colors)

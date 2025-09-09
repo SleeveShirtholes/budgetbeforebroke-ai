@@ -10,7 +10,11 @@ import {
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import { useToast } from "@/components/Toast";
-import { createDebt, getDebts, type Debt } from "@/app/actions/debt";
+import {
+  createDebt,
+  getDebts,
+  type DebtWithPayments,
+} from "@/app/actions/debt";
 import DebtModal from "@/components/DebtModal";
 
 import EditDebtModal from "./EditDebtModal";
@@ -49,18 +53,25 @@ export default function DebtManagement({
   onDebtUpdate,
 }: DebtManagementProps) {
   const { showToast } = useToast();
-  const [debts, setDebts] = useState<Debt[]>([]);
+  const [debts, setDebts] = useState<DebtWithPayments[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
-  const [deletingDebt, setDeletingDebt] = useState<Debt | null>(null);
+  const [editingDebt, setEditingDebt] = useState<DebtWithPayments | null>(null);
+  const [deletingDebt, setDeletingDebt] = useState<DebtWithPayments | null>(
+    null,
+  );
 
   // Fetch debts function
   const fetchDebts = useCallback(async () => {
     try {
       const fetchedDebts = await getDebts(budgetAccountId);
-      setDebts(fetchedDebts);
+      setDebts(
+        fetchedDebts.map((debt) => ({
+          ...debt,
+          categoryId: debt.categoryId || undefined,
+        })),
+      );
     } catch (error) {
       console.error("Failed to fetch debts:", error);
       setError("Failed to load debts");
@@ -88,11 +99,11 @@ export default function DebtManagement({
     setError(null);
   };
 
-  const handleEditDebt = (debt: Debt) => {
+  const handleEditDebt = (debt: DebtWithPayments) => {
     setEditingDebt(debt);
   };
 
-  const handleDeleteDebt = (debt: Debt) => {
+  const handleDeleteDebt = (debt: DebtWithPayments) => {
     setDeletingDebt(debt);
   };
 

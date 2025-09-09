@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/config";
-import { emailConversations, contactSubmissions } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 /**
  * Webhook endpoint for Resend to send incoming emails
@@ -50,27 +49,30 @@ export async function POST(request: NextRequest) {
 
       if (conversationId) {
         // Store the incoming email in the conversation
-        await db.insert(emailConversations).values({
-          conversationId,
-          messageId,
-          fromEmail,
-          fromName,
-          toEmail,
-          subject,
-          message,
-          messageType: "user_reply",
-          direction: "inbound",
-          rawEmail: JSON.stringify(email),
+        await db.emailConversation.create({
+          data: {
+            id: randomUUID(),
+            conversationId,
+            messageId,
+            fromEmail,
+            fromName,
+            toEmail,
+            subject,
+            message,
+            messageType: "user_reply",
+            direction: "inbound",
+            rawEmail: JSON.stringify(email),
+          },
         });
 
         // Update the contact submission with the last user message time
-        await db
-          .update(contactSubmissions)
-          .set({
+        await db.contactSubmission.updateMany({
+          where: { conversationId },
+          data: {
             lastUserMessageAt: new Date(),
             updatedAt: new Date(),
-          })
-          .where(eq(contactSubmissions.conversationId, conversationId));
+          },
+        });
 
         console.log(
           `Stored incoming email for conversation: ${conversationId}`,
@@ -132,15 +134,14 @@ async function findConversationByEmailAndSubject(
 ): Promise<string | null> {
   try {
     // Look for submissions from this email address
-    const submissions = await db
-      .select({ conversationId: contactSubmissions.conversationId })
-      .from(contactSubmissions)
-      .where(eq(contactSubmissions.email, fromEmail))
-      .orderBy(desc(contactSubmissions.createdAt))
-      .limit(1);
+    const submission = await db.contactSubmission.findFirst({
+      where: { email: fromEmail },
+      orderBy: { createdAt: "desc" },
+      select: { conversationId: true },
+    });
 
-    if (submissions.length > 0) {
-      return submissions[0].conversationId;
+    if (submission) {
+      return submission.conversationId;
     }
 
     return null;

@@ -28,8 +28,12 @@ export default function IncomePage() {
       const sources = await getIncomeSources();
       return sources.map((source) => ({
         ...source,
-        endDate: source.endDate || undefined,
+        startDate: source.startDate.toISOString().split("T")[0],
+        endDate: source.endDate
+          ? source.endDate.toISOString().split("T")[0]
+          : undefined,
         notes: source.notes || undefined,
+        frequency: source.frequency as "weekly" | "bi-weekly" | "monthly",
       }));
     },
     {

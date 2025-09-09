@@ -24,7 +24,9 @@ jest.mock("../auth", () => ({
 // Mock the database
 jest.mock("@/db/config", () => ({
   db: {
-    select: jest.fn(),
+    user: {
+      findUnique: jest.fn(),
+    },
   },
 }));
 
@@ -95,13 +97,7 @@ describe("Auth Helpers", () => {
       };
 
       mockAuth.api.getSession.mockResolvedValue({ user: mockSessionUser });
-
-      const mockSelect = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([mockDbUser]),
-        }),
-      });
-      mockDb.select.mockReturnValue(mockSelect());
+      mockDb.user.findUnique.mockResolvedValue(mockDbUser);
 
       const result = await getCurrentUserWithAdmin();
 
@@ -123,13 +119,7 @@ describe("Auth Helpers", () => {
         name: "Test User",
       };
       mockAuth.api.getSession.mockResolvedValue({ user: mockSessionUser });
-
-      const mockSelect = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockRejectedValue(new Error("DB error")),
-        }),
-      });
-      mockDb.select.mockReturnValue(mockSelect());
+      mockDb.user.findUnique.mockRejectedValue(new Error("DB error"));
 
       const result = await getCurrentUserWithAdmin();
 
@@ -150,13 +140,7 @@ describe("Auth Helpers", () => {
       };
 
       mockAuth.api.getSession.mockResolvedValue({ user: mockSessionUser });
-
-      const mockSelect = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([mockDbUser]),
-        }),
-      });
-      mockDb.select.mockReturnValue(mockSelect());
+      mockDb.user.findUnique.mockResolvedValue(mockDbUser);
 
       const result = await isCurrentUserGlobalAdmin();
 
@@ -175,13 +159,7 @@ describe("Auth Helpers", () => {
       };
 
       mockAuth.api.getSession.mockResolvedValue({ user: mockSessionUser });
-
-      const mockSelect = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([mockDbUser]),
-        }),
-      });
-      mockDb.select.mockReturnValue(mockSelect());
+      mockDb.user.findUnique.mockResolvedValue(mockDbUser);
 
       const result = await isCurrentUserGlobalAdmin();
 
@@ -241,13 +219,7 @@ describe("Auth Helpers", () => {
       };
 
       mockAuth.api.getSession.mockResolvedValue({ user: mockSessionUser });
-
-      const mockSelect = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([mockDbUser]),
-        }),
-      });
-      mockDb.select.mockReturnValue(mockSelect());
+      mockDb.user.findUnique.mockResolvedValue(mockDbUser);
 
       const result = await requireGlobalAdmin();
 
@@ -274,13 +246,7 @@ describe("Auth Helpers", () => {
       };
 
       mockAuth.api.getSession.mockResolvedValue({ user: mockSessionUser });
-
-      const mockSelect = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([mockDbUser]),
-        }),
-      });
-      mockDb.select.mockReturnValue(mockSelect());
+      mockDb.user.findUnique.mockResolvedValue(mockDbUser);
 
       await expect(requireGlobalAdmin()).rejects.toThrow(
         "Global admin access required",
